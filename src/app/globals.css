@@ -1,0 +1,174 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Montreal Spider Co. — Brand system
+   Palette pulled from the gold-on-black company seal.
+   ============================================================ */
+
+:root {
+  --ink: #0a0a0c;
+  --ink-soft: #121216;
+  --ink-card: #16161b;
+  --line: #2a2620;
+  --gold: #c9a24b;
+  --gold-bright: #e6c882;
+  --gold-deep: #9c7a32;
+  --cream: #f3ecdb;
+  --bone: #bdb4a1;
+  --muted: #8a8373;
+  --danger: #c2543d;
+  --ok: #7fae5e;
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-card: var(--ink-card);
+  --color-line: var(--line);
+  --color-gold: var(--gold);
+  --color-gold-bright: var(--gold-bright);
+  --color-gold-deep: var(--gold-deep);
+  --color-cream: var(--cream);
+  --color-bone: var(--bone);
+  --color-muted: var(--muted);
+  --color-danger: var(--danger);
+  --color-ok: var(--ok);
+
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+
+  --color-background: var(--ink);
+  --color-foreground: var(--cream);
+}
+
+* {
+  border-color: var(--line);
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--ink);
+  color: var(--cream);
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  overflow-x: hidden;
+  background-image:
+    radial-gradient(1200px 600px at 80% -10%, rgba(201, 162, 75, 0.08), transparent 60%),
+    radial-gradient(900px 500px at -10% 20%, rgba(201, 162, 75, 0.05), transparent 55%);
+  background-attachment: fixed;
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+  letter-spacing: 0.01em;
+}
+
+::selection {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: var(--ink); }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(var(--gold-deep), var(--gold));
+  border-radius: 999px;
+  border: 3px solid var(--ink);
+}
+
+/* ---------- Reusable utilities ---------- */
+.container-x { width: 100%; max-width: 1240px; margin-inline: auto; padding-inline: 1.25rem; }
+
+.text-gradient-gold {
+  background: linear-gradient(100deg, var(--gold-bright), var(--gold) 45%, var(--gold-deep));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hairline { border-top: 1px solid var(--line); }
+
+.card-glow {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.2)),
+    var(--ink-card);
+  border: 1px solid var(--line);
+  transition: transform .4s cubic-bezier(.2,.7,.2,1), border-color .3s, box-shadow .4s;
+}
+.card-glow:hover {
+  border-color: color-mix(in srgb, var(--gold) 55%, transparent);
+  box-shadow: 0 18px 50px -22px rgba(201,162,75,0.45);
+}
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .55rem;
+  font-weight: 600; letter-spacing: .02em;
+  padding: .8rem 1.4rem; border-radius: .7rem;
+  transition: transform .18s ease, box-shadow .25s ease, background .25s, color .25s, border-color .25s;
+  cursor: pointer; white-space: nowrap;
+}
+.btn:active { transform: translateY(1px) scale(.99); }
+.btn-gold {
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  color: #1a1407;
+  box-shadow: 0 10px 30px -12px rgba(201,162,75,0.6);
+}
+.btn-gold:hover { box-shadow: 0 14px 38px -10px rgba(201,162,75,0.8); transform: translateY(-1px); }
+.btn-ghost {
+  border: 1px solid var(--line); color: var(--cream); background: transparent;
+}
+.btn-ghost:hover { border-color: var(--gold); color: var(--gold-bright); }
+
+.badge {
+  display: inline-flex; align-items: center; gap: .4rem;
+  font-size: .68rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  padding: .28rem .6rem; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--gold) 40%, transparent);
+  color: var(--gold-bright); background: color-mix(in srgb, var(--gold) 8%, transparent);
+}
+
+.input {
+  width: 100%; background: var(--ink-soft); border: 1px solid var(--line);
+  color: var(--cream); border-radius: .6rem; padding: .7rem .85rem; outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+.input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,162,75,.15); }
+.input::placeholder { color: var(--muted); }
+label.field { display: block; }
+label.field > span { display:block; font-size:.78rem; color: var(--bone); margin-bottom:.35rem; letter-spacing:.03em; }
+
+/* ---------- Animations ---------- */
+@keyframes floaty { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-12px) } }
+.animate-floaty { animation: floaty 7s ease-in-out infinite; }
+
+@keyframes shimmer { 0% { background-position: -200% 0 } 100% { background-position: 200% 0 } }
+.shimmer {
+  background: linear-gradient(90deg, transparent, rgba(230,200,130,.25), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2.2s linear infinite;
+}
+
+@keyframes spin-slow { to { transform: rotate(360deg) } }
+.animate-spin-slow { animation: spin-slow 40s linear infinite; }
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(201,162,75,.45) }
+  70% { box-shadow: 0 0 0 14px rgba(201,162,75,0) }
+  100% { box-shadow: 0 0 0 0 rgba(201,162,75,0) }
+}
+.pulse-ring { animation: pulse-ring 2.4s ease-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+}
+
+.web-grid {
+  background-image:
+    linear-gradient(rgba(201,162,75,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(201,162,75,.06) 1px, transparent 1px);
+  background-size: 38px 38px;
+}

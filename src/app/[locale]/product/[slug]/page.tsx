@@ -1,0 +1,215 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { isLocale, locales, type Locale } from "@/i18n/config";
+import { getDictionary } from "@/i18n/dictionaries";
+import { getProduct, PRODUCTS, relatedProducts } from "@/lib/products";
+import { t } from "@/lib/types";
+import { localeHref } from "@/lib/href";
+import { formatPrice } from "@/lib/format";
+import { breadcrumbSchema, productSchema } from "@/lib/seo";
+import SpiderGraphic from "@/components/SpiderGraphic";
+import AddToCart from "@/components/AddToCart";
+import VerifiedBadge from "@/components/VerifiedBadge";
+import ProductCard from "@/components/ProductCard";
+import JsonLd from "@/components/JsonLd";
+import Reveal from "@/components/Reveal";
+
+export function generateStaticParams() {
+  return locales.flatMap((locale) => PRODUCTS.map((p) => ({ locale, slug: p.slug })));
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; slug: string }>;
+}): Promise<Metadata> {
+  const { locale, slug } = await params;
+  const loc: Locale = isLocale(locale) ? locale : "en";
+  const product = getProduct(slug);
+  if (!product) return {};
+  const dict = await getDictionary(loc);
+  const name = `${t(product.common, loc)} (${product.scientific})`;
+  return {
+    title: name,
+    description: t(product.description, loc),
+    alternates: {
+      canonical: localeHref(loc, `/product/${slug}`),
+      languages: {
+        en: `/en/product/${slug}`,
+        fr: `/fr/product/${slug}`,
+        "x-default": `/en/product/${slug}`,
+      },
+    },
+    openGraph: {
+      title: `${name} · ${dict.meta.siteName}`,
+      description: t(product.description, loc),
+      type: "website",
+    },
+  };
+}
+
+export default async function ProductPage({
+  params,
+}: {
+  params: Promise<{ locale: string; slug: string }>;
+}) {
+  const { locale, slug } = await params;
+  if (!isLocale(locale)) notFound();
+  const loc: Locale = locale;
+  const product = getProduct(slug);
+  if (!product) notFound();
+  const dict = await getDictionary(loc);
+  const p = dict.product;
+  const related = relatedProducts(product);
+
+  const specs = [
+    { label: p.adultSize, value: t(product.adultSize, loc) },
+    { label: p.growth, value: t(product.growth, loc) },
+    { label: p.temperament, value: dict.filters[product.temperament] },
+    { label: p.type, value: dict.filters[product.type] },
+    { label: p.origin, value: t(product.origin, loc) },
+    { label: p.lifespanF, value: t(product.lifespan, loc) },
+  ];
+
+  const care = [
+    { label: p.humidity, value: product.humidity },
+    { label: p.temperature, value: product.temperature },
+    { label: p.enclosure, value: t(product.enclosure, loc) },
+    { label: p.diet, value: t(product.diet, loc) },
+  ];
+
+  const guarantees = [p.guaranteeLive, p.guaranteeLocal, p.guaranteeSupport];
+
+  return (
+    <>
+      <JsonLd data={productSchema(product, loc)} />
+      <JsonLd
+        data={breadcrumbSchema([
+          { name: dict.meta.siteName, url: `/${loc}` },
+          { name: p.breadcrumb, url: `/${loc}/shop` },
+          { name: t(product.common, loc), url: `/${loc}/product/${slug}` },
+        ])}
+      />
+
+      <div className="container-x py-8 md:py-12">
+        {/* Breadcrumb */}
+        <nav className="mb-6 flex items-center gap-2 text-sm text-muted">
+          <Link href={localeHref(loc, "/")} className="hover:text-gold-bright">{dict.meta.siteName}</Link>
+          <span>/</span>
+          <Link href={localeHref(loc, "/shop")} className="hover:text-gold-bright">{p.breadcrumb}</Link>
+          <span>/</span>
+          <span className="text-bone">{t(product.common, loc)}</span>
+        </nav>
+
+        <div className="grid gap-10 lg:grid-cols-2">
+          {/* Visual */}
+          <div className="lg:sticky lg:top-24 lg:self-start">
+            <div
+              className="relative aspect-square overflow-hidden rounded-3xl border border-line"
+              style={{ background: `radial-gradient(130% 130% at 50% 20%, hsl(${product.hue} 32% 18%), var(--ink))` }}
+            >
+              <div className="web-grid absolute inset-0 opacity-30" />
+              <SpiderGraphic hue={product.hue} accent={product.accent} className="relative h-full w-full p-6" />
+              <div className="absolute left-4 top-4">
+                <VerifiedBadge label="Verified Origin" size="sm" />
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              {guarantees.map((g) => (
+                <div key={g} className="rounded-xl border border-line bg-ink-soft/40 p-3 text-center text-xs text-bone">
+                  {g}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Info */}
+          <div>
+            <span className="text-sm font-semibold uppercase tracking-wider text-gold-deep">{product.genus}</span>
+            <h1 className="mt-1 font-display text-4xl font-bold leading-tight text-cream md:text-5xl">
+              {t(product.common, loc)}
+            </h1>
+            <p className="mt-1 text-lg italic text-muted">{product.scientific}</p>
+
+            <div className="mt-3 flex items-center gap-3 text-sm">
+              <span className="text-gold-bright">{"★".repeat(Math.round(product.rating))}</span>
+              <span className="text-bone">{product.rating.toFixed(1)} · {product.reviews} {loc === "fr" ? "avis" : "reviews"}</span>
+            </div>
+
+            <p className="mt-2 text-2xl font-bold text-cream">
+              <span className="text-sm font-normal text-muted">{dict.common.from} </span>
+              {formatPrice(Math.min(...product.sizes.map((s) => s.price)), loc)}
+            </p>
+
+            <div className="my-6 h-px bg-line" />
+
+            <AddToCart product={product} />
+
+            <p className="mt-4 rounded-xl border border-gold/20 bg-gold/5 p-3 text-center text-sm text-bone">
+              ✦ {p.shippingNote}
+            </p>
+
+            <section className="mt-8">
+              <h2 className="mb-3 font-display text-xl font-semibold text-cream">{p.description}</h2>
+              <p className="leading-relaxed text-bone">{t(product.description, loc)}</p>
+            </section>
+
+            <section className="mt-8">
+              <h2 className="mb-3 font-display text-xl font-semibold text-cream">{p.specs}</h2>
+              <dl className="grid grid-cols-2 gap-3">
+                {specs.map((spec) => (
+                  <div key={spec.label} className="rounded-xl border border-line bg-ink-soft/40 p-3">
+                    <dt className="text-xs uppercase tracking-wide text-muted">{spec.label}</dt>
+                    <dd className="mt-0.5 text-sm font-medium text-cream">{spec.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+
+            <section className="mt-8">
+              <h2 className="mb-3 font-display text-xl font-semibold text-cream">{p.careTitle}</h2>
+              <dl className="grid grid-cols-2 gap-3">
+                {care.map((spec) => (
+                  <div key={spec.label} className="rounded-xl border border-line bg-ink-soft/40 p-3">
+                    <dt className="text-xs uppercase tracking-wide text-muted">{spec.label}</dt>
+                    <dd className="mt-0.5 text-sm font-medium text-cream">{spec.value}</dd>
+                  </div>
+                ))}
+              </dl>
+              {product.careGuide && (
+                <Link href={localeHref(loc, `/care/${product.careGuide}`)} className="mt-4 inline-block text-sm font-semibold text-gold-bright hover:underline">
+                  {p.fullGuide} →
+                </Link>
+              )}
+            </section>
+
+            <section className="mt-8 rounded-2xl border border-gold/25 bg-gradient-to-br from-gold/10 to-transparent p-5">
+              <VerifiedBadge label={p.verifiedTitle} />
+              <p className="mt-3 text-sm leading-relaxed text-bone">{p.verifiedBody}</p>
+              <Link href={localeHref(loc, "/verified-origin")} className="mt-3 inline-block text-sm font-semibold text-gold-bright hover:underline">
+                {dict.common.learnMore} →
+              </Link>
+            </section>
+          </div>
+        </div>
+
+        {/* Related */}
+        {related.length > 0 && (
+          <section className="mt-20">
+            <Reveal className="mb-6">
+              <h2 className="font-display text-2xl font-bold text-cream">{p.related}</h2>
+            </Reveal>
+            <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-3">
+              {related.map((rp) => (
+                <ProductCard key={rp.id} product={rp} />
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+    </>
+  );
+}
+
+export const dynamicParams = false;
