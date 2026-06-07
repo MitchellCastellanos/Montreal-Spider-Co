@@ -8,7 +8,7 @@ import { CARE_GUIDES } from "@/lib/care";
 import { t } from "@/lib/types";
 import PageHero from "@/components/PageHero";
 import Reveal from "@/components/Reveal";
-import SpiderGraphic from "@/components/SpiderGraphic";
+import Image from "next/image";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -30,11 +30,15 @@ export default async function CarePage({ params }: { params: Promise<{ locale: s
           {CARE_GUIDES.map((g, i) => (
             <Reveal key={g.slug} delay={i * 0.07}>
               <Link href={localeHref(loc, `/care/${g.slug}`)} className="card-glow group flex h-full flex-col overflow-hidden rounded-2xl">
-                <div className="relative aspect-[16/9] overflow-hidden" style={{ background: `radial-gradient(120% 120% at 50% 20%, hsl(${g.hue} 30% 16%), var(--ink))` }}>
-                  <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-110">
-                    <SpiderGraphic hue={g.hue} animate={false} className="h-full w-full p-4" />
-                  </div>
-                  <span className="absolute left-3 top-3 badge">{dict.filters[g.level]}</span>
+                <div className="relative aspect-[16/9] overflow-hidden bg-ink">
+                  <Image
+                    src={`/images/care/${g.slug}.png`}
+                    alt={t(g.title, loc)}
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    className="object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                  <span className="absolute left-3 top-3 badge backdrop-blur-sm">{dict.filters[g.level]}</span>
                 </div>
                 <div className="flex flex-1 flex-col p-5">
                   <h2 className="font-display text-xl font-semibold text-cream group-hover:text-gold-bright">{t(g.title, loc)}</h2>
