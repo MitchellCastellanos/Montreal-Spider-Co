@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { isLocale, locales, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { CARE_GUIDES, getCareGuide } from "@/lib/care";
@@ -59,6 +60,18 @@ export default async function CareGuidePage({ params }: { params: Promise<{ loca
         <Link href={localeHref(loc, "/care")} className="mb-8 inline-block text-sm text-gold-deep hover:text-gold-bright">
           ← {dict.care.backToGuides}
         </Link>
+        <Reveal className="mx-auto mb-12 max-w-4xl">
+          <div className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl border border-line">
+            <Image
+              src={`/images/care/${slug}.png`}
+              alt={t(guide.title, loc)}
+              fill
+              priority
+              sizes="(max-width: 1024px) 100vw, 896px"
+              className="object-cover"
+            />
+          </div>
+        </Reveal>
         <div className="mx-auto max-w-2xl space-y-10">
           {guide.sections.map((section, i) => (
             <Reveal key={i} as="section">

@@ -6,6 +6,7 @@ import { localeHref } from "@/lib/href";
 import PageHero from "@/components/PageHero";
 import Reveal from "@/components/Reveal";
 import VerifiedBadge from "@/components/VerifiedBadge";
+import Image from "next/image";
 import Link from "next/link";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
@@ -36,17 +37,17 @@ export default async function VerifiedPage({ params }: { params: Promise<{ local
       <section className="container-x py-16">
         <div className="grid items-center gap-10 lg:grid-cols-2">
           <Reveal>
-            <div className="relative mx-auto flex aspect-square max-w-sm items-center justify-center rounded-full border border-gold/30 bg-gradient-to-br from-gold/10 to-transparent">
-              <div className="absolute inset-6 rounded-full border border-gold/20 animate-spin-slow" />
-              <div className="text-center">
-                <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full border-2 border-gold text-gold-bright pulse-ring">
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                    <path d="M12 2l2.4 1.7 2.9-.2 1 2.8 2.4 1.7-.8 2.8.8 2.8-2.4 1.7-1 2.8-2.9-.2L12 22l-2.4-1.7-2.9.2-1-2.8L3.3 16l.8-2.8L3.3 10.4 5.7 8.7l1-2.8 2.9.2L12 2z" />
-                    <path d="M8.5 12.2l2.4 2.4 4.6-5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-                <p className="font-display text-lg font-bold text-cream">TarantulApp</p>
-                <p className="text-sm uppercase tracking-[0.25em] text-gold-bright">Verified Origin</p>
+            <div className="relative aspect-[7/5] overflow-hidden rounded-3xl border border-line">
+              <Image
+                src="/images/verified-origin.png"
+                alt={v.title}
+                fill
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-cover"
+              />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/50 to-transparent" />
+              <div className="absolute bottom-4 left-4">
+                <VerifiedBadge label={v.kicker} />
               </div>
             </div>
           </Reveal>

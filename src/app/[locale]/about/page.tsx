@@ -5,8 +5,8 @@ import { pageMeta } from "@/lib/pageMeta";
 import { localeHref } from "@/lib/href";
 import PageHero from "@/components/PageHero";
 import Reveal from "@/components/Reveal";
-import SpiderGraphic from "@/components/SpiderGraphic";
 import VerifiedBadge from "@/components/VerifiedBadge";
+import Image from "next/image";
 import Link from "next/link";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
@@ -46,9 +46,15 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
       <section className="container-x py-16">
         <div className="grid items-center gap-10 lg:grid-cols-2">
           <Reveal>
-            <div className="relative aspect-square overflow-hidden rounded-3xl border border-line bg-gradient-to-br from-ink-soft to-ink">
-              <div className="web-grid absolute inset-0 opacity-30" />
-              <SpiderGraphic hue={36} accent="#e6c882" className="h-full w-full p-8" />
+            <div className="relative aspect-square overflow-hidden rounded-3xl border border-line">
+              <Image
+                src="/images/about-studio.png"
+                alt={a.title}
+                fill
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-cover"
+              />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/60 to-transparent" />
             </div>
           </Reveal>
           <Reveal delay={0.1}>
@@ -67,6 +73,21 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
             </div>
           </Reveal>
         </div>
+      </section>
+
+      <section className="container-x pb-4">
+        <Reveal>
+          <div className="relative aspect-[16/7] w-full overflow-hidden rounded-3xl border border-line">
+            <Image
+              src="/images/about-enclosures.png"
+              alt={a.value1Title}
+              fill
+              sizes="100vw"
+              className="object-cover"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/70 via-transparent to-transparent" />
+          </div>
+        </Reveal>
       </section>
 
       <section className="border-y border-line bg-ink-soft/40">

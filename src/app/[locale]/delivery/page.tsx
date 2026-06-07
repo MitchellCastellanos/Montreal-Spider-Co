@@ -8,6 +8,7 @@ import { t } from "@/lib/types";
 import { formatPrice } from "@/lib/format";
 import PageHero from "@/components/PageHero";
 import Reveal from "@/components/Reveal";
+import Image from "next/image";
 import Link from "next/link";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
@@ -26,6 +27,22 @@ export default async function DeliveryPage({ params }: { params: Promise<{ local
   return (
     <>
       <PageHero kicker={d.kicker} title={d.title} subtitle={d.subtitle} />
+
+      <section className="container-x pt-12">
+        <Reveal>
+          <div className="relative aspect-[16/8] w-full overflow-hidden rounded-3xl border border-line">
+            <Image
+              src="/images/delivery.png"
+              alt={d.localTitle}
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/70 via-transparent to-transparent" />
+          </div>
+        </Reveal>
+      </section>
 
       <section className="container-x py-16">
         <div className="grid gap-8 lg:grid-cols-3">

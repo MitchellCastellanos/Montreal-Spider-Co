@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useI18n } from "@/i18n/I18nProvider";
 
 export default function Newsletter() {
@@ -10,7 +11,14 @@ export default function Newsletter() {
 
   return (
     <div className="relative overflow-hidden rounded-3xl border border-line bg-ink-soft p-8 sm:p-12">
-      <div className="web-grid pointer-events-none absolute inset-0 opacity-30" />
+      <Image
+        src="/images/cta-texture.png"
+        alt=""
+        fill
+        sizes="100vw"
+        className="pointer-events-none absolute inset-0 object-cover opacity-40"
+      />
+      <div className="web-grid pointer-events-none absolute inset-0 opacity-20" />
       <div className="relative mx-auto max-w-xl text-center">
         <h2 className="font-display text-3xl font-bold text-cream sm:text-4xl">{h.newsletterTitle}</h2>
         <p className="mt-3 text-bone">{h.newsletterBody}</p>

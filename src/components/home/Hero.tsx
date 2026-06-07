@@ -2,6 +2,7 @@
 
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
+import Image from "next/image";
 import LocaleLink from "@/components/LocaleLink";
 import SpiderGraphic from "@/components/SpiderGraphic";
 import VerifiedBadge from "@/components/VerifiedBadge";
@@ -24,7 +25,16 @@ export default function Hero() {
 
   return (
     <section ref={ref} className="relative overflow-hidden">
-      <div className="web-grid pointer-events-none absolute inset-0 opacity-50" />
+      <Image
+        src="/images/hero-bg.png"
+        alt=""
+        fill
+        priority
+        sizes="100vw"
+        className="pointer-events-none absolute inset-0 -z-10 object-cover opacity-40"
+      />
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-r from-ink/60 via-ink/40 to-ink" />
+      <div className="web-grid pointer-events-none absolute inset-0 opacity-40" />
       <div className="pointer-events-none absolute -right-40 top-1/2 h-[700px] w-[700px] -translate-y-1/2 rounded-full bg-gold/5 blur-3xl" />
 
       <div className="container-x relative grid items-center gap-10 py-16 md:py-24 lg:grid-cols-2">
