@@ -6,6 +6,7 @@ import { useI18n, useT } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
 import LocaleLink from "./LocaleLink";
 import SpiderGraphic from "./SpiderGraphic";
+import SpeciesImage from "./SpeciesImage";
 
 export default function CartDrawer() {
   const { isOpen, closeCart, resolved, subtotal, setQty, remove, count } = useCart();
@@ -58,8 +59,8 @@ export default function CartDrawer() {
                 <ul className="space-y-4">
                   {resolved.map((line) => (
                     <li key={line.key} className="flex gap-3 border-b border-line/60 pb-4">
-                      <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-line bg-ink">
-                        <SpiderGraphic hue={line.product.hue} accent={line.product.accent} animate={false} />
+                      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-line bg-ink">
+                        <SpeciesImage image={line.product.image} hue={line.product.hue} accent={line.product.accent} alt={tr(line.product.common)} sizes="64px" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <LocaleLink

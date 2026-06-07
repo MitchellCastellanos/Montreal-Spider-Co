@@ -1,0 +1,88 @@
+// Montreal Spider Co. — database schema (Supabase Postgres)
+// Run `npx prisma generate` after changes, and `npx prisma migrate deploy`
+// (or `npx prisma db push`) to apply to your database. See SETUP_SUPABASE.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Experience {
+  beginner
+  intermediate
+  advanced
+}
+
+enum SpiderType {
+  terrestrial
+  arboreal
+  fossorial
+}
+
+enum Temperament {
+  docile
+  skittish
+  defensive
+}
+
+model Product {
+  id            String       @id @default(cuid())
+  slug          String       @unique
+  scientific    String
+  commonEn      String
+  commonFr      String
+  genus         String
+  experience    Experience
+  type          SpiderType
+  temperament   Temperament
+  featured      Boolean      @default(false)
+  newArrival    Boolean      @default(false)
+  rating        Float        @default(5)
+  reviews       Int          @default(0)
+  hue           Int          @default(36)
+  accent        String       @default("#c9a24b")
+  image         String?
+  adultSizeEn   String       @default("")
+  adultSizeFr   String       @default("")
+  growthEn      String       @default("")
+  growthFr      String       @default("")
+  originEn      String       @default("")
+  originFr      String       @default("")
+  lifespanEn    String       @default("")
+  lifespanFr    String       @default("")
+  humidity      String       @default("")
+  temperature   String       @default("")
+  enclosureEn   String       @default("")
+  enclosureFr   String       @default("")
+  dietEn        String       @default("")
+  dietFr        String       @default("")
+  descriptionEn String       @default("")
+  descriptionFr String       @default("")
+  careGuide     String?
+  arrived       DateTime     @default(now())
+  sizes         ProductSize[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([experience])
+  @@index([genus])
+}
+
+model ProductSize {
+  id        String  @id @default(cuid())
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+  key       String
+  labelEn   String
+  labelFr   String
+  price     Float
+  stock     Int     @default(0)
+  position  Int     @default(0)
+
+  @@index([productId])
+}

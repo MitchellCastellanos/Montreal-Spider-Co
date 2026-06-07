@@ -6,19 +6,66 @@
 
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 import { PRODUCTS } from "@/lib/products";
-import type { Product, SizeOption } from "@/lib/types";
+import type { L, Product, SizeOption } from "@/lib/types";
+
+/** Display snapshot stored on each line so cart works even when the client
+ *  does not hold the full (DB-backed) catalog. */
+export interface CartSnapshot {
+  slug: string;
+  scientific: string;
+  common: L;
+  hue: number;
+  accent: string;
+  image?: string;
+  sizeLabel: L;
+  price: number;
+}
 
 export interface CartLine {
   productId: string;
   sizeId: string;
   qty: number;
+  snap?: CartSnapshot;
 }
 
-export interface ResolvedLine extends CartLine {
-  product: Product;
-  size: SizeOption;
+export interface CartDisplayProduct {
+  id: string;
+  slug: string;
+  scientific: string;
+  common: L;
+  hue: number;
+  accent: string;
+  image?: string;
+}
+
+export interface CartDisplaySize {
+  id: string;
+  label: L;
+  price: number;
+}
+
+export interface ResolvedLine {
+  productId: string;
+  sizeId: string;
+  qty: number;
+  product: CartDisplayProduct;
+  size: CartDisplaySize;
   lineTotal: number;
   key: string;
+}
+
+/** Build the snapshot stored on a cart line from a product + chosen size. */
+export function snapshotFromProduct(product: Product, size: SizeOption): CartSnapshot {
+  return {
+    slug: product.slug,
+    scientific: product.scientific,
+    common: product.common,
+    hue: product.hue,
+    accent: product.accent,
+    image: product.image,
+    sizeLabel: size.label,
+    price: size.price,
+  };
 }
 
 interface CartCtx {
@@ -26,7 +73,7 @@ interface CartCtx {
   resolved: ResolvedLine[];
   count: number;
   subtotal: number;
-  add: (productId: string, sizeId: string, qty?: number) => void;
+  add: (productId: string, sizeId: string, qty?: number, snap?: CartSnapshot) => void;
   setQty: (productId: string, sizeId: string, qty: number) => void;
   remove: (productId: string, sizeId: string) => void;
   clear: () => void;
@@ -64,15 +111,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [lines, hydrated]);
 
-  const add = useCallback((productId: string, sizeId: string, qty = 1) => {
+  const add = useCallback((productId: string, sizeId: string, qty = 1, snap?: CartSnapshot) => {
     setLines((prev) => {
       const existing = prev.find((l) => l.productId === productId && l.sizeId === sizeId);
       if (existing) {
         return prev.map((l) =>
-          l.productId === productId && l.sizeId === sizeId ? { ...l, qty: l.qty + qty } : l
+          l.productId === productId && l.sizeId === sizeId ? { ...l, qty: l.qty + qty, snap: snap ?? l.snap } : l
         );
       }
-      return [...prev, { productId, sizeId, qty }];
+      return [...prev, { productId, sizeId, qty, snap }];
     });
     setLastAdded(`${productId}:${sizeId}`);
     setOpen(true);
@@ -96,19 +143,49 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const resolved = useMemo<ResolvedLine[]>(() => {
     return lines
-      .map((l) => {
+      .map((l): ResolvedLine | null => {
+        if (l.snap) {
+          return {
+            productId: l.productId,
+            sizeId: l.sizeId,
+            qty: l.qty,
+            product: {
+              id: l.productId,
+              slug: l.snap.slug,
+              scientific: l.snap.scientific,
+              common: l.snap.common,
+              hue: l.snap.hue,
+              accent: l.snap.accent,
+              image: l.snap.image,
+            },
+            size: { id: l.sizeId, label: l.snap.sizeLabel, price: l.snap.price },
+            lineTotal: l.snap.price * l.qty,
+            key: `${l.productId}:${l.sizeId}`,
+          };
+        }
+        // Legacy lines (saved before snapshots existed): resolve from the seed.
         const product = PRODUCTS.find((p) => p.id === l.productId);
         const size = product?.sizes.find((s) => s.id === l.sizeId);
         if (!product || !size) return null;
         return {
-          ...l,
-          product,
-          size,
+          productId: l.productId,
+          sizeId: l.sizeId,
+          qty: l.qty,
+          product: {
+            id: product.id,
+            slug: product.slug,
+            scientific: product.scientific,
+            common: product.common,
+            hue: product.hue,
+            accent: product.accent,
+            image: product.image,
+          },
+          size: { id: size.id, label: size.label, price: size.price },
           lineTotal: size.price * l.qty,
           key: `${l.productId}:${l.sizeId}`,
         };
       })
-      .filter(Boolean) as ResolvedLine[];
+      .filter((l): l is ResolvedLine => l !== null);
   }, [lines]);
 
   const count = useMemo(() => resolved.reduce((n, l) => n + l.qty, 0), [resolved]);

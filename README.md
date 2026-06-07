@@ -37,9 +37,15 @@ server). The list below is the single source of truth for what to build next.
 - Cart: slide-in drawer + full cart page (persisted in `localStorage`).
 - Checkout: Montreal **delivery zones** + free **pickup points**, free-delivery threshold, **GST + QST** estimate, saved/new payment method, order confirmation.
 
-**Accounts & staff**
+**Admin panel & products (NEW — DB-backed via Supabase)**
+- **`/admin`** — password-protected staff panel (signed http-only session cookie).
+- **Products CRUD**: create / edit / delete species, bilingual fields, sizes & stock, flags, **photo upload to Supabase Storage**.
+- Storefront reads products from the database (with ISR) and **gracefully falls back to the built-in seed catalog** when no DB is connected — so it always works.
+- Staff customer lookup (`/admin/customers`): search customers **by phone number**.
+- ⚙️ Setup: **`SETUP_SUPABASE.md`** (database + storage + admin login, ~15 min).
+
+**Accounts & checkout**
 - User accounts: sign in/up, profile, order history, **saved cards & addresses** (in `localStorage`).
-- Staff customer lookup (`/admin`): search customers **by phone number** → orders, lifetime value, status.
 
 **Brand, content & i18n**
 - TarantulApp **Verified Origin** badge throughout + dedicated page (`/verified-origin`).
@@ -48,28 +54,26 @@ server). The list below is the single source of truth for what to build next.
 
 **Motion & SEO**
 - Framer Motion: parallax hero, scroll reveals, animated header, cart/menu transitions.
-- Generated per-species spider SVGs (unique color per species — no photo assets yet).
+- Real product photos when uploaded, a shared generic placeholder otherwise, and a generated spider SVG as the ultimate fallback.
 - SEO: per-page metadata, canonical + `hreflang`, Open Graph/Twitter, **JSON-LD** (Organization, WebSite, Product, BreadcrumbList, FAQPage), `sitemap.xml`, `robots.txt`.
 
-### ⚠️ Demo — needs a real backend before launch
+### ⚠️ Still demo — needs wiring before launch
 
-| Area | Current (demo) | Needed for production | Integration point |
+| Area | Current | Needed for production | Integration point |
 |---|---|---|---|
+| **Products / inventory** | ✅ DB-backed (Supabase) + admin CRUD + image upload | Just add the env vars + run `db:push` & `db:seed` (see `SETUP_SUPABASE.md`) | `src/lib/data/products.ts` |
 | **Payments** | Checkout validates but **processes no real payment**; no card data stored | Stripe: payment intents, webhooks, receipts | `src/components/checkout/CheckoutView.tsx` |
-| **Auth / accounts** | Any email + password "signs in"; data per-browser | Real auth (NextAuth/Clerk/Supabase) + server sessions | `src/context/AuthContext.tsx` |
-| **Orders & cart** | `localStorage` only | Persist in a database; confirmation emails | `src/context/CartContext.tsx`, `AuthContext.tsx` |
-| **Customer lookup** | Seeded demo data | Connect real database / CRM | `src/lib/customers.ts` |
-| **Inventory / stock** | Static numbers | DB-backed stock + admin editing | `src/lib/products.ts` |
-| **Contact / newsletter** | Forms show success but **don't send** | Email service (Resend/SendGrid) + newsletter | `ContactForm.tsx`, `Newsletter.tsx` |
-| **Product images** | Stylized generated SVGs | Real specimen photos | `src/components/SpiderGraphic.tsx`, `src/lib/products.ts` |
+| **Customer accounts** | Any email + password "signs in"; data per-browser | Real auth (Supabase Auth) + server sessions | `src/context/AuthContext.tsx` |
+| **Orders** | Stored in `localStorage` | Persist to DB on checkout; confirmation emails | `src/context/CartContext.tsx`, checkout |
+| **Customer lookup** | Seeded demo data | Point at the real customers/orders tables | `src/lib/customers.ts` |
+| **Contact / newsletter** | Forms show success but **don't send** | Email service (Resend/SendGrid) | `ContactForm.tsx`, `Newsletter.tsx` |
 
 ### 📋 Suggested next steps (priority order)
-1. **Payments** — Stripe checkout + webhooks (the launch blocker).
-2. **Database + real auth** — back accounts, orders and the customer lookup.
-3. **Admin dashboard** — inventory / orders / status management (extend `/admin`).
+1. **Connect Supabase** — follow `SETUP_SUPABASE.md` to make the admin panel live (~15 min).
+2. **Payments** — Stripe checkout + webhooks (the launch blocker for selling).
+3. **Orders + real accounts** — persist orders to the DB; move accounts to Supabase Auth.
 4. **Email** — order confirmations, contact form, newsletter.
-5. **Real product photography** — swap the generated SVGs.
-6. **Deploy** — Vercel + the `montrealspiderco.ca` domain (see below — already done if this is live).
+5. **Deploy** — Vercel + the `montrealspiderco.ca` domain (below).
 
 ---
 

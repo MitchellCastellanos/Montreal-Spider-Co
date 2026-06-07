@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import LocaleLink from "@/components/LocaleLink";
-import SpiderGraphic from "@/components/SpiderGraphic";
+import SpeciesImage from "@/components/SpeciesImage";
 import { useCart } from "@/context/CartContext";
 import { useAuth, type Order } from "@/context/AuthContext";
 import { useI18n, useT } from "@/i18n/I18nProvider";
@@ -240,8 +240,8 @@ export default function CheckoutView() {
             <ul className="mt-4 space-y-3">
               {resolved.map((l) => (
                 <li key={l.key} className="flex items-center gap-3">
-                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-line bg-ink">
-                    <SpiderGraphic hue={l.product.hue} accent={l.product.accent} animate={false} />
+                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-line bg-ink">
+                    <SpeciesImage image={l.product.image} hue={l.product.hue} accent={l.product.accent} alt={tr(l.product.common)} sizes="48px" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm text-cream">{tr(l.product.common)}</p>

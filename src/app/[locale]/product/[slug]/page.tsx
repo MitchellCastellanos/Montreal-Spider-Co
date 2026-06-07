@@ -3,20 +3,24 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { isLocale, locales, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
-import { getProduct, PRODUCTS, relatedProducts } from "@/lib/products";
+import { getProductBySlug, getRelated, getAllProducts } from "@/lib/data/products";
 import { t } from "@/lib/types";
 import { localeHref } from "@/lib/href";
 import { formatPrice } from "@/lib/format";
 import { breadcrumbSchema, productSchema } from "@/lib/seo";
-import SpiderGraphic from "@/components/SpiderGraphic";
+import SpeciesImage from "@/components/SpeciesImage";
 import AddToCart from "@/components/AddToCart";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import ProductCard from "@/components/ProductCard";
 import JsonLd from "@/components/JsonLd";
 import Reveal from "@/components/Reveal";
 
-export function generateStaticParams() {
-  return locales.flatMap((locale) => PRODUCTS.map((p) => ({ locale, slug: p.slug })));
+export const revalidate = 60;
+export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  const products = await getAllProducts();
+  return locales.flatMap((locale) => products.map((p) => ({ locale, slug: p.slug })));
 }
 
 export async function generateMetadata({
@@ -26,7 +30,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale, slug } = await params;
   const loc: Locale = isLocale(locale) ? locale : "en";
-  const product = getProduct(slug);
+  const product = await getProductBySlug(slug);
   if (!product) return {};
   const dict = await getDictionary(loc);
   const name = `${t(product.common, loc)} (${product.scientific})`;
@@ -57,11 +61,11 @@ export default async function ProductPage({
   const { locale, slug } = await params;
   if (!isLocale(locale)) notFound();
   const loc: Locale = locale;
-  const product = getProduct(slug);
+  const product = await getProductBySlug(slug);
   if (!product) notFound();
   const dict = await getDictionary(loc);
   const p = dict.product;
-  const related = relatedProducts(product);
+  const related = await getRelated(product);
 
   const specs = [
     { label: p.adultSize, value: t(product.adultSize, loc) },
@@ -109,9 +113,15 @@ export default async function ProductPage({
               className="relative aspect-square overflow-hidden rounded-3xl border border-line"
               style={{ background: `radial-gradient(130% 130% at 50% 20%, hsl(${product.hue} 32% 18%), var(--ink))` }}
             >
-              <div className="web-grid absolute inset-0 opacity-30" />
-              <SpiderGraphic hue={product.hue} accent={product.accent} className="relative h-full w-full p-6" />
-              <div className="absolute left-4 top-4">
+              <SpeciesImage
+                image={product.image}
+                hue={product.hue}
+                accent={product.accent}
+                alt={`${t(product.common, loc)} — ${product.scientific}`}
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                priority
+              />
+              <div className="absolute left-4 top-4 z-10">
                 <VerifiedBadge label="Verified Origin" size="sm" />
               </div>
             </div>
@@ -211,5 +221,3 @@ export default async function ProductPage({
     </>
   );
 }
-
-export const dynamicParams = false;
