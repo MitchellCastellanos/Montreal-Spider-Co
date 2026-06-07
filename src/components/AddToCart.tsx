@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { useCart } from "@/context/CartContext";
+import { useCart, snapshotFromProduct } from "@/context/CartContext";
 import { useI18n, useT } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
 import type { Product } from "@/lib/types";
@@ -21,7 +21,7 @@ export default function AddToCart({ product }: { product: Product }) {
 
   const handleAdd = () => {
     if (soldOut) return;
-    add(product.id, sizeId, qty);
+    add(product.id, sizeId, qty, snapshotFromProduct(product, selected));
     setPulse(true);
     setTimeout(() => setPulse(false), 700);
   };

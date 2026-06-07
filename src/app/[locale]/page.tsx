@@ -1,6 +1,6 @@
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
-import { PRODUCTS } from "@/lib/products";
+import { getFeatured } from "@/lib/data/products";
 import { localeHref } from "@/lib/href";
 import Hero from "@/components/home/Hero";
 import ProductCard from "@/components/ProductCard";
@@ -37,13 +37,15 @@ const testimonials = [
   },
 ];
 
+export const revalidate = 60;
+
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   const loc: Locale = isLocale(locale) ? locale : "en";
   const dict = await getDictionary(loc);
   const h = dict.home;
 
-  const featured = PRODUCTS.filter((p) => p.featured).slice(0, 4);
+  const featured = await getFeatured(4);
 
   const why = [
     { t: h.why1Title, b: h.why1Body },

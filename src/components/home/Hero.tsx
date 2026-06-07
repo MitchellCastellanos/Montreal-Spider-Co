@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useScroll, useTransform } from "framer-motion";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import LocaleLink from "@/components/LocaleLink";
 import SpiderGraphic from "@/components/SpiderGraphic";
@@ -12,6 +12,7 @@ export default function Hero() {
   const { dict } = useI18n();
   const h = dict.home;
   const ref = useRef<HTMLDivElement>(null);
+  const [heroFailed, setHeroFailed] = useState(false);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
   const y = useTransform(scrollYProgress, [0, 1], [0, 140]);
   const opacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
@@ -112,7 +113,21 @@ export default function Hero() {
             className="animate-floaty"
           >
             <div className="absolute inset-8 rounded-full border border-gold/20 animate-spin-slow" />
-            <SpiderGraphic hue={36} accent="#e6c882" className="relative w-full drop-shadow-[0_30px_60px_rgba(201,162,75,0.25)]" />
+            {heroFailed ? (
+              <SpiderGraphic hue={36} accent="#e6c882" className="relative w-full drop-shadow-[0_30px_60px_rgba(201,162,75,0.25)]" />
+            ) : (
+              <div className="relative mx-auto aspect-square w-full">
+                <Image
+                  src="/images/hero-spider.png"
+                  alt=""
+                  fill
+                  priority
+                  sizes="(max-width: 1024px) 90vw, 600px"
+                  className="object-contain drop-shadow-[0_30px_60px_rgba(201,162,75,0.25)]"
+                  onError={() => setHeroFailed(true)}
+                />
+              </div>
+            )}
           </motion.div>
         </motion.div>
       </div>

@@ -2,8 +2,8 @@
 
 import { motion } from "framer-motion";
 import LocaleLink from "./LocaleLink";
-import SpiderGraphic from "./SpiderGraphic";
-import { useCart } from "@/context/CartContext";
+import SpeciesImage from "./SpeciesImage";
+import { useCart, snapshotFromProduct } from "@/context/CartContext";
 import { useI18n, useT } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
 import { basePrice, totalStock, type Product } from "@/lib/types";
@@ -35,7 +35,7 @@ export default function ProductCard({ product }: { product: Product }) {
           style={{ background: `radial-gradient(120% 120% at 50% 20%, hsl(${product.hue} 30% 16%), var(--ink))` }}
         >
           <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-110">
-            <SpiderGraphic hue={product.hue} accent={product.accent} />
+            <SpeciesImage image={product.image} hue={product.hue} accent={product.accent} alt={tr(product.common)} sizes="(max-width: 768px) 50vw, 25vw" />
           </div>
           <div className="absolute left-3 top-3 flex flex-col gap-1.5">
             {product.newArrival && <span className="badge bg-gold/20">{dict.shop.sortNewest}</span>}
@@ -81,7 +81,7 @@ export default function ProductCard({ product }: { product: Product }) {
           </div>
           <button
             disabled={stock === 0}
-            onClick={() => add(product.id, cheapest.id, 1)}
+            onClick={() => add(product.id, cheapest.id, 1, snapshotFromProduct(product, cheapest))}
             className="btn btn-gold px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
             aria-label={`${dict.common.addToCart} — ${tr(product.common)}`}
           >
