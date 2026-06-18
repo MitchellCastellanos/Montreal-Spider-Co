@@ -4,42 +4,46 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef, useState } from "react";
 import Image from "next/image";
 import LocaleLink from "@/components/LocaleLink";
-import SpiderGraphic from "@/components/SpiderGraphic";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { useI18n } from "@/i18n/I18nProvider";
+
+/** Save your hero image as public/images/hero-editorial.png (or .webp — update HERO_IMAGE). */
+const HERO_IMAGE = "/images/hero-editorial.png";
+const HERO_FALLBACK = "/images/hero-bg.png";
 
 export default function Hero() {
   const { dict } = useI18n();
   const h = dict.home;
   const ref = useRef<HTMLDivElement>(null);
-  const [heroFailed, setHeroFailed] = useState(false);
+  const [src, setSrc] = useState(HERO_IMAGE);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
-  const y = useTransform(scrollYProgress, [0, 1], [0, 140]);
-  const opacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
-
-  const stats = [
-    { value: "18+", label: h.statSpecies },
-    { value: "500+", label: h.statKeepers },
-    { value: "100%", label: h.statVerified },
-    { value: "MTL", label: h.statDelivery },
-  ];
+  const scale = useTransform(scrollYProgress, [0, 1], [1, 1.08]);
+  const opacity = useTransform(scrollYProgress, [0, 0.75], [1, 0]);
 
   return (
-    <section ref={ref} className="relative overflow-hidden">
-      <Image
-        src="/images/hero-bg.png"
-        alt=""
-        fill
-        priority
-        sizes="100vw"
-        className="pointer-events-none absolute inset-0 -z-10 object-cover opacity-40"
-      />
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-r from-ink/60 via-ink/40 to-ink" />
-      <div className="web-grid pointer-events-none absolute inset-0 opacity-40" />
-      <div className="pointer-events-none absolute -right-40 top-1/2 h-[700px] w-[700px] -translate-y-1/2 rounded-full bg-gold/5 blur-3xl" />
+    <section ref={ref} className="relative min-h-[88vh] overflow-hidden md:min-h-[92vh]">
+      <motion.div style={{ scale }} className="absolute inset-0 will-change-transform">
+        <Image
+          src={src}
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover object-[72%_center] md:object-[65%_center] lg:object-center"
+          onError={() => {
+            if (src !== HERO_FALLBACK) setSrc(HERO_FALLBACK);
+          }}
+        />
+      </motion.div>
 
-      <div className="container-x relative grid items-center gap-10 py-16 md:py-24 lg:grid-cols-2">
-        <motion.div style={{ opacity }} className="relative z-10">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-ink from-30% via-ink/90 via-55% to-ink/15" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink via-ink/20 to-ink/40" />
+
+      <motion.div
+        style={{ opacity }}
+        className="container-x relative flex min-h-[88vh] flex-col justify-center py-28 md:min-h-[92vh] md:py-32"
+      >
+        <div className="max-w-2xl">
           <motion.span
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -89,47 +93,8 @@ export default function Hero() {
           >
             <VerifiedBadge label={dict.footer.verifiedBadge} size="lg" />
           </motion.div>
-
-          <div className="mt-10 grid grid-cols-4 gap-4 border-t border-line pt-6">
-            {stats.map((s, i) => (
-              <motion.div
-                key={s.label}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.5 + i * 0.08 }}
-              >
-                <p className="font-display text-2xl font-bold text-gold-bright sm:text-3xl">{s.value}</p>
-                <p className="mt-1 text-[11px] uppercase tracking-wide text-muted">{s.label}</p>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-
-        <motion.div style={{ y }} className="relative mx-auto w-full max-w-md lg:max-w-none">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.85, rotate: -6 }}
-            animate={{ opacity: 1, scale: 1, rotate: 0 }}
-            transition={{ duration: 1, ease: [0.2, 0.7, 0.2, 1] }}
-            className="animate-floaty"
-          >
-            {heroFailed ? (
-              <SpiderGraphic hue={36} accent="#e6c882" className="relative w-full drop-shadow-[0_30px_60px_rgba(201,162,75,0.25)]" />
-            ) : (
-              <div className="relative mx-auto aspect-square w-full">
-                <Image
-                  src="/images/hero-spider.png"
-                  alt=""
-                  fill
-                  priority
-                  sizes="(max-width: 1024px) 90vw, 600px"
-                  className="object-contain drop-shadow-[0_30px_60px_rgba(201,162,75,0.25)]"
-                  onError={() => setHeroFailed(true)}
-                />
-              </div>
-            )}
-          </motion.div>
-        </motion.div>
-      </div>
+        </div>
+      </motion.div>
     </section>
   );
 }

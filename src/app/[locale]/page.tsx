@@ -3,6 +3,7 @@ import { getDictionary } from "@/i18n/dictionaries";
 import { getFeatured } from "@/lib/data/products";
 import { localeHref } from "@/lib/href";
 import Hero from "@/components/home/Hero";
+import HeroStats from "@/components/home/HeroStats";
 import ProductCard from "@/components/ProductCard";
 import Reveal from "@/components/Reveal";
 import Newsletter from "@/components/Newsletter";
@@ -63,6 +64,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   return (
     <>
       <Hero />
+      <HeroStats />
 
       {/* Featured */}
       <section className="container-x py-16 md:py-24">
