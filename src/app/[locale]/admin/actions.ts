@@ -14,8 +14,58 @@ import { uploadProductImage, hasStorage } from "@/lib/storage";
 import { createPickupPoint, updatePickupPoint, deletePickupPoint, type PickupInput } from "@/lib/data/locations";
 import { updateSettings } from "@/lib/data/settings";
 import { addLibraryImage } from "@/lib/data/species-library";
+import { linkProductToSpecies, type SpeciesInput } from "@/lib/data/species";
+import { generateSpeciesProfile } from "@/lib/ai/generate-species";
+import { deriveAccent, deriveGenus, deriveHue } from "@/lib/species-utils";
 
 export type ActionState = { error?: string; ok?: boolean };
+
+export type GenerateSpeciesResult = { error?: string; profile?: SpeciesInput };
+
+export async function generateSpeciesContent(scientific: string, notes?: string): Promise<GenerateSpeciesResult> {
+  if (!(await isAdminAuthed())) return { error: "unauthorized" };
+  try {
+    const profile = await generateSpeciesProfile(scientific, notes);
+    profile.hue = deriveHue(profile.scientific);
+    profile.accent = deriveAccent(profile.scientific);
+    if (!profile.genus) profile.genus = deriveGenus(profile.scientific);
+    return { profile };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "ai_failed" };
+  }
+}
+
+function speciesInputFromForm(formData: FormData, image: string | null): SpeciesInput {
+  return {
+    scientific: str(formData, "scientific"),
+    commonEn: str(formData, "commonEn"),
+    commonFr: str(formData, "commonFr") || str(formData, "commonEn"),
+    genus: str(formData, "genus") || deriveGenus(str(formData, "scientific")),
+    experience: (str(formData, "experience") || "beginner") as SpeciesInput["experience"],
+    type: (str(formData, "type") || "terrestrial") as SpeciesInput["type"],
+    temperament: (str(formData, "temperament") || "docile") as SpeciesInput["temperament"],
+    hue: Math.round(num(formData, "hue", 36)),
+    accent: str(formData, "accent") || "#c9a24b",
+    image,
+    adultSizeEn: str(formData, "adultSizeEn"),
+    adultSizeFr: str(formData, "adultSizeFr"),
+    growthEn: str(formData, "growthEn"),
+    growthFr: str(formData, "growthFr"),
+    originEn: str(formData, "originEn"),
+    originFr: str(formData, "originFr"),
+    lifespanEn: str(formData, "lifespanEn"),
+    lifespanFr: str(formData, "lifespanFr"),
+    humidity: str(formData, "humidity"),
+    temperature: str(formData, "temperature"),
+    enclosureEn: str(formData, "enclosureEn"),
+    enclosureFr: str(formData, "enclosureFr"),
+    dietEn: str(formData, "dietEn"),
+    dietFr: str(formData, "dietFr"),
+    descriptionEn: str(formData, "descriptionEn"),
+    descriptionFr: str(formData, "descriptionFr"),
+    careGuide: str(formData, "careGuide") || null,
+  };
+}
 
 export async function loginAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const password = String(formData.get("password") ?? "");
@@ -133,10 +183,15 @@ export async function saveProductAction(_prev: ActionState, formData: FormData):
   };
 
   try {
+    let productId = id;
     if (id) {
       await updateProduct(id, input);
     } else {
-      await createProduct(input);
+      productId = await createProduct(input);
+    }
+
+    if (bool(formData, "saveSpeciesTemplate") && productId) {
+      await linkProductToSpecies(productId, speciesInputFromForm(formData, image));
     }
   } catch (e) {
     return { error: e instanceof Error ? e.message : "save_failed" };

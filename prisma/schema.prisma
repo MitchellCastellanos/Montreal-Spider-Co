@@ -30,10 +30,50 @@ enum Temperament {
   defensive
 }
 
+/** Reusable species profile — fill once, reuse across listings. */
+model Species {
+  id            String       @id @default(cuid())
+  scientific    String       @unique
+  commonEn      String
+  commonFr      String       @default("")
+  genus         String
+  experience    Experience
+  type          SpiderType
+  temperament   Temperament
+  hue           Int          @default(36)
+  accent        String       @default("#c9a24b")
+  image         String?
+  adultSizeEn   String       @default("")
+  adultSizeFr   String       @default("")
+  growthEn      String       @default("")
+  growthFr      String       @default("")
+  originEn      String       @default("")
+  originFr      String       @default("")
+  lifespanEn    String       @default("")
+  lifespanFr    String       @default("")
+  humidity      String       @default("")
+  temperature   String       @default("")
+  enclosureEn   String       @default("")
+  enclosureFr   String       @default("")
+  dietEn        String       @default("")
+  dietFr        String       @default("")
+  descriptionEn String       @default("")
+  descriptionFr String       @default("")
+  careGuide     String?
+  products      Product[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([genus])
+  @@index([commonEn])
+}
+
 model Product {
   id            String       @id @default(cuid())
   slug          String       @unique
   scientific    String
+  speciesId     String?
+  species       Species?     @relation(fields: [speciesId], references: [id], onDelete: SetNull)
   commonEn      String
   commonFr      String
   genus         String
@@ -71,6 +111,7 @@ model Product {
 
   @@index([experience])
   @@index([genus])
+  @@index([speciesId])
 }
 
 model ProductSize {

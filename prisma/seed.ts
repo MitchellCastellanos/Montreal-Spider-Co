@@ -9,10 +9,11 @@ async function main() {
   // Seed each table only when it is EMPTY. This makes the seed safe to run on
   // every deploy: it self-heals a freshly created table once, and never
   // resurrects rows you later deleted in the admin panel.
-  const [productCount, pickupCount, settingCount] = await Promise.all([
+  const [productCount, pickupCount, settingCount, speciesCount] = await Promise.all([
     prisma.product.count(),
     prisma.pickupPoint.count(),
     prisma.setting.count(),
+    prisma.species.count(),
   ]);
 
   if (productCount > 0) {
@@ -106,6 +107,92 @@ async function main() {
   for (const s of settings) {
     await prisma.setting.upsert({ where: { key: s.key }, update: {}, create: s });
   }
+  }
+
+  if (speciesCount > 0) {
+    console.log(`Species already seeded (${speciesCount}) — skipping.`);
+  } else {
+    // Build species profiles from DB products (if any) or the static seed catalog.
+    const dbProducts =
+      productCount > 0
+        ? await prisma.product.findMany({ orderBy: { arrived: "desc" } })
+        : [];
+    const source =
+      dbProducts.length > 0
+        ? dbProducts.map((p) => ({
+            scientific: p.scientific,
+            commonEn: p.commonEn,
+            commonFr: p.commonFr,
+            genus: p.genus,
+            experience: p.experience,
+            type: p.type,
+            temperament: p.temperament,
+            hue: p.hue,
+            accent: p.accent,
+            image: p.image,
+            adultSizeEn: p.adultSizeEn,
+            adultSizeFr: p.adultSizeFr,
+            growthEn: p.growthEn,
+            growthFr: p.growthFr,
+            originEn: p.originEn,
+            originFr: p.originFr,
+            lifespanEn: p.lifespanEn,
+            lifespanFr: p.lifespanFr,
+            humidity: p.humidity,
+            temperature: p.temperature,
+            enclosureEn: p.enclosureEn,
+            enclosureFr: p.enclosureFr,
+            dietEn: p.dietEn,
+            dietFr: p.dietFr,
+            descriptionEn: p.descriptionEn,
+            descriptionFr: p.descriptionFr,
+            careGuide: p.careGuide,
+          }))
+        : PRODUCTS.map((p) => ({
+            scientific: p.scientific,
+            commonEn: p.common.en,
+            commonFr: p.common.fr,
+            genus: p.genus,
+            experience: p.experience,
+            type: p.type,
+            temperament: p.temperament,
+            hue: p.hue,
+            accent: p.accent,
+            image: p.image ?? null,
+            adultSizeEn: p.adultSize.en,
+            adultSizeFr: p.adultSize.fr,
+            growthEn: p.growth.en,
+            growthFr: p.growth.fr,
+            originEn: p.origin.en,
+            originFr: p.origin.fr,
+            lifespanEn: p.lifespan.en,
+            lifespanFr: p.lifespan.fr,
+            humidity: p.humidity,
+            temperature: p.temperature,
+            enclosureEn: p.enclosure.en,
+            enclosureFr: p.enclosure.fr,
+            dietEn: p.diet.en,
+            dietFr: p.diet.fr,
+            descriptionEn: p.description.en,
+            descriptionFr: p.description.fr,
+            careGuide: p.careGuide ?? null,
+          }));
+
+    const seen = new Set<string>();
+    console.log("Seeding species profiles from catalog…");
+    for (const s of source) {
+      if (seen.has(s.scientific)) continue;
+      seen.add(s.scientific);
+      await prisma.species.create({ data: s });
+    }
+
+    // Link existing products to their species row.
+    if (dbProducts.length > 0) {
+      for (const p of dbProducts) {
+        const sp = await prisma.species.findUnique({ where: { scientific: p.scientific } });
+        if (sp) await prisma.product.update({ where: { id: p.id }, data: { speciesId: sp.id } });
+      }
+    }
   }
 
   console.log("Seed complete.");
