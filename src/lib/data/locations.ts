@@ -138,3 +138,20 @@ export async function deletePickupPoint(id: string): Promise<void> {
   const db = requireDb();
   await db.pickupPoint.delete({ where: { id } });
 }
+
+export async function deletePickupPoints(ids: string[]): Promise<void> {
+  const db = requireDb();
+  if (ids.length === 0) return;
+  await db.pickupPoint.deleteMany({ where: { id: { in: ids } } });
+}
+
+export async function setPickupPointsActive(ids: string[], active: boolean): Promise<void> {
+  const db = requireDb();
+  if (ids.length === 0) return;
+  await db.pickupPoint.updateMany({ where: { id: { in: ids } }, data: { active } });
+}
+
+export async function setPickupActive(id: string, active: boolean): Promise<void> {
+  const db = requireDb();
+  await db.pickupPoint.update({ where: { id }, data: { active } });
+}

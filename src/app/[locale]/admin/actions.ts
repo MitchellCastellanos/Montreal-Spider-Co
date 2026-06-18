@@ -11,7 +11,7 @@ import {
   type ProductSizeInput,
 } from "@/lib/data/products";
 import { uploadProductImage, hasStorage } from "@/lib/storage";
-import { createPickupPoint, updatePickupPoint, deletePickupPoint, type PickupInput } from "@/lib/data/locations";
+import { createPickupPoint, updatePickupPoint, deletePickupPoint, deletePickupPoints, setPickupPointsActive, setPickupActive, type PickupInput } from "@/lib/data/locations";
 import { updateSettings } from "@/lib/data/settings";
 import { addLibraryImage } from "@/lib/data/species-library";
 import { linkProductToSpecies, type SpeciesInput } from "@/lib/data/species";
@@ -237,6 +237,38 @@ export async function deletePickupAction(formData: FormData): Promise<void> {
     revalidatePath("/", "layout");
   }
   redirect(`/${locale}/admin/pickup`);
+}
+
+function parsePickupIds(formData: FormData): string[] {
+  try {
+    const parsed = JSON.parse(str(formData, "ids") || "[]");
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string" && x.length > 0) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function bulkPickupAction(formData: FormData): Promise<void> {
+  if (!(await isAdminAuthed())) return;
+  const locale = str(formData, "locale") || "en";
+  const action = str(formData, "action");
+  const ids = parsePickupIds(formData);
+  if (ids.length > 0) {
+    if (action === "delete") await deletePickupPoints(ids);
+    else if (action === "activate") await setPickupPointsActive(ids, true);
+    else if (action === "deactivate") await setPickupPointsActive(ids, false);
+    revalidatePath("/", "layout");
+  }
+  redirect(`/${locale}/admin/pickup`);
+}
+
+export async function togglePickupActiveAction(formData: FormData): Promise<void> {
+  if (!(await isAdminAuthed())) return;
+  const id = str(formData, "id");
+  if (id) {
+    await setPickupActive(id, bool(formData, "active"));
+    revalidatePath("/", "layout");
+  }
 }
 
 // --- Store settings (pickup terms, T&C) ------------------------------------
