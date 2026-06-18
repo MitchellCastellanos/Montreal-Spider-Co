@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
+import { logDbFallback } from "@/lib/data/db-safe";
 import { DEFAULT_SETTINGS, type StoreSettings } from "./setting-defaults";
 
 export { DEFAULT_SETTINGS, resolvePickupTerms } from "./setting-defaults";
@@ -9,7 +10,13 @@ const KEYS = ["pickupWindowDays", "pickupTerms", "terms"] as const;
 
 export async function getSettings(): Promise<StoreSettings> {
   if (!prisma) return DEFAULT_SETTINGS;
-  const rows = await prisma.setting.findMany({ where: { key: { in: [...KEYS] } } });
+  let rows: { key: string; valueEn: string; valueFr: string }[] = [];
+  try {
+    rows = await prisma.setting.findMany({ where: { key: { in: [...KEYS] } } });
+  } catch (e) {
+    logDbFallback("getSettings", e);
+    return DEFAULT_SETTINGS;
+  }
   const map = new Map(rows.map((r) => [r.key, r]));
   const days = Number(map.get("pickupWindowDays")?.valueEn);
   const pt = map.get("pickupTerms");
