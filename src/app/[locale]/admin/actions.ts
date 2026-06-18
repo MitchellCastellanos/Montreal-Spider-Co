@@ -10,7 +10,7 @@ import {
   type ProductInput,
   type ProductSizeInput,
 } from "@/lib/data/products";
-import { uploadProductImage, hasStorage } from "@/lib/supabaseAdmin";
+import { uploadProductImage, hasStorage } from "@/lib/storage";
 
 export type ActionState = { error?: string; ok?: boolean };
 
@@ -68,7 +68,7 @@ export async function saveProductAction(_prev: ActionState, formData: FormData):
   if (file instanceof File && file.size > 0) {
     if (!hasStorage) return { error: "storage_unconfigured" };
     try {
-      image = await uploadProductImage(await file.arrayBuffer(), file.name, file.type || "image/png");
+      image = await uploadProductImage(await file.arrayBuffer());
     } catch {
       return { error: "upload_failed" };
     }

@@ -86,7 +86,7 @@ export default async function AdminProductsPage({ params }: { params: Promise<{ 
 
       {!hasDatabase && (
         <p className="mt-4 text-sm text-muted">
-          Connect a database (see <code className="text-cream">SETUP_SUPABASE.md</code>) to add, edit and delete products.
+          Connect a database (see <code className="text-cream">SETUP_DATABASE.md</code>) to add, edit and delete products.
         </p>
       )}
     </div>

@@ -25,7 +25,7 @@ export default function AdminLogin({ configured }: { configured: boolean }) {
             <p className="mt-2">
               Set the <code className="text-cream">ADMIN_PASSWORD</code> environment variable (and{" "}
               <code className="text-cream">DATABASE_URL</code> for product management) to enable the
-              admin panel. See <code className="text-cream">SETUP_SUPABASE.md</code>.
+              admin panel. See <code className="text-cream">SETUP_DATABASE.md</code>.
             </p>
           </div>
         ) : (

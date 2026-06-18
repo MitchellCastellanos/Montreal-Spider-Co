@@ -6,8 +6,8 @@ const nextConfig: NextConfig = {
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [
-      // Supabase Storage public bucket (product photos uploaded from the admin panel)
-      { protocol: "https", hostname: "*.supabase.co", pathname: "/storage/v1/object/public/**" },
+      // Cloudinary CDN (product photos uploaded from the admin panel)
+      { protocol: "https", hostname: "res.cloudinary.com", pathname: "/**" },
     ],
   },
   async headers() {
