@@ -6,6 +6,7 @@ import { localeHref } from "@/lib/href";
 import { DELIVERY_ZONES, FREE_DELIVERY_THRESHOLD } from "@/lib/locations";
 import { getPickupPoints } from "@/lib/data/locations";
 import { getSettings, resolvePickupTerms } from "@/lib/data/settings";
+import { formatWeeklyHoursLines } from "@/lib/opening-hours";
 import { t } from "@/lib/types";
 import { formatPrice } from "@/lib/format";
 import PageHero from "@/components/PageHero";
@@ -124,9 +125,28 @@ export default async function DeliveryPage({ params }: { params: Promise<{ local
                     <span className="badge">{dict.common.free}</span>
                   </div>
                   <h3 className="font-display text-lg font-semibold text-cream">{pt.name}</h3>
-                  <p className="mt-1 text-sm text-bone">{t(pt.address, loc)}</p>
+                  <p className="mt-1 text-sm text-bone">{pt.address}</p>
+                  {pt.phone && (
+                    <p className="mt-2 text-sm">
+                      <a href={`tel:${pt.phone.replace(/\s/g, "")}`} className="text-gold-bright hover:underline">{pt.phone}</a>
+                    </p>
+                  )}
+                  {pt.mapsUrl && (
+                    <p className="mt-1 text-sm">
+                      <a href={pt.mapsUrl} target="_blank" rel="noopener noreferrer" className="text-gold-deep hover:text-gold-bright hover:underline">
+                        {loc === "fr" ? "Voir sur Google Maps" : "View on Google Maps"} →
+                      </a>
+                    </p>
+                  )}
                   <p className="mt-3 text-xs uppercase tracking-wide text-muted">{d.hours}</p>
-                  <p className="text-sm text-bone">{t(pt.hours, loc)}</p>
+                  <ul className="mt-1 space-y-0.5">
+                    {formatWeeklyHoursLines(pt.hours, loc).map((row) => (
+                      <li key={row.day} className="flex justify-between gap-3 text-sm text-bone">
+                        <span className="text-muted">{row.day}</span>
+                        <span>{row.hours}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               </Reveal>
             ))}

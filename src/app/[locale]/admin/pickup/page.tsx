@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getAllPickupPoints } from "@/lib/data/locations";
-import { t } from "@/lib/types";
+import { formatWeeklyHoursSummary } from "@/lib/opening-hours";
 import { hasDatabase } from "@/lib/db";
 import { localeHref } from "@/lib/href";
 import { deletePickupAction } from "../actions";
@@ -41,8 +41,8 @@ export default async function AdminPickupPage({ params }: { params: Promise<{ lo
                   <p className="font-medium text-cream">{p.name}</p>
                   <p className="text-xs text-muted">{p.neighborhood}</p>
                 </td>
-                <td className="px-4 py-3">{t(p.address, loc)}</td>
-                <td className="px-4 py-3">{t(p.hours, loc)}</td>
+                <td className="px-4 py-3">{p.address}</td>
+                <td className="px-4 py-3">{formatWeeklyHoursSummary(p.hours, loc)}</td>
                 <td className="px-4 py-3">
                   {p.active ? <span className="text-ok">Active</span> : <span className="text-muted">Hidden</span>}
                 </td>

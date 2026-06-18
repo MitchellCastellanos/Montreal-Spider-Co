@@ -1,8 +1,9 @@
 import "server-only";
-import type { PickupPoint as DbPickup } from "@prisma/client";
+import type { PickupPoint as DbPickup, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { logDbFallback } from "@/lib/data/db-safe";
 import { PICKUP_POINTS as SEED, DELIVERY_ZONES, FREE_DELIVERY_THRESHOLD } from "@/lib/locations";
+import { EMPTY_WEEKLY_HOURS, parseWeeklyHours, type WeeklyHours } from "@/lib/opening-hours";
 
 export { DELIVERY_ZONES, FREE_DELIVERY_THRESHOLD };
 
@@ -10,9 +11,15 @@ export interface PickupView {
   id: string;
   name: string;
   neighborhood: string;
-  address: { en: string; fr: string };
-  hours: { en: string; fr: string };
+  address: string;
+  hours: WeeklyHours;
+  mapsUrl: string;
+  phone: string;
   active: boolean;
+}
+
+function readHours(raw: Prisma.JsonValue): WeeklyHours {
+  return parseWeeklyHours(raw) ?? { ...EMPTY_WEEKLY_HOURS };
 }
 
 function mapPickup(p: DbPickup): PickupView {
@@ -20,8 +27,10 @@ function mapPickup(p: DbPickup): PickupView {
     id: p.id,
     name: p.name,
     neighborhood: p.neighborhood,
-    address: { en: p.addressEn, fr: p.addressFr },
-    hours: { en: p.hoursEn, fr: p.hoursFr },
+    address: p.address,
+    hours: readHours(p.hours),
+    mapsUrl: p.mapsUrl,
+    phone: p.phone,
     active: p.active,
   };
 }
@@ -33,6 +42,8 @@ function seedView(): PickupView[] {
     neighborhood: p.neighborhood,
     address: p.address,
     hours: p.hours,
+    mapsUrl: p.mapsUrl ?? "",
+    phone: p.phone ?? "",
     active: true,
   }));
 }
@@ -78,10 +89,10 @@ export async function getPickupPointById(id: string): Promise<PickupView | null>
 export interface PickupInput {
   name: string;
   neighborhood: string;
-  addressEn: string;
-  addressFr: string;
-  hoursEn: string;
-  hoursFr: string;
+  address: string;
+  hours: WeeklyHours;
+  mapsUrl: string;
+  phone: string;
   active: boolean;
 }
 
@@ -93,12 +104,34 @@ function requireDb() {
 export async function createPickupPoint(input: PickupInput): Promise<void> {
   const db = requireDb();
   const count = await db.pickupPoint.count();
-  await db.pickupPoint.create({ data: { ...input, position: count } });
+  await db.pickupPoint.create({
+    data: {
+      name: input.name,
+      neighborhood: input.neighborhood,
+      address: input.address,
+      hours: input.hours as unknown as Prisma.InputJsonValue,
+      mapsUrl: input.mapsUrl,
+      phone: input.phone,
+      active: input.active,
+      position: count,
+    },
+  });
 }
 
 export async function updatePickupPoint(id: string, input: PickupInput): Promise<void> {
   const db = requireDb();
-  await db.pickupPoint.update({ where: { id }, data: input });
+  await db.pickupPoint.update({
+    where: { id },
+    data: {
+      name: input.name,
+      neighborhood: input.neighborhood,
+      address: input.address,
+      hours: input.hours as unknown as Prisma.InputJsonValue,
+      mapsUrl: input.mapsUrl,
+      phone: input.phone,
+      active: input.active,
+    },
+  });
 }
 
 export async function deletePickupPoint(id: string): Promise<void> {

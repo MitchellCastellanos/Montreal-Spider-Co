@@ -6,6 +6,8 @@ import { savePickupAction, type ActionState } from "@/app/[locale]/admin/actions
 import { useI18n } from "@/i18n/I18nProvider";
 import { localeHref } from "@/lib/href";
 import type { PickupView } from "@/lib/data/locations";
+import { EMPTY_WEEKLY_HOURS } from "@/lib/opening-hours";
+import OpeningHoursEditor from "@/components/admin/OpeningHoursEditor";
 
 export default function PickupForm({ point }: { point: PickupView | null }) {
   const { locale } = useI18n();
@@ -18,7 +20,7 @@ export default function PickupForm({ point }: { point: PickupView | null }) {
         <Link href={localeHref(locale, "/admin/pickup")} className="text-sm text-gold-deep hover:text-gold-bright">← Back</Link>
       </div>
 
-      <form action={action} className="card-glow space-y-4 rounded-2xl p-5">
+      <form action={action} className="card-glow space-y-5 rounded-2xl p-5">
         <input type="hidden" name="locale" value={locale} />
         {point && <input type="hidden" name="id" value={point.id} />}
 
@@ -31,22 +33,24 @@ export default function PickupForm({ point }: { point: PickupView | null }) {
             <span>Neighborhood</span>
             <input name="neighborhood" defaultValue={point?.neighborhood} className="input" />
           </label>
-          <label className="field">
-            <span>Address (EN) *</span>
-            <input name="addressEn" defaultValue={point?.address.en} className="input" required />
+          <label className="field sm:col-span-2">
+            <span>Address *</span>
+            <input name="address" defaultValue={point?.address} className="input" required placeholder="1234 Rue Example, Montréal" />
           </label>
           <label className="field">
-            <span>Address (FR)</span>
-            <input name="addressFr" defaultValue={point?.address.fr} className="input" />
+            <span>Phone</span>
+            <input name="phone" type="tel" defaultValue={point?.phone} className="input" placeholder="514-555-0142" />
           </label>
           <label className="field">
-            <span>Hours (EN)</span>
-            <input name="hoursEn" defaultValue={point?.hours.en} className="input" placeholder="Tue–Sun, 12:00–19:00" />
+            <span>Google Maps link</span>
+            <input name="mapsUrl" type="url" defaultValue={point?.mapsUrl} className="input" placeholder="https://maps.google.com/..." />
           </label>
-          <label className="field">
-            <span>Hours (FR)</span>
-            <input name="hoursFr" defaultValue={point?.hours.fr} className="input" placeholder="Mar–Dim, 12h00–19h00" />
-          </label>
+        </div>
+
+        <div>
+          <p className="mb-3 text-sm font-medium text-cream">Opening hours</p>
+          <p className="mb-3 text-xs text-muted">Set hours per day — displayed on the site in the visitor&apos;s language.</p>
+          <OpeningHoursEditor name="hours" initial={point?.hours ?? EMPTY_WEEKLY_HOURS} />
         </div>
 
         <label className="flex items-center gap-2 text-sm text-bone">

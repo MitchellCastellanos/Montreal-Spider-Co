@@ -7,6 +7,8 @@ import { useCart } from "@/context/CartContext";
 import { useAuth, type Order } from "@/context/AuthContext";
 import { useI18n, useT } from "@/i18n/I18nProvider";
 import { formatPrice, maskCard } from "@/lib/format";
+import { formatWeeklyHoursSummary } from "@/lib/opening-hours";
+import type { WeeklyHours } from "@/lib/opening-hours";
 import { DELIVERY_ZONES, FREE_DELIVERY_THRESHOLD } from "@/lib/locations";
 import { t } from "@/lib/types";
 import { SITE } from "@/lib/site";
@@ -17,7 +19,7 @@ export interface PickupOption {
   id: string;
   name: string;
   neighborhood: string;
-  hours: { en: string; fr: string };
+  hours: WeeklyHours;
 }
 
 export default function CheckoutView({
@@ -188,7 +190,9 @@ export default function CheckoutView({
                   </select>
                 </Field>
                 {pickups.find((p) => p.id === pickupId) && (
-                  <p className="mt-2 text-sm text-bone">{t(pickups.find((p) => p.id === pickupId)!.hours, locale)}</p>
+                  <p className="mt-2 text-sm text-bone">
+                    {formatWeeklyHoursSummary(pickups.find((p) => p.id === pickupId)!.hours, locale)}
+                  </p>
                 )}
                 <div className="mt-3 flex items-start gap-2 rounded-lg border border-gold/25 bg-gold/5 p-3 text-xs leading-relaxed text-bone">
                   <span className="text-gold-bright">⏳</span>

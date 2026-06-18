@@ -83,15 +83,18 @@ async function main() {
     const data = {
       name: p.name,
       neighborhood: p.neighborhood,
-      addressEn: p.address.en,
-      addressFr: p.address.fr,
-      hoursEn: p.hours.en,
-      hoursFr: p.hours.fr,
+      address: p.address,
+      mapsUrl: p.mapsUrl ?? "",
+      phone: p.phone ?? "",
       position: i,
       active: true,
     };
     // Use the seed id as the row id so re-seeding is idempotent.
-    await prisma.pickupPoint.upsert({ where: { id: p.id }, update: {}, create: { id: p.id, ...data } });
+    await prisma.pickupPoint.upsert({
+      where: { id: p.id },
+      update: {},
+      create: { id: p.id, ...data, hours: p.hours as unknown as object },
+    });
   }
   }
 

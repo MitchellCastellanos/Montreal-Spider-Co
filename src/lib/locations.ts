@@ -1,62 +1,65 @@
-import type { L } from "./types";
+import type { WeeklyHours } from "./opening-hours";
+import { sameHours } from "./opening-hours";
 
 export interface PickupPoint {
   id: string;
   name: string;
-  address: L;
+  address: string;
   neighborhood: string;
-  hours: L;
+  hours: WeeklyHours;
+  mapsUrl?: string;
+  phone?: string;
 }
 
 export interface DeliveryZone {
   id: string;
-  name: L;
+  name: { en: string; fr: string };
   fee: number;
-  eta: L;
+  eta: { en: string; fr: string };
 }
 
 export const PICKUP_POINTS: PickupPoint[] = [
   {
     id: "plateau",
     name: "The Plateau Hub",
-    address: { en: "Avenue du Mont-Royal E, Le Plateau-Mont-Royal", fr: "Avenue du Mont-Royal E, Le Plateau-Mont-Royal" },
+    address: "Avenue du Mont-Royal E, Le Plateau-Mont-Royal",
     neighborhood: "Le Plateau-Mont-Royal",
-    hours: { en: "Tue–Sun, 12:00–19:00", fr: "Mar–Dim, 12h00–19h00" },
+    hours: sameHours(["tue", "wed", "thu", "fri", "sat", "sun"], "12:00", "19:00"),
   },
   {
     id: "rosemont",
     name: "Rosemont Pickup",
-    address: { en: "Boulevard Saint-Laurent, Rosemont–La Petite-Patrie", fr: "Boulevard Saint-Laurent, Rosemont–La Petite-Patrie" },
+    address: "Boulevard Saint-Laurent, Rosemont–La Petite-Patrie",
     neighborhood: "Rosemont–La Petite-Patrie",
-    hours: { en: "Wed–Sat, 11:00–18:00", fr: "Mer–Sam, 11h00–18h00" },
+    hours: sameHours(["wed", "thu", "fri", "sat"], "11:00", "18:00"),
   },
   {
     id: "verdun",
     name: "Verdun Point",
-    address: { en: "Rue Wellington, Verdun", fr: "Rue Wellington, Verdun" },
+    address: "Rue Wellington, Verdun",
     neighborhood: "Verdun",
-    hours: { en: "Thu–Sun, 12:00–18:00", fr: "Jeu–Dim, 12h00–18h00" },
+    hours: sameHours(["thu", "fri", "sat", "sun"], "12:00", "18:00"),
   },
   {
     id: "westisland",
     name: "West Island Depot",
-    address: { en: "Boulevard Saint-Jean, Pointe-Claire", fr: "Boulevard Saint-Jean, Pointe-Claire" },
+    address: "Boulevard Saint-Jean, Pointe-Claire",
     neighborhood: "Pointe-Claire",
-    hours: { en: "Sat–Sun, 11:00–16:00", fr: "Sam–Dim, 11h00–16h00" },
+    hours: sameHours(["sat", "sun"], "11:00", "16:00"),
   },
   {
     id: "longueuil",
     name: "Longueuil Counter",
-    address: { en: "Rue Saint-Charles O, Longueuil", fr: "Rue Saint-Charles O, Longueuil" },
+    address: "Rue Saint-Charles O, Longueuil",
     neighborhood: "Longueuil",
-    hours: { en: "Fri–Sun, 12:00–18:00", fr: "Ven–Dim, 12h00–18h00" },
+    hours: sameHours(["fri", "sat", "sun"], "12:00", "18:00"),
   },
   {
     id: "laval",
     name: "Laval Pickup",
-    address: { en: "Boulevard Saint-Martin O, Laval", fr: "Boulevard Saint-Martin O, Laval" },
+    address: "Boulevard Saint-Martin O, Laval",
     neighborhood: "Laval",
-    hours: { en: "Sat–Sun, 12:00–17:00", fr: "Sam–Dim, 12h00–17h00" },
+    hours: sameHours(["sat", "sun"], "12:00", "17:00"),
   },
 ];
 

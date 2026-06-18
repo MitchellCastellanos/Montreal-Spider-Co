@@ -132,10 +132,11 @@ model PickupPoint {
   id           String   @id @default(cuid())
   name         String
   neighborhood String   @default("")
-  addressEn    String
-  addressFr    String
-  hoursEn      String
-  hoursFr      String
+  address      String
+  /** Weekly schedule — { mon: { open, close } | { closed: true }, … } */
+  hours        Json     @default("{}")
+  mapsUrl      String   @default("")
+  phone        String   @default("")
   position     Int      @default(0)
   active       Boolean  @default(true)
   createdAt    DateTime @default(now())

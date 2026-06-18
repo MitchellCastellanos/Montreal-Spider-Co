@@ -16,6 +16,7 @@ import { updateSettings } from "@/lib/data/settings";
 import { addLibraryImage } from "@/lib/data/species-library";
 import { linkProductToSpecies, type SpeciesInput } from "@/lib/data/species";
 import { generateSpeciesProfile } from "@/lib/ai/generate-species";
+import { parseWeeklyHoursJson } from "@/lib/opening-hours";
 import { deriveAccent, deriveGenus, deriveHue } from "@/lib/species-utils";
 
 export type ActionState = { error?: string; ok?: boolean };
@@ -218,15 +219,18 @@ export async function savePickupAction(_prev: ActionState, formData: FormData): 
   if (!(await isAdminAuthed())) return { error: "unauthorized" };
   const id = str(formData, "id");
   const locale = str(formData, "locale") || "en";
-  if (!str(formData, "name") || !str(formData, "addressEn")) return { error: "missing_fields" };
+  if (!str(formData, "name") || !str(formData, "address")) return { error: "missing_fields" };
+
+  const hours = parseWeeklyHoursJson(str(formData, "hours"));
+  if (!hours) return { error: "hours_invalid" };
 
   const input: PickupInput = {
     name: str(formData, "name"),
     neighborhood: str(formData, "neighborhood"),
-    addressEn: str(formData, "addressEn"),
-    addressFr: str(formData, "addressFr") || str(formData, "addressEn"),
-    hoursEn: str(formData, "hoursEn"),
-    hoursFr: str(formData, "hoursFr") || str(formData, "hoursEn"),
+    address: str(formData, "address"),
+    hours,
+    mapsUrl: str(formData, "mapsUrl"),
+    phone: str(formData, "phone"),
     active: bool(formData, "active"),
   };
 
