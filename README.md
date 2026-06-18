@@ -37,12 +37,12 @@ server). The list below is the single source of truth for what to build next.
 - Cart: slide-in drawer + full cart page (persisted in `localStorage`).
 - Checkout: Montreal **delivery zones** + free **pickup points**, free-delivery threshold, **GST + QST** estimate, saved/new payment method, order confirmation.
 
-**Admin panel & products (NEW — DB-backed via Supabase)**
+**Admin panel & products (NEW — DB-backed via Neon Postgres)**
 - **`/admin`** — password-protected staff panel (signed http-only session cookie).
-- **Products CRUD**: create / edit / delete species, bilingual fields, sizes & stock, flags, **photo upload to Supabase Storage**.
+- **Products CRUD**: create / edit / delete species, bilingual fields, sizes & stock, flags, **photo upload to Cloudinary**.
 - Storefront reads products from the database (with ISR) and **gracefully falls back to the built-in seed catalog** when no DB is connected — so it always works.
 - Staff customer lookup (`/admin/customers`): search customers **by phone number**.
-- ⚙️ Setup: **`SETUP_SUPABASE.md`** (database + storage + admin login, ~15 min).
+- ⚙️ Setup: **`SETUP_DATABASE.md`** (Neon database + Cloudinary storage + admin login, ~15 min).
 
 **Accounts & checkout**
 - User accounts: sign in/up, profile, order history, **saved cards & addresses** (in `localStorage`).
@@ -61,17 +61,17 @@ server). The list below is the single source of truth for what to build next.
 
 | Area | Current | Needed for production | Integration point |
 |---|---|---|---|
-| **Products / inventory** | ✅ DB-backed (Supabase) + admin CRUD + image upload | Just add the env vars + run `db:push` & `db:seed` (see `SETUP_SUPABASE.md`) | `src/lib/data/products.ts` |
+| **Products / inventory** | ✅ DB-backed (Neon) + admin CRUD + Cloudinary uploads | Just add the env vars + run `db:push` & `db:seed` (see `SETUP_DATABASE.md`) | `src/lib/data/products.ts` |
 | **Payments** | Checkout validates but **processes no real payment**; no card data stored | Stripe: payment intents, webhooks, receipts | `src/components/checkout/CheckoutView.tsx` |
-| **Customer accounts** | Any email + password "signs in"; data per-browser | Real auth (Supabase Auth) + server sessions | `src/context/AuthContext.tsx` |
+| **Customer accounts** | Any email + password "signs in"; data per-browser | Real auth provider + server sessions | `src/context/AuthContext.tsx` |
 | **Orders** | Stored in `localStorage` | Persist to DB on checkout; confirmation emails | `src/context/CartContext.tsx`, checkout |
 | **Customer lookup** | Seeded demo data | Point at the real customers/orders tables | `src/lib/customers.ts` |
 | **Contact / newsletter** | Forms show success but **don't send** | Email service (Resend/SendGrid) | `ContactForm.tsx`, `Newsletter.tsx` |
 
 ### 📋 Suggested next steps (priority order)
-1. **Connect Supabase** — follow `SETUP_SUPABASE.md` to make the admin panel live (~15 min).
+1. **Connect Neon + Cloudinary** — follow `SETUP_DATABASE.md` to make the admin panel live (~15 min).
 2. **Payments** — Stripe checkout + webhooks (the launch blocker for selling).
-3. **Orders + real accounts** — persist orders to the DB; move accounts to Supabase Auth.
+3. **Orders + real accounts** — persist orders to the DB; move accounts to a real auth provider.
 4. **Email** — order confirmations, contact form, newsletter.
 5. **Deploy** — Vercel + the `montrealspiderco.ca` domain (below).
 

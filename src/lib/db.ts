@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 
 /**
  * Prisma is only instantiated when a DATABASE_URL is configured. When it isn't
- * (e.g. local dev before Supabase is connected), `prisma` is null and the data
+ * (e.g. local dev before the database is connected), `prisma` is null and the data
  * layer transparently falls back to the static seed catalog.
  */
 export const hasDatabase = Boolean(process.env.DATABASE_URL);

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { isLocale } from "@/i18n/config";
 import { isAdminAuthed, adminConfigured } from "@/lib/auth";
 import { hasDatabase } from "@/lib/db";
-import { hasStorage } from "@/lib/supabaseAdmin";
+import { hasStorage } from "@/lib/storage";
 import { localeHref } from "@/lib/href";
 import AdminLogin from "@/components/admin/AdminLogin";
 import { logoutAction } from "./actions";
@@ -44,7 +44,7 @@ export default async function AdminLayout({
             <p>⚠️ No database connected — showing the seed catalog (read-only). Set <code className="text-cream">DATABASE_URL</code> to manage products.</p>
           )}
           {hasDatabase && !hasStorage && (
-            <p>⚠️ Image storage not configured — set the Supabase env vars to upload product photos.</p>
+            <p>⚠️ Image storage not configured — set the Cloudinary env vars to upload product photos.</p>
           )}
         </div>
       )}

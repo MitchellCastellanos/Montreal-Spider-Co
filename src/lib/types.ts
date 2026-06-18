@@ -33,7 +33,7 @@ export interface Product {
   reviews: number;
   hue: number; // base hue for the generated species graphic
   accent: string;
-  /** Optional product photo URL (Supabase Storage or /public path). Falls back to placeholder. */
+  /** Optional product photo URL (Cloudinary or /public path). Falls back to placeholder. */
   image?: string;
   adultSize: L;
   growth: L;

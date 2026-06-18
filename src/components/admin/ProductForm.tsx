@@ -161,7 +161,7 @@ export default function ProductForm({
         {state.error && (
           <p className="rounded-lg border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
             {state.error === "storage_unconfigured"
-              ? "Image storage isn't configured — set the Supabase env vars to upload photos."
+              ? "Image storage isn't configured — set the Cloudinary env vars to upload photos."
               : `Could not save: ${state.error}`}
           </p>
         )}
