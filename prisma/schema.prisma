@@ -172,3 +172,96 @@ model SpeciesLibraryImage {
   @@index([genus])
   @@index([label])
 }
+
+// ---------------------------------------------------------------------------
+// Customers, orders & checkout (production)
+// ---------------------------------------------------------------------------
+
+enum OrderStatus {
+  processing
+  ready
+  delivered
+  cancelled
+}
+
+enum FulfillmentMethod {
+  delivery
+  pickup
+}
+
+model Customer {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  passwordHash     String
+  name             String
+  phone            String    @default("")
+  stripeCustomerId String?   @unique
+  addresses        Address[]
+  orders           Order[]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([phone])
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  label      String   @default("Home")
+  line1      String
+  city       String
+  postal     String
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([customerId])
+}
+
+model Order {
+  id              String            @id @default(cuid())
+  orderNumber     String            @unique
+  customerId      String?
+  customer        Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  stripeSessionId String?           @unique
+  email           String
+  name            String
+  phone           String
+  method          FulfillmentMethod
+  status          OrderStatus       @default(processing)
+  subtotal        Float
+  deliveryFee     Float             @default(0)
+  tax             Float             @default(0)
+  total           Float
+  notes           String            @default("")
+  address         String?
+  city            String?
+  postal          String?
+  zoneId          String?
+  pickupId        String?
+  locale          String            @default("en")
+  lines           OrderLine[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([customerId])
+  @@index([email])
+  @@index([phone])
+  @@index([createdAt])
+}
+
+model OrderLine {
+  id          String @id @default(cuid())
+  orderId     String
+  order       Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  sizeKey     String
+  nameEn      String
+  nameFr      String
+  sizeLabelEn String
+  sizeLabelFr String
+  qty         Int
+  unitPrice   Float
+
+  @@index([orderId])
+}

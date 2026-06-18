@@ -27,6 +27,7 @@ export interface CheckoutPayload {
   method: "delivery" | "pickup";
   zoneId?: string;
   pickupId?: string;
+  customerId?: string;
   items: CheckoutLineInput[];
   customer: CheckoutCustomerInput;
 }
@@ -45,7 +46,7 @@ function cadCents(amount: number): number {
 }
 
 export async function validateAndBuildCheckout(payload: CheckoutPayload): Promise<ValidatedCheckout> {
-  const { locale, method, zoneId, pickupId, items, customer } = payload;
+  const { locale, method, zoneId, pickupId, items, customer, customerId } = payload;
 
   if (!items.length) throw new CheckoutError("Cart is empty.", 400);
   if (!customer.name?.trim() || !customer.email?.trim() || !customer.phone?.trim()) {
@@ -65,7 +66,16 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
   let subtotal = 0;
-  const orderItems: { name: string; size: string; qty: number; price: number }[] = [];
+  const orderItems: {
+    productId: string;
+    sizeKey: string;
+    nameEn: string;
+    nameFr: string;
+    sizeLabelEn: string;
+    sizeLabelFr: string;
+    qty: number;
+    price: number;
+  }[] = [];
 
   for (const item of items) {
     if (item.qty < 1 || item.qty > 20) throw new CheckoutError("Invalid quantity.", 400);
@@ -80,8 +90,12 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
     const name = `${product.common[locale]} — ${size.label[locale]}`;
     subtotal += size.price * item.qty;
     orderItems.push({
-      name: product.common[locale],
-      size: size.label[locale],
+      productId: product.id,
+      sizeKey: size.id,
+      nameEn: product.common.en,
+      nameFr: product.common.fr,
+      sizeLabelEn: size.label.en,
+      sizeLabelFr: size.label.fr,
       qty: item.qty,
       price: size.price,
     });
@@ -140,9 +154,11 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
   const metadata: Record<string, string> = {
     locale,
     method,
+    customerEmail: customer.email.trim().toLowerCase(),
     customerName: customer.name.trim(),
     customerPhone: customer.phone.trim(),
     customerNotes: customer.notes?.trim() ?? "",
+    cartItems: items.map((i) => `${i.productId}:${i.sizeId}:${i.qty}`).join("|"),
     orderItems: JSON.stringify(orderItems),
     subtotal: subtotal.toFixed(2),
     deliveryFee: deliveryFee.toFixed(2),
@@ -157,6 +173,10 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
     metadata.postal = customer.postal!.trim();
   } else {
     metadata.pickupId = pickupId!;
+  }
+
+  if (customerId) {
+    metadata.customerId = customerId;
   }
 
   return { subtotal, deliveryFee, tax, total, lineItems, metadata };

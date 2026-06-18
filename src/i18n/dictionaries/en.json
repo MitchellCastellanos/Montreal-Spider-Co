@@ -223,8 +223,10 @@
     "signedInAs": "Signed in as",
     "signOutCheckout": "Use a different account",
     "createAccount": "Create an account for faster checkout next time",
-    "createAccountHint": "We'll save your contact details — no password needed until you visit your account.",
-    "signInError": "No account found for that email. Continue as guest or create an account below.",
+    "createAccountHint": "Choose a password (8+ characters) to save your details for next time.",
+    "passwordMin": "Password must be at least 8 characters.",
+    "paymentsUnavailable": "Online payments are not configured yet. Please contact us to complete your order.",
+    "signInError": "Invalid email or password. Try again or continue as guest.",
     "signInFields": "Enter your email and password."
   },
   "account": {
@@ -254,8 +256,11 @@
     "orderDate": "Date",
     "orderStatus": "Status",
     "orderTotal": "Total",
-    "demoCreds": "Demo: use any email & password to sign in.",
-    "errorFields": "Enter an email and password to continue.",
+    "demoCreds": "Use the email and password you registered with.",
+    "errorFields": "Enter all required fields to continue.",
+    "passwordMin": "Password must be at least 8 characters.",
+    "paymentsStripeNote": "Payments are processed securely by Stripe at checkout. We never store your card details on our servers.",
+    "statusCancelled": "Cancelled",
     "statusProcessing": "Processing",
     "statusDelivered": "Delivered",
     "statusReady": "Ready for pickup"

@@ -4,9 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import LocaleLink from "@/components/LocaleLink";
 import SpeciesImage from "@/components/SpeciesImage";
 import { useCart } from "@/context/CartContext";
-import { useAuth, type Order, type User } from "@/context/AuthContext";
+import { useAuth, type User } from "@/context/AuthContext";
 import { useI18n, useT } from "@/i18n/I18nProvider";
-import { formatPrice, maskCard } from "@/lib/format";
+import { formatPrice } from "@/lib/format";
 import { formatWeeklyHoursSummary } from "@/lib/opening-hours";
 import type { WeeklyHours } from "@/lib/opening-hours";
 import { DELIVERY_ZONES, FREE_DELIVERY_THRESHOLD } from "@/lib/locations";
@@ -46,21 +46,20 @@ export default function CheckoutView({
 }) {
   const { dict, locale } = useI18n();
   const tr = useT();
-  const { resolved, subtotal, clear } = useCart();
-  const { user, ready, signIn, trySignIn, signOut, addOrder, addCard, updateProfile } = useAuth();
+  const { resolved, subtotal } = useCart();
+  const { user, ready, login, register, signOut, updateProfile } = useAuth();
   const co = dict.checkout;
 
   const [authMode, setAuthMode] = useState<CheckoutAuthMode>("signin");
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPwd, setLoginPwd] = useState("");
+  const [guestPassword, setGuestPassword] = useState("");
   const [signInError, setSignInError] = useState<string | null>(null);
   const [createAccount, setCreateAccount] = useState(false);
 
   const [method, setMethod] = useState<Method>("delivery");
   const [zoneId, setZoneId] = useState(DELIVERY_ZONES[0].id);
   const [pickupId, setPickupId] = useState(pickups[0]?.id ?? "");
-  const [useSaved, setUseSaved] = useState<string | null>(user?.cards.find((c) => c.isDefault)?.id ?? user?.cards[0]?.id ?? null);
-  const [saveCard, setSaveCard] = useState(false);
   const [form, setForm] = useState({
     name: user?.name ?? "",
     email: user?.email ?? "",
@@ -68,14 +67,9 @@ export default function CheckoutView({
     address: "",
     city: "",
     postal: "",
-    cardName: "",
-    cardNumber: "",
-    cardExp: "",
-    cardCvc: "",
     notes: "",
   });
   const [errors, setErrors] = useState<Record<string, boolean>>({});
-  const [placed, setPlaced] = useState<Order | null>(null);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
 
@@ -94,35 +88,36 @@ export default function CheckoutView({
 
   const showContactForm = Boolean(user) || authMode === "guest";
 
-  const handleSignIn = (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setSignInError(null);
     if (!loginEmail.trim() || !loginPwd) {
       setSignInError(co.signInFields);
       return;
     }
-    if (!trySignIn(loginEmail)) {
-      setSignInError(co.signInError);
-      return;
-    }
+    const err = await login(loginEmail, loginPwd);
+    if (err) setSignInError(err);
   };
 
-  const syncAccountBeforeCheckout = () => {
+  const syncAccountBeforeCheckout = async (): Promise<string | null> => {
     if (user) {
-      updateProfile({ name: form.name, phone: form.phone });
-      return;
+      await updateProfile({ name: form.name, phone: form.phone });
+      return null;
     }
     if (createAccount) {
-      signIn(form.email, form.name, form.phone);
+      if (guestPassword.length < 8) return co.passwordMin;
+      return await register({
+        email: form.email,
+        password: guestPassword,
+        name: form.name,
+        phone: form.phone,
+      });
     }
+    return null;
   };
 
   if (!ready) {
     return <div className="container-x py-20 text-muted">{dict.common.loading}</div>;
-  }
-
-  if (placed) {
-    return <Success order={placed} />;
   }
 
   if (resolved.length === 0) {
@@ -148,89 +143,58 @@ export default function CheckoutView({
       if (!form.city) e.city = true;
       if (!form.postal) e.postal = true;
     }
-    const payingNew = !stripeEnabled && !useSaved;
-    if (payingNew) {
-      if (!form.cardName) e.cardName = true;
-      if (form.cardNumber.replace(/\s/g, "").length < 12) e.cardNumber = true;
-      if (!form.cardExp) e.cardExp = true;
-      if (!form.cardCvc) e.cardCvc = true;
-    }
+    if (createAccount && guestPassword.length < 8) e.password = true;
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const placeOrder = async () => {
     if (!validate()) return;
-
-    syncAccountBeforeCheckout();
-
-    if (stripeEnabled) {
-      setPaying(true);
-      setPayError(null);
-      try {
-        const res = await fetch("/api/stripe/checkout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            locale,
-            method,
-            zoneId: method === "delivery" ? zoneId : undefined,
-            pickupId: method === "pickup" ? pickupId : undefined,
-            items: resolved.map((l) => ({ productId: l.productId, sizeId: l.sizeId, qty: l.qty })),
-            customer: {
-              name: form.name,
-              email: form.email,
-              phone: form.phone,
-              address: form.address,
-              city: form.city,
-              postal: form.postal,
-              notes: form.notes,
-            },
-          }),
-        });
-        const data = (await res.json()) as { url?: string; error?: string };
-        if (!res.ok || !data.url) {
-          setPayError(data.error ?? co.paymentError);
-          return;
-        }
-        window.location.href = data.url;
-      } catch {
-        setPayError(co.paymentError);
-      } finally {
-        setPaying(false);
-      }
+    if (!stripeEnabled) {
+      setPayError(co.paymentsUnavailable);
       return;
     }
 
-    const order: Order = {
-      id: `MSC-${Math.floor(1000 + Math.random() * 9000)}`,
-      date: new Date().toISOString(),
-      total,
-      status: method === "pickup" ? "ready" : "processing",
-      method,
-      items: resolved.map((l) => ({
-        name: tr(l.product.common),
-        size: tr(l.size.label),
-        qty: l.qty,
-        price: l.size.price,
-      })),
-    };
-
-    // Demo: ensure a session so the order is stored against an account.
-    if (!user && !createAccount && form.email) signIn(form.email, form.name, form.phone);
-
-    if (!useSaved && saveCard && form.cardNumber) {
-      addCard({
-        brand: "Visa",
-        last4: form.cardNumber.replace(/\D/g, "").slice(-4) || "0000",
-        exp: form.cardExp,
-        name: form.cardName,
-      });
+    const accountErr = await syncAccountBeforeCheckout();
+    if (accountErr) {
+      setPayError(accountErr);
+      return;
     }
 
-    addOrder(order);
-    clear();
-    setPlaced(order);
+    setPaying(true);
+    setPayError(null);
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          locale,
+          method,
+          zoneId: method === "delivery" ? zoneId : undefined,
+          pickupId: method === "pickup" ? pickupId : undefined,
+          items: resolved.map((l) => ({ productId: l.productId, sizeId: l.sizeId, qty: l.qty })),
+          customer: {
+            name: form.name,
+            email: form.email,
+            phone: form.phone,
+            address: form.address,
+            city: form.city,
+            postal: form.postal,
+            notes: form.notes,
+          },
+        }),
+      });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !data.url) {
+        setPayError(data.error ?? co.paymentError);
+        return;
+      }
+      window.location.href = data.url;
+    } catch {
+      setPayError(co.paymentError);
+    } finally {
+      setPaying(false);
+    }
   };
 
   return (
@@ -329,6 +293,20 @@ export default function CheckoutView({
                   <span className="mt-1 block text-xs text-muted">{co.createAccountHint}</span>
                 </span>
               </label>
+              {createAccount && (
+                <div className="mt-4">
+                  <Field label={dict.common.password} error={errors.password}>
+                    <input
+                      type="password"
+                      className="input"
+                      value={guestPassword}
+                      onChange={(e) => setGuestPassword(e.target.value)}
+                      autoComplete="new-password"
+                      minLength={8}
+                    />
+                  </Field>
+                </div>
+              )}
             </Section>
           )}
 
@@ -392,51 +370,9 @@ export default function CheckoutView({
                 🔒 {co.stripeNote}
               </p>
             ) : (
-              <>
-            {user && user.cards.length > 0 && (
-              <div className="mb-4 space-y-2">
-                <p className="text-xs uppercase tracking-wide text-gold-deep">{co.savedCards}</p>
-                {user.cards.map((card) => (
-                  <label key={card.id} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 ${useSaved === card.id ? "border-gold bg-gold/10" : "border-line"}`}>
-                    <input type="radio" name="card" checked={useSaved === card.id} onChange={() => setUseSaved(card.id)} className="accent-[var(--gold)]" />
-                    <span className="text-sm text-cream">{card.brand} {maskCard(card.last4)}</span>
-                    <span className="ml-auto text-xs text-muted">{card.exp}</span>
-                  </label>
-                ))}
-                <label className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 ${useSaved === null ? "border-gold bg-gold/10" : "border-line"}`}>
-                  <input type="radio" name="card" checked={useSaved === null} onChange={() => setUseSaved(null)} className="accent-[var(--gold)]" />
-                  <span className="text-sm text-cream">{co.useNewCard}</span>
-                </label>
-              </div>
-            )}
-
-            {useSaved === null && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <Field label={co.cardName} error={errors.cardName}>
-                    <input className="input" value={form.cardName} onChange={(e) => set("cardName", e.target.value)} autoComplete="cc-name" />
-                  </Field>
-                </div>
-                <div className="sm:col-span-2">
-                  <Field label={co.cardNumber} error={errors.cardNumber}>
-                    <input className="input" value={form.cardNumber} onChange={(e) => set("cardNumber", e.target.value)} placeholder="4242 4242 4242 4242" inputMode="numeric" autoComplete="cc-number" />
-                  </Field>
-                </div>
-                <Field label={co.cardExp} error={errors.cardExp}>
-                  <input className="input" value={form.cardExp} onChange={(e) => set("cardExp", e.target.value)} placeholder="12/28" autoComplete="cc-exp" />
-                </Field>
-                <Field label={co.cardCvc} error={errors.cardCvc}>
-                  <input className="input" value={form.cardCvc} onChange={(e) => set("cardCvc", e.target.value)} placeholder="123" inputMode="numeric" autoComplete="cc-csc" />
-                </Field>
-                <label className="sm:col-span-2 flex items-center gap-2 text-sm text-bone">
-                  <input type="checkbox" checked={saveCard} onChange={(e) => setSaveCard(e.target.checked)} className="accent-[var(--gold)]" />
-                  {co.saveCard}
-                </label>
-              </div>
-            )}
-
-            <p className="mt-4 rounded-lg border border-line bg-ink-soft/60 p-3 text-xs text-muted">🔒 {co.demoNote}</p>
-              </>
+              <p className="rounded-lg border border-danger/30 bg-danger/5 p-4 text-sm text-bone">
+                {co.paymentsUnavailable}
+              </p>
             )}
           </Section>
           )}
@@ -485,39 +421,16 @@ export default function CheckoutView({
             )}
             <button
               onClick={placeOrder}
-              disabled={paying || !showContactForm}
+              disabled={paying || !showContactForm || !stripeEnabled}
               className="btn btn-gold mt-4 w-full text-base disabled:opacity-60"
             >
-              {paying ? co.processing : stripeEnabled ? co.continueToPayment : co.placeOrder}
+              {paying ? co.processing : co.continueToPayment}
             </button>
             {!showContactForm && (
               <p className="mt-3 text-center text-xs text-muted">{co.signInPrompt}</p>
             )}
           </div>
         </aside>
-      </div>
-    </div>
-  );
-}
-
-function Success({ order }: { order: Order }) {
-  const { dict, locale } = useI18n();
-  const co = dict.checkout;
-  return (
-    <div className="container-x py-20">
-      <div className="mx-auto max-w-lg text-center">
-        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-ok/15 text-4xl text-ok pulse-ring">✓</div>
-        <h1 className="font-display text-4xl font-bold text-cream">{co.successTitle}</h1>
-        <p className="mt-3 text-bone">{co.successBody}</p>
-        <div className="mt-6 rounded-2xl border border-gold/30 bg-gold/5 p-5">
-          <p className="text-xs uppercase tracking-wide text-muted">{co.orderNumber}</p>
-          <p className="font-display text-2xl font-bold text-gold-bright">{order.id}</p>
-          <p className="mt-2 text-bone">{formatPrice(order.total, locale)}</p>
-        </div>
-        <div className="mt-7 flex flex-wrap justify-center gap-3">
-          <LocaleLink href="/account" className="btn btn-gold">{co.viewOrders}</LocaleLink>
-          <LocaleLink href="/shop" className="btn btn-ghost">{co.keepShopping}</LocaleLink>
-        </div>
       </div>
     </div>
   );

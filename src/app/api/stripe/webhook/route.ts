@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
+import { fulfillCheckoutSession } from "@/lib/orders/fulfill-checkout";
 
 export const runtime = "nodejs";
 
@@ -30,12 +31,7 @@ export async function POST(req: Request) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        console.info("[stripe/webhook] checkout.session.completed", {
-          id: session.id,
-          amount_total: session.amount_total,
-          metadata: session.metadata,
-        });
-        // TODO: persist order to DB, decrement stock, send confirmation email
+        await fulfillCheckoutSession(session);
         break;
       }
       case "payment_intent.payment_failed": {

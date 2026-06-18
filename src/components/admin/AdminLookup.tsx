@@ -4,23 +4,47 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice, formatDate } from "@/lib/format";
-import {
-  CUSTOMERS,
-  lastOrderDate,
-  lifetimeValue,
-  searchCustomersByPhone,
-  type Customer,
-} from "@/lib/customers";
+
+interface LookupCustomer {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  city: string;
+  verified: boolean;
+  orders: {
+    id: string;
+    date: string;
+    total: number;
+    status: string;
+    items: string[];
+  }[];
+}
 
 export default function AdminLookup() {
   const { dict, locale } = useI18n();
   const ad = dict.admin;
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Customer[] | null>(null);
+  const [results, setResults] = useState<LookupCustomer[] | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const run = (q: string) => {
+  const run = async (q: string) => {
     setQuery(q);
-    setResults(q.replace(/\D/g, "").length >= 3 ? searchCustomersByPhone(q) : null);
+    const digits = q.replace(/\D/g, "");
+    if (digits.length < 3) {
+      setResults(null);
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/customers?phone=${encodeURIComponent(q)}`);
+      const data = (await res.json()) as { results: LookupCustomer[] };
+      setResults(res.ok ? data.results : []);
+    } catch {
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const statusLabel = (s: string) =>
@@ -41,7 +65,7 @@ export default function AdminLookup() {
             <input
               className="input pl-9"
               value={query}
-              onChange={(e) => run(e.target.value)}
+              onChange={(e) => void run(e.target.value)}
               placeholder={ad.searchPlaceholder}
               inputMode="tel"
               autoFocus
@@ -49,73 +73,53 @@ export default function AdminLookup() {
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">☎</span>
           </div>
         </label>
-        <p className="mt-2 text-xs text-muted">{CUSTOMERS.length} {ad.totalCustomers}</p>
+        {loading && <p className="mt-3 text-sm text-muted">{dict.common.loading}</p>}
       </div>
 
       <AnimatePresence mode="wait">
-        {results !== null && (
+        {results && (
           <motion.div
-            key={query}
-            initial={{ opacity: 0, y: 10 }}
+            key="results"
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="mt-6"
+            className="mt-6 space-y-4"
           >
+            <h2 className="font-display text-xl font-bold text-cream">{ad.results}</h2>
             {results.length === 0 ? (
-              <div className="rounded-2xl border border-line bg-ink-soft/40 p-10 text-center text-bone">{ad.noResults}</div>
+              <p className="text-bone">{ad.noResults}</p>
             ) : (
-              <div className="space-y-5">
-                <p className="text-sm text-muted">{ad.results}: {results.length}</p>
-                {results.map((c) => (
-                  <div key={c.id} className="card-glow rounded-2xl p-5">
-                    <div className="flex flex-wrap items-start justify-between gap-4 border-b border-line pb-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h2 className="font-display text-xl font-bold text-cream">{c.name}</h2>
-                          {c.verified && <span className="badge">✓ {ad.verified}</span>}
-                        </div>
-                        <p className="mt-1 text-sm text-bone">{c.phone} · {c.email}</p>
-                        <p className="text-sm text-muted">{c.city}</p>
-                      </div>
-                      <div className="flex gap-6 text-right">
-                        <Stat label={ad.orders} value={String(c.orders.length)} />
-                        <Stat label={ad.lifetime} value={formatPrice(lifetimeValue(c), locale)} />
-                        <Stat label={ad.lastOrder} value={lastOrderDate(c) ? formatDate(lastOrderDate(c)!, locale) : "—"} />
-                      </div>
-                    </div>
-                    <div className="mt-4 overflow-x-auto">
-                      <table className="w-full text-left text-sm">
-                        <tbody className="divide-y divide-line">
-                          {c.orders.map((o) => (
-                            <tr key={o.id} className="text-bone">
-                              <td className="py-2 pr-4 font-medium text-gold-bright">{o.id}</td>
-                              <td className="py-2 pr-4">{formatDate(o.date, locale)}</td>
-                              <td className="py-2 pr-4"><span className="badge">{statusLabel(o.status)}</span></td>
-                              <td className="py-2 pr-4 text-muted">{o.items.join(", ")}</td>
-                              <td className="py-2 text-right font-semibold text-cream">{formatPrice(o.total, locale)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+              results.map((c) => (
+                <div key={c.id} className="card-glow rounded-2xl p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line pb-4">
+                    <div>
+                      <p className="font-display text-lg font-bold text-cream">{c.name}</p>
+                      <p className="text-sm text-bone">{c.email}</p>
+                      <p className="text-sm text-gold-bright">{c.phone}</p>
+                      {c.city && <p className="text-xs text-muted">{c.city}</p>}
                     </div>
                   </div>
-                ))}
-              </div>
+                  {c.orders.length > 0 && (
+                    <ul className="mt-4 space-y-3">
+                      {c.orders.map((o) => (
+                        <li key={o.id} className="rounded-xl border border-line p-3 text-sm">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="font-semibold text-gold-bright">{o.id}</span>
+                            <span className="text-muted">{formatDate(o.date, locale)}</span>
+                            <span className="badge">{statusLabel(o.status)}</span>
+                            <span className="text-cream">{formatPrice(o.total, locale)}</span>
+                          </div>
+                          <p className="mt-2 text-bone">{o.items.join(" · ")}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))
             )}
           </motion.div>
         )}
       </AnimatePresence>
-
-      <p className="mt-8 rounded-lg border border-line bg-ink-soft/60 p-3 text-xs text-muted">{ad.demoNote}</p>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[11px] uppercase tracking-wide text-muted">{label}</p>
-      <p className="font-display text-lg font-bold text-cream">{value}</p>
     </div>
   );
 }

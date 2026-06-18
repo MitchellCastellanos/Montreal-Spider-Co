@@ -223,8 +223,10 @@
     "signedInAs": "Connecté en tant que",
     "signOutCheckout": "Utiliser un autre compte",
     "createAccount": "Créer un compte pour une caisse plus rapide la prochaine fois",
-    "createAccountHint": "Nous enregistrerons vos coordonnées — aucun mot de passe requis avant de visiter votre compte.",
-    "signInError": "Aucun compte trouvé pour ce courriel. Continuez en invité ou créez un compte ci-dessous.",
+    "createAccountHint": "Choisissez un mot de passe (8 caractères minimum) pour enregistrer vos informations.",
+    "passwordMin": "Le mot de passe doit contenir au moins 8 caractères.",
+    "paymentsUnavailable": "Les paiements en ligne ne sont pas encore configurés. Contactez-nous pour finaliser votre commande.",
+    "signInError": "Courriel ou mot de passe invalide. Réessayez ou continuez en invité.",
     "signInFields": "Entrez votre courriel et votre mot de passe."
   },
   "account": {
@@ -254,8 +256,11 @@
     "orderDate": "Date",
     "orderStatus": "Statut",
     "orderTotal": "Total",
-    "demoCreds": "Démo : utilisez n'importe quel courriel et mot de passe pour vous connecter.",
-    "errorFields": "Entrez un courriel et un mot de passe pour continuer.",
+    "demoCreds": "Utilisez le courriel et le mot de passe avec lesquels vous vous êtes inscrit.",
+    "errorFields": "Remplissez tous les champs requis pour continuer.",
+    "passwordMin": "Le mot de passe doit contenir au moins 8 caractères.",
+    "paymentsStripeNote": "Les paiements sont traités de façon sécurisée par Stripe à la caisse. Nous ne conservons jamais vos données de carte sur nos serveurs.",
+    "statusCancelled": "Annulée",
     "statusProcessing": "En traitement",
     "statusDelivered": "Livrée",
     "statusReady": "Prête pour cueillette"

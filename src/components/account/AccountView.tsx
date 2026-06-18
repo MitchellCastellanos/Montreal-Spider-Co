@@ -3,20 +3,21 @@
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useI18n } from "@/i18n/I18nProvider";
-import { formatPrice, formatDate, maskCard } from "@/lib/format";
+import { formatPrice, formatDate } from "@/lib/format";
 import SpiderGraphic from "@/components/SpiderGraphic";
 
 type Tab = "profile" | "orders" | "payments" | "addresses";
 
 export default function AccountView() {
   const { dict, locale } = useI18n();
-  const { user, ready, signIn, signOut } = useAuth();
+  const { user, ready, login, register, signOut } = useAuth();
   const a = dict.account;
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [pwd, setPwd] = useState("");
-  const [err, setErr] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("profile");
 
   if (!ready) {
@@ -24,13 +25,22 @@ export default function AccountView() {
   }
 
   if (!user) {
-    const submit = (e: React.FormEvent) => {
+    const submit = async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!email || !pwd) {
-        setErr(true);
+      setErr(null);
+      if (!email || !pwd || (mode === "signup" && !name)) {
+        setErr(a.errorFields);
         return;
       }
-      signIn(email, mode === "signup" ? name : undefined);
+      if (pwd.length < 8) {
+        setErr(a.passwordMin);
+        return;
+      }
+      const error =
+        mode === "signup"
+          ? await register({ email, password: pwd, name, phone })
+          : await login(email, pwd);
+      if (error) setErr(error);
     };
     return (
       <div className="container-x py-16">
@@ -44,26 +54,31 @@ export default function AccountView() {
           </div>
           <form onSubmit={submit} className="card-glow space-y-4 rounded-2xl p-6">
             {mode === "signup" && (
-              <label className="field">
-                <span>{dict.common.name}</span>
-                <input className="input" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
-              </label>
+              <>
+                <label className="field">
+                  <span>{dict.common.name}</span>
+                  <input className="input" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" required />
+                </label>
+                <label className="field">
+                  <span>{dict.common.phone}</span>
+                  <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" placeholder="514-555-0142" />
+                </label>
+              </>
             )}
             <label className="field">
               <span>{dict.common.email}</span>
-              <input type="email" className="input" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+              <input type="email" className="input" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
             </label>
             <label className="field">
               <span>{dict.common.password}</span>
-              <input type="password" className="input" value={pwd} onChange={(e) => setPwd(e.target.value)} autoComplete={mode === "signin" ? "current-password" : "new-password"} />
+              <input type="password" className="input" value={pwd} onChange={(e) => setPwd(e.target.value)} autoComplete={mode === "signin" ? "current-password" : "new-password"} minLength={8} required />
             </label>
-            {err && <p className="text-sm text-danger">{a.errorFields}</p>}
+            {err && <p className="text-sm text-danger">{err}</p>}
             <button className="btn btn-gold w-full">{mode === "signin" ? a.signIn : a.signUp}</button>
-            <p className="text-center text-xs text-muted">{a.demoCreds}</p>
           </form>
           <p className="mt-5 text-center text-sm text-bone">
             {mode === "signin" ? a.noAccount : a.haveAccount}{" "}
-            <button onClick={() => setMode(mode === "signin" ? "signup" : "signin")} className="font-semibold text-gold-bright hover:underline">
+            <button onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setErr(null); }} className="font-semibold text-gold-bright hover:underline">
               {mode === "signin" ? a.createOne : a.signIn}
             </button>
           </p>
@@ -80,7 +95,7 @@ export default function AccountView() {
   ];
 
   const statusLabel = (s: string) =>
-    s === "delivered" ? a.statusDelivered : s === "ready" ? a.statusReady : a.statusProcessing;
+    s === "delivered" ? a.statusDelivered : s === "ready" ? a.statusReady : s === "cancelled" ? a.statusCancelled : a.statusProcessing;
 
   return (
     <div className="container-x py-12">
@@ -89,7 +104,7 @@ export default function AccountView() {
           <p className="text-sm text-muted">{a.welcome}</p>
           <h1 className="font-display text-3xl font-bold text-cream">{user.name}</h1>
         </div>
-        <button onClick={signOut} className="btn btn-ghost">{a.signOut}</button>
+        <button onClick={() => void signOut()} className="btn btn-ghost">{a.signOut}</button>
       </div>
 
       <div className="mb-6 flex flex-wrap gap-2 border-b border-line">
@@ -161,7 +176,7 @@ function ProfileTab() {
           <input className="input" value={phone} onChange={(e) => { setPhone(e.target.value); setSaved(false); }} placeholder="514-555-0142" />
         </label>
         <button
-          onClick={() => { updateProfile({ name, phone }); setSaved(true); }}
+          onClick={() => { void updateProfile({ name, phone }); setSaved(true); }}
           className="btn btn-gold"
         >
           {dict.common.save}
@@ -174,49 +189,11 @@ function ProfileTab() {
 
 function PaymentsTab() {
   const { dict } = useI18n();
-  const { user, addCard, removeCard } = useAuth();
   const a = dict.account;
-  const co = dict.checkout;
-  const [open, setOpen] = useState(false);
-  const [f, setF] = useState({ name: "", number: "", exp: "" });
-
   return (
-    <div className="max-w-lg space-y-4">
+    <div className="card-glow max-w-lg rounded-2xl p-6">
       <h2 className="font-display text-xl font-bold text-cream">{a.paymentsTitle}</h2>
-      {user?.cards.length === 0 && <p className="text-bone">{a.noPayments}</p>}
-      {user?.cards.map((c) => (
-        <div key={c.id} className="card-glow flex items-center justify-between rounded-xl p-4">
-          <div>
-            <p className="text-cream">{c.brand} {maskCard(c.last4)}</p>
-            <p className="text-xs text-muted">{c.name} · {c.exp} {c.isDefault && `· ${a.defaultBadge}`}</p>
-          </div>
-          <button onClick={() => removeCard(c.id)} className="text-sm text-muted hover:text-danger">{dict.common.remove}</button>
-        </div>
-      ))}
-      {open ? (
-        <div className="card-glow space-y-3 rounded-xl p-4">
-          <input className="input" placeholder={co.cardName} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
-          <input className="input" placeholder={co.cardNumber} value={f.number} onChange={(e) => setF({ ...f, number: e.target.value })} inputMode="numeric" />
-          <input className="input" placeholder={co.cardExp} value={f.exp} onChange={(e) => setF({ ...f, exp: e.target.value })} />
-          <div className="flex gap-2">
-            <button
-              className="btn btn-gold flex-1"
-              onClick={() => {
-                if (f.number.replace(/\D/g, "").length < 4) return;
-                addCard({ brand: "Visa", last4: f.number.replace(/\D/g, "").slice(-4), exp: f.exp || "12/28", name: f.name || "Cardholder" });
-                setF({ name: "", number: "", exp: "" });
-                setOpen(false);
-              }}
-            >
-              {dict.common.save}
-            </button>
-            <button className="btn btn-ghost" onClick={() => setOpen(false)}>{dict.common.cancel}</button>
-          </div>
-          <p className="text-xs text-muted">🔒 {co.demoNote}</p>
-        </div>
-      ) : (
-        <button onClick={() => setOpen(true)} className="btn btn-ghost">+ {a.addCard}</button>
-      )}
+      <p className="mt-3 text-sm text-bone">{a.paymentsStripeNote}</p>
     </div>
   );
 }
@@ -239,7 +216,7 @@ function AddressesTab() {
             <p className="text-cream">{ad.label} {ad.isDefault && <span className="badge ml-1">{a.defaultBadge}</span>}</p>
             <p className="text-xs text-muted">{ad.line1}, {ad.city} {ad.postal}</p>
           </div>
-          <button onClick={() => removeAddress(ad.id)} className="text-sm text-muted hover:text-danger">{dict.common.remove}</button>
+          <button onClick={() => void removeAddress(ad.id)} className="text-sm text-muted hover:text-danger">{dict.common.remove}</button>
         </div>
       ))}
       {open ? (
@@ -255,7 +232,7 @@ function AddressesTab() {
               className="btn btn-gold flex-1"
               onClick={() => {
                 if (!f.line1) return;
-                addAddress({ label: f.label || "Home", line1: f.line1, city: f.city, postal: f.postal });
+                void addAddress({ label: f.label || "Home", line1: f.line1, city: f.city, postal: f.postal, isDefault: user?.addresses.length === 0 });
                 setF({ label: "", line1: "", city: "", postal: "" });
                 setOpen(false);
               }}

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isLocale, type Locale } from "@/i18n/config";
 import { CheckoutError, createCheckoutSession, type CheckoutPayload } from "@/lib/checkout-stripe";
+import { getCustomerIdFromSession } from "@/lib/customer-auth";
 import { stripeConfigured } from "@/lib/stripe";
 import { SITE } from "@/lib/site";
 
@@ -17,11 +18,12 @@ export async function POST(req: Request) {
   }
 
   const locale: Locale = isLocale(body.locale) ? body.locale : "en";
+  const customerId = (await getCustomerIdFromSession()) ?? undefined;
   const base = SITE.url.replace(/\/$/, "");
 
   try {
     const session = await createCheckoutSession(
-      { ...body, locale },
+      { ...body, locale, customerId },
       `${base}/${locale}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       `${base}/${locale}/checkout`,
     );

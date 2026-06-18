@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import CheckoutSuccessView from "@/components/checkout/CheckoutSuccessView";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
+import { fulfillCheckoutSession, getOrderByStripeSession } from "@/lib/orders/fulfill-checkout";
 import { getStripe, stripeConfigured } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
@@ -39,14 +40,20 @@ export default async function CheckoutSuccessPage({
     notFound();
   }
 
-  const total = (session.amount_total ?? 0) / 100;
-  const orderId = session.metadata?.orderId ?? session.id.slice(-8).toUpperCase();
+  let order = await getOrderByStripeSession(session_id);
+  if (!order) {
+    try {
+      order = await fulfillCheckoutSession(session);
+    } catch (e) {
+      console.error("[checkout/success] fulfill failed:", e);
+    }
+  }
 
   return (
     <CheckoutSuccessView
       order={{
-        orderId: `MSC-${orderId}`,
-        total,
+        orderId: order?.orderNumber ?? `MSC-${session_id.slice(-8).toUpperCase()}`,
+        total: order?.total ?? (session.amount_total ?? 0) / 100,
         email: session.customer_details?.email ?? session.customer_email ?? "",
       }}
     />
