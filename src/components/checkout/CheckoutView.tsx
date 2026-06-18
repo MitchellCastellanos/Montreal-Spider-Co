@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import LocaleLink from "@/components/LocaleLink";
 import SpeciesImage from "@/components/SpeciesImage";
 import { useCart } from "@/context/CartContext";
-import { useAuth, type Order } from "@/context/AuthContext";
+import { useAuth, type Order, type User } from "@/context/AuthContext";
 import { useI18n, useT } from "@/i18n/I18nProvider";
 import { formatPrice, maskCard } from "@/lib/format";
 import { formatWeeklyHoursSummary } from "@/lib/opening-hours";
@@ -14,6 +14,19 @@ import { t } from "@/lib/types";
 import { SITE } from "@/lib/site";
 
 type Method = "delivery" | "pickup";
+type CheckoutAuthMode = "signin" | "guest";
+
+function contactFromUser(user: User) {
+  const defaultAddr = user.addresses.find((a) => a.isDefault) ?? user.addresses[0];
+  return {
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    address: defaultAddr?.line1 ?? "",
+    city: defaultAddr?.city ?? "",
+    postal: defaultAddr?.postal ?? "",
+  };
+}
 
 export interface PickupOption {
   id: string;
@@ -25,15 +38,23 @@ export interface PickupOption {
 export default function CheckoutView({
   pickups,
   pickupPolicy,
+  stripeEnabled = false,
 }: {
   pickups: PickupOption[];
   pickupPolicy: string;
+  stripeEnabled?: boolean;
 }) {
   const { dict, locale } = useI18n();
   const tr = useT();
   const { resolved, subtotal, clear } = useCart();
-  const { user, signIn, addOrder, addCard } = useAuth();
+  const { user, ready, signIn, trySignIn, signOut, addOrder, addCard, updateProfile } = useAuth();
   const co = dict.checkout;
+
+  const [authMode, setAuthMode] = useState<CheckoutAuthMode>("signin");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPwd, setLoginPwd] = useState("");
+  const [signInError, setSignInError] = useState<string | null>(null);
+  const [createAccount, setCreateAccount] = useState(false);
 
   const [method, setMethod] = useState<Method>("delivery");
   const [zoneId, setZoneId] = useState(DELIVERY_ZONES[0].id);
@@ -55,6 +76,8 @@ export default function CheckoutView({
   });
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [placed, setPlaced] = useState<Order | null>(null);
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
 
   const zone = DELIVERY_ZONES.find((z) => z.id === zoneId)!;
   const deliveryFee = method === "pickup" ? 0 : subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : zone.fee;
@@ -62,6 +85,41 @@ export default function CheckoutView({
   const total = subtotal + deliveryFee + tax;
 
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  useEffect(() => {
+    if (!user) return;
+    const contact = contactFromUser(user);
+    setForm((f) => ({ ...f, ...contact }));
+  }, [user]);
+
+  const showContactForm = Boolean(user) || authMode === "guest";
+
+  const handleSignIn = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSignInError(null);
+    if (!loginEmail.trim() || !loginPwd) {
+      setSignInError(co.signInFields);
+      return;
+    }
+    if (!trySignIn(loginEmail)) {
+      setSignInError(co.signInError);
+      return;
+    }
+  };
+
+  const syncAccountBeforeCheckout = () => {
+    if (user) {
+      updateProfile({ name: form.name, phone: form.phone });
+      return;
+    }
+    if (createAccount) {
+      signIn(form.email, form.name, form.phone);
+    }
+  };
+
+  if (!ready) {
+    return <div className="container-x py-20 text-muted">{dict.common.loading}</div>;
+  }
 
   if (placed) {
     return <Success order={placed} />;
@@ -78,6 +136,10 @@ export default function CheckoutView({
 
   const validate = () => {
     const e: Record<string, boolean> = {};
+    if (!showContactForm) {
+      setErrors(e);
+      return false;
+    }
     if (!form.name) e.name = true;
     if (!form.email) e.email = true;
     if (!form.phone) e.phone = true;
@@ -86,7 +148,7 @@ export default function CheckoutView({
       if (!form.city) e.city = true;
       if (!form.postal) e.postal = true;
     }
-    const payingNew = !useSaved;
+    const payingNew = !stripeEnabled && !useSaved;
     if (payingNew) {
       if (!form.cardName) e.cardName = true;
       if (form.cardNumber.replace(/\s/g, "").length < 12) e.cardNumber = true;
@@ -97,8 +159,48 @@ export default function CheckoutView({
     return Object.keys(e).length === 0;
   };
 
-  const placeOrder = () => {
+  const placeOrder = async () => {
     if (!validate()) return;
+
+    syncAccountBeforeCheckout();
+
+    if (stripeEnabled) {
+      setPaying(true);
+      setPayError(null);
+      try {
+        const res = await fetch("/api/stripe/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            locale,
+            method,
+            zoneId: method === "delivery" ? zoneId : undefined,
+            pickupId: method === "pickup" ? pickupId : undefined,
+            items: resolved.map((l) => ({ productId: l.productId, sizeId: l.sizeId, qty: l.qty })),
+            customer: {
+              name: form.name,
+              email: form.email,
+              phone: form.phone,
+              address: form.address,
+              city: form.city,
+              postal: form.postal,
+              notes: form.notes,
+            },
+          }),
+        });
+        const data = (await res.json()) as { url?: string; error?: string };
+        if (!res.ok || !data.url) {
+          setPayError(data.error ?? co.paymentError);
+          return;
+        }
+        window.location.href = data.url;
+      } catch {
+        setPayError(co.paymentError);
+      } finally {
+        setPaying(false);
+      }
+      return;
+    }
 
     const order: Order = {
       id: `MSC-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -115,7 +217,7 @@ export default function CheckoutView({
     };
 
     // Demo: ensure a session so the order is stored against an account.
-    if (!user && form.email) signIn(form.email, form.name);
+    if (!user && !createAccount && form.email) signIn(form.email, form.name, form.phone);
 
     if (!useSaved && saveCard && form.cardNumber) {
       addCard({
@@ -137,22 +239,101 @@ export default function CheckoutView({
 
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          {/* Contact */}
-          <Section title={co.contact}>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={dict.common.name} error={errors.name}>
-                <input className="input" value={form.name} onChange={(e) => set("name", e.target.value)} autoComplete="name" />
-              </Field>
-              <Field label={dict.common.email} error={errors.email}>
-                <input type="email" className="input" value={form.email} onChange={(e) => set("email", e.target.value)} autoComplete="email" />
-              </Field>
-              <Field label={dict.common.phone} error={errors.phone}>
-                <input type="tel" className="input" value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="514-555-0142" autoComplete="tel" />
-              </Field>
-            </div>
-          </Section>
+          {/* Account / contact */}
+          {user ? (
+            <Section title={co.contact}>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gold/25 bg-gold/5 px-4 py-3">
+                <p className="text-sm text-bone">
+                  <span className="text-muted">{co.signedInAs}</span>{" "}
+                  <span className="font-semibold text-cream">{user.name}</span>
+                  <span className="text-muted"> · {user.email}</span>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    signOut();
+                    setAuthMode("signin");
+                    setLoginEmail("");
+                    setLoginPwd("");
+                  }}
+                  className="text-sm font-medium text-gold-bright hover:underline"
+                >
+                  {co.signOutCheckout}
+                </button>
+              </div>
+              <ContactFields form={form} set={set} errors={errors} dict={dict} />
+            </Section>
+          ) : authMode === "signin" ? (
+            <Section title={co.account}>
+              <p className="mb-4 text-sm text-bone">{co.signInPrompt}</p>
+              <form onSubmit={handleSignIn} className="space-y-4">
+                <Field label={dict.common.email} error={signInError !== null && !loginEmail}>
+                  <input
+                    type="email"
+                    className="input"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    autoComplete="email"
+                  />
+                </Field>
+                <Field label={dict.common.password} error={signInError !== null && !loginPwd}>
+                  <input
+                    type="password"
+                    className="input"
+                    value={loginPwd}
+                    onChange={(e) => setLoginPwd(e.target.value)}
+                    autoComplete="current-password"
+                  />
+                </Field>
+                {signInError && <p className="text-sm text-danger">{signInError}</p>}
+                <button type="submit" className="btn btn-gold w-full sm:w-auto">
+                  {co.signInCheckout}
+                </button>
+              </form>
+              <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode("guest");
+                    setSignInError(null);
+                  }}
+                  className="font-medium text-gold-bright hover:underline"
+                >
+                  {co.continueAsGuest}
+                </button>
+              </div>
+            </Section>
+          ) : (
+            <Section title={co.guestCheckout}>
+              <p className="mb-4 text-sm text-bone">{co.guestNote}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode("signin");
+                  setSignInError(null);
+                }}
+                className="mb-4 text-sm font-medium text-gold-bright hover:underline"
+              >
+                {co.signInInstead}
+              </button>
+              <ContactFields form={form} set={set} errors={errors} dict={dict} />
+              <label className="mt-4 flex items-start gap-3 rounded-xl border border-line p-4">
+                <input
+                  type="checkbox"
+                  checked={createAccount}
+                  onChange={(e) => setCreateAccount(e.target.checked)}
+                  className="mt-0.5 accent-[var(--gold)]"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-cream">{co.createAccount}</span>
+                  <span className="mt-1 block text-xs text-muted">{co.createAccountHint}</span>
+                </span>
+              </label>
+            </Section>
+          )}
 
           {/* Delivery method */}
+          {showContactForm && (
           <Section title={co.delivery}>
             <div className="grid gap-3 sm:grid-cols-2">
               <MethodCard active={method === "delivery"} onClick={() => setMethod("delivery")} title={co.deliveryLocal} desc={co.deliveryLocalDesc} />
@@ -201,9 +382,17 @@ export default function CheckoutView({
               </div>
             )}
           </Section>
+          )}
 
           {/* Payment */}
+          {showContactForm && (
           <Section title={co.payment}>
+            {stripeEnabled ? (
+              <p className="rounded-lg border border-line bg-ink-soft/60 p-4 text-sm text-bone">
+                🔒 {co.stripeNote}
+              </p>
+            ) : (
+              <>
             {user && user.cards.length > 0 && (
               <div className="mb-4 space-y-2">
                 <p className="text-xs uppercase tracking-wide text-gold-deep">{co.savedCards}</p>
@@ -247,11 +436,16 @@ export default function CheckoutView({
             )}
 
             <p className="mt-4 rounded-lg border border-line bg-ink-soft/60 p-3 text-xs text-muted">🔒 {co.demoNote}</p>
+              </>
+            )}
           </Section>
+          )}
 
+          {showContactForm && (
           <Section title={co.notesLabel}>
             <textarea className="input min-h-24 resize-y" value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder={co.notesPlaceholder} />
           </Section>
+          )}
         </div>
 
         {/* Summary */}
@@ -286,7 +480,19 @@ export default function CheckoutView({
             {Object.keys(errors).length > 0 && (
               <p className="mt-3 text-center text-sm text-danger">{co.missingFields}</p>
             )}
-            <button onClick={placeOrder} className="btn btn-gold mt-4 w-full text-base">{co.placeOrder}</button>
+            {payError && (
+              <p className="mt-3 text-center text-sm text-danger">{payError}</p>
+            )}
+            <button
+              onClick={placeOrder}
+              disabled={paying || !showContactForm}
+              className="btn btn-gold mt-4 w-full text-base disabled:opacity-60"
+            >
+              {paying ? co.processing : stripeEnabled ? co.continueToPayment : co.placeOrder}
+            </button>
+            {!showContactForm && (
+              <p className="mt-3 text-center text-xs text-muted">{co.signInPrompt}</p>
+            )}
           </div>
         </aside>
       </div>
@@ -313,6 +519,32 @@ function Success({ order }: { order: Order }) {
           <LocaleLink href="/shop" className="btn btn-ghost">{co.keepShopping}</LocaleLink>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ContactFields({
+  form,
+  set,
+  errors,
+  dict,
+}: {
+  form: { name: string; email: string; phone: string };
+  set: (k: "name" | "email" | "phone", v: string) => void;
+  errors: Record<string, boolean>;
+  dict: { common: { name: string; email: string; phone: string } };
+}) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <Field label={dict.common.name} error={errors.name}>
+        <input className="input" value={form.name} onChange={(e) => set("name", e.target.value)} autoComplete="name" />
+      </Field>
+      <Field label={dict.common.email} error={errors.email}>
+        <input type="email" className="input" value={form.email} onChange={(e) => set("email", e.target.value)} autoComplete="email" />
+      </Field>
+      <Field label={dict.common.phone} error={errors.phone}>
+        <input type="tel" className="input" value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="514-555-0142" autoComplete="tel" />
+      </Field>
     </div>
   );
 }

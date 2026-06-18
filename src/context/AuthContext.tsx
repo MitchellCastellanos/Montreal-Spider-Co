@@ -52,7 +52,9 @@ export interface User {
 interface AuthCtx {
   user: User | null;
   ready: boolean;
-  signIn: (email: string, name?: string) => void;
+  accountExists: (email: string) => boolean;
+  signIn: (email: string, name?: string, phone?: string) => void;
+  trySignIn: (email: string) => boolean;
   signOut: () => void;
   updateProfile: (patch: Partial<Pick<User, "name" | "phone">>) => void;
   addCard: (card: Omit<SavedCard, "id">) => void;
@@ -100,26 +102,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setReady(true);
   }, []);
 
-  const signIn = useCallback((email: string, name?: string) => {
-    const existing = loadUser(email);
+  const signIn = useCallback((email: string, name?: string, phone?: string) => {
+    const normalized = email.trim().toLowerCase();
+    const existing = loadUser(normalized);
     const u: User =
       existing ??
       {
-        email,
-        name: name?.trim() || email.split("@")[0],
-        phone: "",
+        email: normalized,
+        name: name?.trim() || normalized.split("@")[0],
+        phone: phone?.trim() || "",
         cards: [],
         addresses: [],
         orders: [],
       };
-    if (name && !existing) u.name = name;
+    if (name?.trim()) u.name = name.trim();
+    if (phone?.trim()) u.phone = phone.trim();
     persist(u);
     try {
-      localStorage.setItem(SESSION_KEY, email.toLowerCase());
+      localStorage.setItem(SESSION_KEY, normalized);
     } catch {
       /* ignore */
     }
     setUser(u);
+  }, []);
+
+  const accountExists = useCallback((email: string) => loadUser(email.trim().toLowerCase()) !== null, []);
+
+  const trySignIn = useCallback((email: string) => {
+    const normalized = email.trim().toLowerCase();
+    const existing = loadUser(normalized);
+    if (!existing) return false;
+    try {
+      localStorage.setItem(SESSION_KEY, normalized);
+    } catch {
+      /* ignore */
+    }
+    setUser(existing);
+    return true;
   }, []);
 
   const signOut = useCallback(() => {
@@ -196,7 +215,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value: AuthCtx = {
     user,
     ready,
+    accountExists,
     signIn,
+    trySignIn,
     signOut,
     updateProfile,
     addCard,

@@ -4,6 +4,7 @@ import { getDictionary } from "@/i18n/dictionaries";
 import { getPickupPoints } from "@/lib/data/locations";
 import { getSettings, resolvePickupTerms } from "@/lib/data/settings";
 import CheckoutView from "@/components/checkout/CheckoutView";
+import { stripeConfigured } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ local
   const pickupPolicy = resolvePickupTerms(settings, loc);
   return (
     <CheckoutView
+      stripeEnabled={stripeConfigured}
       pickups={pickups.map((p) => ({ id: p.id, name: p.name, neighborhood: p.neighborhood, hours: p.hours }))}
       pickupPolicy={pickupPolicy}
     />
