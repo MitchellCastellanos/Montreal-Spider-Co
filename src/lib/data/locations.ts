@@ -1,6 +1,7 @@
 import "server-only";
 import type { PickupPoint as DbPickup } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { logDbFallback } from "@/lib/data/db-safe";
 import { PICKUP_POINTS as SEED, DELIVERY_ZONES, FREE_DELIVERY_THRESHOLD } from "@/lib/locations";
 
 export { DELIVERY_ZONES, FREE_DELIVERY_THRESHOLD };
@@ -39,8 +40,12 @@ function seedView(): PickupView[] {
 /** Active pickup points for the storefront. */
 export async function getPickupPoints(): Promise<PickupView[]> {
   if (prisma) {
-    const rows = await prisma.pickupPoint.findMany({ where: { active: true }, orderBy: { position: "asc" } });
-    return rows.map(mapPickup);
+    try {
+      const rows = await prisma.pickupPoint.findMany({ where: { active: true }, orderBy: { position: "asc" } });
+      return rows.map(mapPickup);
+    } catch (e) {
+      logDbFallback("getPickupPoints", e);
+    }
   }
   return seedView();
 }
@@ -48,16 +53,24 @@ export async function getPickupPoints(): Promise<PickupView[]> {
 /** All pickup points (incl. inactive) for the admin. */
 export async function getAllPickupPoints(): Promise<PickupView[]> {
   if (prisma) {
-    const rows = await prisma.pickupPoint.findMany({ orderBy: { position: "asc" } });
-    return rows.map(mapPickup);
+    try {
+      const rows = await prisma.pickupPoint.findMany({ orderBy: { position: "asc" } });
+      return rows.map(mapPickup);
+    } catch (e) {
+      logDbFallback("getAllPickupPoints", e);
+    }
   }
   return seedView();
 }
 
 export async function getPickupPointById(id: string): Promise<PickupView | null> {
   if (prisma) {
-    const r = await prisma.pickupPoint.findUnique({ where: { id } });
-    return r ? mapPickup(r) : null;
+    try {
+      const r = await prisma.pickupPoint.findUnique({ where: { id } });
+      return r ? mapPickup(r) : null;
+    } catch (e) {
+      logDbFallback("getPickupPointById", e);
+    }
   }
   return seedView().find((p) => p.id === id) ?? null;
 }
