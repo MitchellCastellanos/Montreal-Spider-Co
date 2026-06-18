@@ -12,54 +12,130 @@ Time: ~15 minutes.
 
 ---
 
-## 1. Create a Neon database
-1. Go to <https://neon.tech> → sign in → **Create project**.
-   - Name: `montreal-spider-co`. Pick a region near Montreal (e.g. `AWS us-east-1`).
-2. After it's created, click **Connect** (top of the dashboard).
-3. Copy **two** connection strings:
-   - **Pooled** (host contains `-pooler`) → `DATABASE_URL`
-   - **Direct** (same host without `-pooler`) → `DIRECT_URL`
-   - Both should end with `?sslmode=require` (Neon includes it).
-   - Tip: the **Connect → "Prisma"** snippet shows both ready to paste.
+## 👉 Empieza aquí (estado al 18 jun 2026)
+
+**Archivo a editar:** `.env.local` (raíz del proyecto — ya existe, no lo subas a git).
+
+**Neon conectado:** org `GABAN Solutions` · proyecto `gentle-rain-73332177` · 18 especies en DB ✅
+
+| Paso | Qué | Estado |
+|------|-----|--------|
+| 0 | Código en `main` (Prisma + Cloudinary + admin) | ✅ listo |
+| 1 | `npm install` | ✅ listo |
+| 2 | `.env.local` + `AUTH_SECRET` | ✅ listo |
+| 3 | Neon: `DATABASE_URL` + `DIRECT_URL` | ✅ listo |
+| 4 | `db:push` + `db:seed` (tablas + 18 especies) | ✅ listo |
+| 5 | Cloudinary: `CLOUDINARY_*` en `.env.local` | ✅ listo |
+| 6 | `ADMIN_PASSWORD` en `.env.local` | ✅ listo |
+| 7 | `npm run dev` → probar `/en/admin` | ✅ dev server corriendo |
+
+### Todo conectado — prueba manual
+
+1. Abre **http://localhost:3000/en/shop** — 18 especies desde Neon.
+2. Abre **http://localhost:3000/en/admin** — login con tu `ADMIN_PASSWORD`.
+3. **Products** → edita una especie y sube una foto (va a Cloudinary).
+
+> Los comandos `npm run db:*` leen `.env.local` automáticamente (vía `dotenv-cli`).
+
+---
+
+## 3. Neon — conexión a la base de datos
+
+Ya instalaste el plugin de Neon en Cursor. Úsalo así (más rápido que el dashboard web):
+
+1. **Reload Cursor** (`Developer: Reload Window`) para activar MCP + extensión.
+2. Abre el panel **Neon** en la barra lateral (ícono de Postgres).
+3. Inicia sesión → org **GABAN Solutions** (ya te autenticaste una vez; solo falta el proyecto).
+4. **Create project** → nombre `montreal-spider-co`, región cerca de Montreal (ej. `us-east-1`).
+5. **Connect** → snippet **Prisma** → copia:
+   - **Pooled** (host con `-pooler`) → `DATABASE_URL` en `.env.local`
+   - **Direct** (mismo host, sin `-pooler`) → `DIRECT_URL` en `.env.local`
+
+Opcional (configura MCP + skills de una vez):
+
+```bash
+npx neonctl@latest init
+```
+
+Sigue el login en el browser. Puede escribir `DATABASE_URL` por ti; igual necesitas pegar `DIRECT_URL` del mismo snippet Prisma.
+
+> **Prisma necesita dos URLs.** `DATABASE_URL` = pooled (runtime). `DIRECT_URL` = direct (`db:push` / migraciones). Ambas terminan en `?sslmode=require`.
+
+**Dashboard web (alternativa):** [Neon por dashboard](#neon--dashboard-web-alternativa) al final.
+
+---
+
+## 4. Cloudinary — fotos de producto
+
+1. Ve a <https://cloudinary.com> → regístrate (free tier alcanza).
+2. En el **Dashboard** → **Product Environment Credentials** → pega en `.env.local`:
+   - **Cloud name** → `CLOUDINARY_CLOUD_NAME`
+   - **API Key** → `CLOUDINARY_API_KEY`
+   - **API Secret** → `CLOUDINARY_API_SECRET` (⚠️ solo servidor, nunca `NEXT_PUBLIC_`)
+3. `CLOUDINARY_FOLDER` ya tiene default (`montreal-spider-co/products`) — déjalo así.
+
+## 5. Admin — contraseña de entrada
+
+En `.env.local`:
+
+- `ADMIN_PASSWORD` — la contraseña que usarás en `/en/admin` (tú la eliges).
+- `AUTH_SECRET` — **ya está generado** en tu `.env.local`. No lo cambies salvo que quieras invalidar sesiones.
+
+## 6. Crear tablas + seed (lo hace el agente en Cursor)
+
+Cuando hayas llenado `.env.local` y digas *listo we ya quedó*, desde la raíz del proyecto:
+
+```bash
+npm run db:push     # crea tablas Product / ProductSize en Neon
+npm run db:seed     # carga las 18 especies iniciales
+```
+
+Debe decir `Seed complete.` (explorar datos: `npm run db:studio`).
+
+## 7. Probar (también lo hace el agente)
+
+```bash
+npm run dev
+```
+
+- **http://localhost:3000/en/admin** → login con `ADMIN_PASSWORD`.
+- **Products** → crear/editar/borrar, subir foto (va a Cloudinary).
+- **Customers** → buscar por teléfono (demo por ahora).
+
+---
+
+## Neon — dashboard web (alternativa)
+
+Si no usas el plugin de Cursor:
+
+1. Ve a <https://neon.tech> → inicia sesión → **Create project**.
+   - Nombre: `montreal-spider-co`. Región cerca de Montreal (ej. `AWS us-east-1`).
+2. **Connect** (arriba en el dashboard) → snippet **Prisma**.
+3. Copia **Pooled** → `DATABASE_URL` y **Direct** → `DIRECT_URL` en `.env.local`.
 
 > ```
 > DATABASE_URL = postgresql://user:pass@ep-xxxx-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require
 > DIRECT_URL   = postgresql://user:pass@ep-xxxx.us-east-1.aws.neon.tech/neondb?sslmode=require
 > ```
 
-## 2. Create a Cloudinary account (image hosting)
-1. Go to <https://cloudinary.com> → sign up (free tier is plenty).
-2. On the **Dashboard**, find **Product Environment Credentials** and copy:
-   - **Cloud name** → `CLOUDINARY_CLOUD_NAME`
-   - **API Key** → `CLOUDINARY_API_KEY`
-   - **API Secret** → `CLOUDINARY_API_SECRET` (⚠️ keep secret, server-only)
+---
 
-## 3. Pick your admin secrets
-- `ADMIN_PASSWORD` — the password to log into `/admin`.
-- `AUTH_SECRET` — any long random string. Generate one:
-  ```bash
-  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-  ```
+## Referencia: `.env.local` completo
 
-## 4. Create `.env.local`
-Copy `.env.example` → `.env.local` and fill in everything from steps 1–3.
-
-## 5. Create the tables and seed the catalog
-From the project root:
 ```bash
-npm install
-npm run db:push     # creates the Product / ProductSize tables in Neon
-npm run db:seed     # loads the 18 starter species
-```
-You should see `Seed complete.` (Browse data anytime with `npm run db:studio`.)
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
-## 6. Run it
-```bash
-npm run dev
+DATABASE_URL="..."   # pooled (Neon)
+DIRECT_URL="..."     # direct (Neon)
+
+CLOUDINARY_CLOUD_NAME="..."
+CLOUDINARY_API_KEY="..."
+CLOUDINARY_API_SECRET="..."
+CLOUDINARY_FOLDER="montreal-spider-co/products"
+
+ADMIN_PASSWORD="tu-contraseña"
+AUTH_SECRET="..."    # ya generado en tu máquina
 ```
-- Visit `/en/admin` → sign in with `ADMIN_PASSWORD`.
-- **Products** → add/edit/delete, upload a photo per species (goes to Cloudinary).
-- **Customers** → look up customers by phone.
 
 ---
 
@@ -67,7 +143,7 @@ npm run dev
 Add **all** the same variables in **Vercel → Project → Settings → Environment
 Variables** (Production + Preview), then redeploy.
 
-- Use `NEXT_PUBLIC_SITE_URL=https://montrealspiderco.ca` in production (not localhost).
+- Use `NEXT_PUBLIC_SITE_URL=https://montrealspider.ca` in production (not localhost).
 - `npm run build` runs `prisma generate` automatically (via `postinstall`).
 - Run `npm run db:push` and `npm run db:seed` once against the production
   `DATABASE_URL` (e.g. from your machine with the prod values) to create + seed the tables.

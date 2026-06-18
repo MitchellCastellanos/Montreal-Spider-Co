@@ -13,6 +13,7 @@ import {
 import { uploadProductImage, hasStorage } from "@/lib/storage";
 import { createPickupPoint, updatePickupPoint, deletePickupPoint, type PickupInput } from "@/lib/data/locations";
 import { updateSettings } from "@/lib/data/settings";
+import { addLibraryImage } from "@/lib/data/species-library";
 
 export type ActionState = { error?: string; ok?: boolean };
 
@@ -64,15 +65,34 @@ export async function saveProductAction(_prev: ActionState, formData: FormData):
     return { error: "missing_fields" };
   }
 
-  // Image: upload a new file if provided, otherwise keep the current URL.
-  let image: string | null = str(formData, "currentImage") || null;
-  const file = formData.get("imageFile");
-  if (file instanceof File && file.size > 0) {
-    if (!hasStorage) return { error: "storage_unconfigured" };
-    try {
-      image = await uploadProductImage(await file.arrayBuffer());
-    } catch {
-      return { error: "upload_failed" };
+  // Image: upload, pick from library, clear, or keep current.
+  const imageMode = str(formData, "imageMode") || "keep";
+  let image: string | null = str(formData, "storedImage") || null;
+
+  if (imageMode === "clear") {
+    image = null;
+  } else if (imageMode === "library") {
+    const picked = str(formData, "libraryImageUrl");
+    if (!picked) return { error: "library_image_required" };
+    image = picked;
+  } else {
+    const file = formData.get("imageFile");
+    if (file instanceof File && file.size > 0) {
+      if (!hasStorage) return { error: "storage_unconfigured" };
+      try {
+        image = await uploadProductImage(await file.arrayBuffer());
+        if (formData.get("saveToLibrary") !== "false") {
+          await addLibraryImage({
+            url: image,
+            label: str(formData, "commonEn") || str(formData, "scientific"),
+            scientific: str(formData, "scientific"),
+            genus: str(formData, "genus"),
+            slug,
+          });
+        }
+      } catch {
+        return { error: "upload_failed" };
+      }
     }
   }
 

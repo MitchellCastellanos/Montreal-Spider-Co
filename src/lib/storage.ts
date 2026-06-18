@@ -16,14 +16,14 @@ if (hasStorage) {
 }
 
 const FOLDER = process.env.CLOUDINARY_FOLDER || "montreal-spider-co/products";
+const LIBRARY_FOLDER = process.env.CLOUDINARY_LIBRARY_FOLDER || "montreal-spider-co/library";
 
-/** Upload an image buffer to Cloudinary and return its secure CDN URL. */
-export async function uploadProductImage(file: ArrayBuffer): Promise<string> {
+function uploadBuffer(file: ArrayBuffer, folder: string): Promise<string> {
   if (!hasStorage) throw new Error("Cloudinary is not configured.");
   const buffer = Buffer.from(file);
   return new Promise<string>((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
-      { folder: FOLDER, resource_type: "image" },
+      { folder, resource_type: "image" },
       (error, result) => {
         if (error || !result) return reject(error ?? new Error("Upload failed"));
         resolve(result.secure_url);
@@ -31,4 +31,14 @@ export async function uploadProductImage(file: ArrayBuffer): Promise<string> {
     );
     stream.end(buffer);
   });
+}
+
+/** Upload an image buffer to Cloudinary and return its secure CDN URL. */
+export async function uploadProductImage(file: ArrayBuffer): Promise<string> {
+  return uploadBuffer(file, FOLDER);
+}
+
+/** Upload to the species image library folder. */
+export async function uploadLibraryImage(file: ArrayBuffer): Promise<string> {
+  return uploadBuffer(file, LIBRARY_FOLDER);
 }

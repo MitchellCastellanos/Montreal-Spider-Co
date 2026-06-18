@@ -6,6 +6,8 @@ import { saveProductAction, type ActionState } from "@/app/[locale]/admin/action
 import { useI18n } from "@/i18n/I18nProvider";
 import { localeHref } from "@/lib/href";
 import type { Product } from "@/lib/types";
+import type { LibraryImage } from "@/lib/data/species-library";
+import ProductImageField from "@/components/admin/ProductImageField";
 
 interface SizeRow {
   key: string;
@@ -22,9 +24,13 @@ const TEMPERS = ["docile", "skittish", "defensive"];
 export default function ProductForm({
   product,
   careGuides,
+  defaultProductImage,
+  libraryImages,
 }: {
   product: Product | null;
   careGuides: string[];
+  defaultProductImage: string | null;
+  libraryImages: LibraryImage[];
 }) {
   const { locale } = useI18n();
   const [state, action, pending] = useActionState<ActionState, FormData>(saveProductAction, {});
@@ -34,8 +40,6 @@ export default function ProductForm({
       ? product.sizes.map((s) => ({ key: s.id, labelEn: s.label.en, labelFr: s.label.fr, price: s.price, stock: s.stock }))
       : [{ key: "s", labelEn: "Sling (2–3 cm)", labelFr: "Jeune (2–3 cm)", price: 0, stock: 0 }]
   );
-  const [preview, setPreview] = useState<string | null>(product?.image ?? null);
-
   const setSize = (i: number, patch: Partial<SizeRow>) =>
     setSizes((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
   const addSize = () => setSizes((prev) => [...prev, { key: `s${prev.length + 1}`, labelEn: "", labelFr: "", price: 0, stock: 0 }]);
@@ -54,7 +58,6 @@ export default function ProductForm({
         <input type="hidden" name="locale" value={locale} />
         {product && <input type="hidden" name="id" value={product.id} />}
         <input type="hidden" name="sizes" value={JSON.stringify(sizes)} />
-        <input type="hidden" name="currentImage" value={preview && !preview.startsWith("blob:") ? preview : product?.image ?? ""} />
 
         {/* Identity */}
         <Section title="Identity">
@@ -92,25 +95,13 @@ export default function ProductForm({
 
         {/* Image */}
         <Section title="Photo">
-          <div className="flex items-center gap-4">
-            <div className="relative h-24 w-24 overflow-hidden rounded-xl border border-line bg-ink">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              {preview ? <img src={preview} alt="" className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center text-xs text-muted">No photo</span>}
-            </div>
-            <label className="field flex-1">
-              <span>Upload a photo (replaces current)</span>
-              <input
-                type="file"
-                name="imageFile"
-                accept="image/*"
-                className="input"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) setPreview(URL.createObjectURL(f));
-                }}
-              />
-            </label>
-          </div>
+          <ProductImageField
+            storedImage={product?.image ?? null}
+            defaultProductImage={defaultProductImage}
+            libraryImages={libraryImages}
+            scientific={product?.scientific}
+            genus={product?.genus}
+          />
         </Section>
 
         {/* Sizes */}

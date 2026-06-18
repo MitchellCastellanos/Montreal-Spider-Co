@@ -1,6 +1,7 @@
 import "server-only";
 import type { Product as DbProduct, ProductSize as DbSize } from "@prisma/client";
 import { prisma, hasDatabase } from "@/lib/db";
+import { getDefaultProductImage } from "@/lib/data/site-settings";
 import { PRODUCTS as SEED, GENERA as SEED_GENERA } from "@/lib/products";
 import type { Product } from "@/lib/types";
 
@@ -8,7 +9,8 @@ export type { Product };
 
 type DbProductWithSizes = DbProduct & { sizes: DbSize[] };
 
-function mapProduct(p: DbProductWithSizes): Product {
+function mapProduct(p: DbProductWithSizes, defaultImage?: string | null): Product {
+  const image = p.image ?? defaultImage ?? undefined;
   return {
     id: p.id,
     slug: p.slug,
@@ -27,7 +29,7 @@ function mapProduct(p: DbProductWithSizes): Product {
     reviews: p.reviews,
     hue: p.hue,
     accent: p.accent,
-    image: p.image ?? undefined,
+    image,
     adultSize: { en: p.adultSizeEn, fr: p.adultSizeFr },
     growth: { en: p.growthEn, fr: p.growthFr },
     origin: { en: p.originEn, fr: p.originFr },
@@ -47,24 +49,42 @@ export const isLive = hasDatabase;
 
 export async function getAllProducts(): Promise<Product[]> {
   if (prisma) {
-    const rows = await prisma.product.findMany({ include: { sizes: true }, orderBy: { arrived: "desc" } });
-    return rows.map(mapProduct);
+    const [rows, defaultImage] = await Promise.all([
+      prisma.product.findMany({ include: { sizes: true }, orderBy: { arrived: "desc" } }),
+      getDefaultProductImage(),
+    ]);
+    return rows.map((p) => mapProduct(p, defaultImage));
   }
   return SEED;
 }
 
 export async function getProductBySlug(slug: string): Promise<Product | null> {
   if (prisma) {
-    const row = await prisma.product.findUnique({ where: { slug }, include: { sizes: true } });
-    return row ? mapProduct(row) : null;
+    const [row, defaultImage] = await Promise.all([
+      prisma.product.findUnique({ where: { slug }, include: { sizes: true } }),
+      getDefaultProductImage(),
+    ]);
+    return row ? mapProduct(row, defaultImage) : null;
   }
   return SEED.find((p) => p.slug === slug) ?? null;
 }
 
 export async function getProductById(id: string): Promise<Product | null> {
   if (prisma) {
+    const [row, defaultImage] = await Promise.all([
+      prisma.product.findUnique({ where: { id }, include: { sizes: true } }),
+      getDefaultProductImage(),
+    ]);
+    return row ? mapProduct(row, defaultImage) : null;
+  }
+  return SEED.find((p) => p.id === id) ?? null;
+}
+
+/** Admin edit form — returns the stored image only (no site default fallback). */
+export async function getProductByIdForAdmin(id: string): Promise<Product | null> {
+  if (prisma) {
     const row = await prisma.product.findUnique({ where: { id }, include: { sizes: true } });
-    return row ? mapProduct(row) : null;
+    return row ? mapProduct(row, null) : null;
   }
   return SEED.find((p) => p.id === id) ?? null;
 }
