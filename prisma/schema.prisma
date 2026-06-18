@@ -86,3 +86,24 @@ model ProductSize {
 
   @@index([productId])
 }
+
+model PickupPoint {
+  id           String   @id @default(cuid())
+  name         String
+  neighborhood String   @default("")
+  addressEn    String
+  addressFr    String
+  hoursEn      String
+  hoursFr      String
+  position     Int      @default(0)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Setting {
+  key     String @id
+  valueEn String @default("")
+  valueFr String @default("")
+}
+

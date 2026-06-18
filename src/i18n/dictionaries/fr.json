@@ -294,8 +294,13 @@
     "liveArrivalTitle": "Garantie d'arrivée vivante",
     "liveArrivalBody": "Chaque livraison et cueillette locale est couverte par notre garantie d'arrivée vivante. Dans le rare cas d'un problème, nous le réglons.",
     "hours": "Heures",
+    "pickupPolicy": "Politique de cueillette",
     "outsideTitle": "En dehors de notre zone de livraison?",
     "outsideBody": "Nous nous développons. Écrivez-nous votre emplacement et nous vous préviendrons dès que nous vous rejoignons."
+  },
+  "terms": {
+    "kicker": "Les détails",
+    "title": "Conditions générales"
   },
   "about": {
     "kicker": "Notre histoire",

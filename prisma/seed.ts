@@ -1,5 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { PRODUCTS } from "../src/lib/products";
+import { PICKUP_POINTS } from "../src/lib/locations";
+import { DEFAULT_SETTINGS } from "../src/lib/data/setting-defaults";
 
 const prisma = new PrismaClient();
 
@@ -57,6 +59,34 @@ async function main() {
       },
     });
   }
+
+  console.log(`Seeding ${PICKUP_POINTS.length} pickup points…`);
+  for (let i = 0; i < PICKUP_POINTS.length; i++) {
+    const p = PICKUP_POINTS[i];
+    const data = {
+      name: p.name,
+      neighborhood: p.neighborhood,
+      addressEn: p.address.en,
+      addressFr: p.address.fr,
+      hoursEn: p.hours.en,
+      hoursFr: p.hours.fr,
+      position: i,
+      active: true,
+    };
+    // Use the seed id as the row id so re-seeding is idempotent.
+    await prisma.pickupPoint.upsert({ where: { id: p.id }, update: {}, create: { id: p.id, ...data } });
+  }
+
+  console.log("Seeding default settings…");
+  const settings = [
+    { key: "pickupWindowDays", valueEn: String(DEFAULT_SETTINGS.pickupWindowDays), valueFr: String(DEFAULT_SETTINGS.pickupWindowDays) },
+    { key: "pickupTerms", valueEn: DEFAULT_SETTINGS.pickupTerms.en, valueFr: DEFAULT_SETTINGS.pickupTerms.fr },
+    { key: "terms", valueEn: DEFAULT_SETTINGS.terms.en, valueFr: DEFAULT_SETTINGS.terms.fr },
+  ];
+  for (const s of settings) {
+    await prisma.setting.upsert({ where: { key: s.key }, update: {}, create: s });
+  }
+
   console.log("Seed complete.");
 }
 

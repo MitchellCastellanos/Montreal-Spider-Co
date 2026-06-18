@@ -53,12 +53,12 @@ export default function Header() {
     >
       <div className="container-x flex items-center justify-between gap-4">
         <LocaleLink href="/" className="flex items-center gap-3 group">
-          <span className="relative inline-block h-11 w-11 shrink-0 transition-transform duration-500 group-hover:rotate-[8deg]">
-            <Image src="/brand/logo.png" alt={dict.meta.siteName} fill sizes="44px" className="object-contain" priority />
+          <span className="relative inline-block h-14 w-14 shrink-0 transition-transform duration-500 group-hover:rotate-[8deg] group-hover:scale-105 drop-shadow-[0_4px_14px_rgba(201,162,75,0.25)]">
+            <Image src="/brand/logo.png" alt={dict.meta.siteName} fill sizes="56px" className="object-contain" priority />
           </span>
           <span className="hidden sm:flex flex-col leading-none">
-            <span className="font-display text-base font-bold tracking-wide text-cream">MONTREAL</span>
-            <span className="font-display text-sm tracking-[0.35em] text-gold-bright">SPIDER CO.</span>
+            <span className="font-display text-lg font-bold tracking-wide text-cream">MONTREAL</span>
+            <span className="font-display text-[0.95rem] tracking-[0.34em] text-gold-bright">SPIDER CO.</span>
           </span>
         </LocaleLink>
 

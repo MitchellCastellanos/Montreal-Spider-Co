@@ -81,9 +81,13 @@ export default function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-line pt-6 text-sm text-muted sm:flex-row sm:items-center">
-          <p>© {year} {dict.meta.siteName}. {f.rights}</p>
+          <p>
+            <LocaleLink href="/admin" aria-label="Staff login" title="Staff" className="transition-colors hover:text-gold-bright">©</LocaleLink>{" "}
+            {year} {dict.meta.siteName}. {f.rights}
+          </p>
           <p className="text-gold-deep">{f.madeIn}</p>
-          <div className="flex gap-4">
+          <div className="flex items-center gap-4">
+            <LocaleLink href="/terms" className="footer-link">{f.legalTerms}</LocaleLink>
             <a href={SITE.social.instagram} target="_blank" rel="noopener noreferrer" className="footer-link">Instagram</a>
             <a href={SITE.social.facebook} target="_blank" rel="noopener noreferrer" className="footer-link">Facebook</a>
             <a href={SITE.social.tiktok} target="_blank" rel="noopener noreferrer" className="footer-link">TikTok</a>

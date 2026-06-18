@@ -40,6 +40,7 @@ server). The list below is the single source of truth for what to build next.
 **Admin panel & products (NEW — DB-backed via Neon Postgres)**
 - **`/admin`** — password-protected staff panel (signed http-only session cookie).
 - **Products CRUD**: create / edit / delete species, bilingual fields, sizes & stock, flags, **photo upload to Cloudinary**.
+- **Pickup points** editor and **Store settings** (pickup policy / window in days + Terms & Conditions, bilingual) — surfaced on the Delivery, Checkout and `/terms` pages.
 - Storefront reads products from the database (with ISR) and **gracefully falls back to the built-in seed catalog** when no DB is connected — so it always works.
 - Staff customer lookup (`/admin/customers`): search customers **by phone number**.
 - ⚙️ Setup: **`SETUP_DATABASE.md`** (Neon database + Cloudinary storage + admin login, ~15 min).

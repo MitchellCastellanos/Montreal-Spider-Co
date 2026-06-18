@@ -3,13 +3,17 @@ import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { pageMeta } from "@/lib/pageMeta";
 import { localeHref } from "@/lib/href";
-import { DELIVERY_ZONES, PICKUP_POINTS, FREE_DELIVERY_THRESHOLD } from "@/lib/locations";
+import { DELIVERY_ZONES, FREE_DELIVERY_THRESHOLD } from "@/lib/locations";
+import { getPickupPoints } from "@/lib/data/locations";
+import { getSettings, resolvePickupTerms } from "@/lib/data/settings";
 import { t } from "@/lib/types";
 import { formatPrice } from "@/lib/format";
 import PageHero from "@/components/PageHero";
 import Reveal from "@/components/Reveal";
 import Image from "next/image";
 import Link from "next/link";
+
+export const revalidate = 60;
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -23,6 +27,8 @@ export default async function DeliveryPage({ params }: { params: Promise<{ local
   const loc: Locale = isLocale(locale) ? locale : "en";
   const dict = await getDictionary(loc);
   const d = dict.delivery;
+  const [pickups, settings] = await Promise.all([getPickupPoints(), getSettings()]);
+  const pickupPolicy = resolvePickupTerms(settings, loc);
 
   return (
     <>
@@ -98,8 +104,19 @@ export default async function DeliveryPage({ params }: { params: Promise<{ local
             <h2 className="font-display text-3xl font-bold text-cream">{d.pickupTitle}</h2>
             <p className="mt-2 max-w-2xl text-bone">{d.pickupBody}</p>
           </Reveal>
+
+          <Reveal className="mb-8">
+            <div className="flex items-start gap-3 rounded-2xl border border-gold/25 bg-gold/5 p-5">
+              <span className="mt-0.5 text-gold-bright">⏳</span>
+              <div>
+                <p className="font-display text-sm font-semibold uppercase tracking-wide text-gold-bright">{d.pickupPolicy}</p>
+                <p className="mt-1 text-sm leading-relaxed text-bone">{pickupPolicy}</p>
+              </div>
+            </div>
+          </Reveal>
+
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {PICKUP_POINTS.map((pt, i) => (
+            {pickups.map((pt, i) => (
               <Reveal key={pt.id} delay={i * 0.06}>
                 <div className="card-glow h-full rounded-2xl p-5">
                   <div className="mb-3 flex items-center gap-2 text-gold-bright">
