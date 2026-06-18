@@ -410,7 +410,8 @@
     "verifiedBadge": "TarantulApp Verified Origin partner",
     "legalTerms": "Terms",
     "legalPrivacy": "Privacy",
-    "social": "Follow us"
+    "social": "Follow us",
+    "staffLogin": "Staff"
   },
   "notFound": {
     "title": "Lost in the web",

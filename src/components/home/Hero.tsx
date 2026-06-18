@@ -112,7 +112,6 @@ export default function Hero() {
             transition={{ duration: 1, ease: [0.2, 0.7, 0.2, 1] }}
             className="animate-floaty"
           >
-            <div className="absolute inset-8 rounded-full border border-gold/20 animate-spin-slow" />
             {heroFailed ? (
               <SpiderGraphic hue={36} accent="#e6c882" className="relative w-full drop-shadow-[0_30px_60px_rgba(201,162,75,0.25)]" />
             ) : (

@@ -82,8 +82,7 @@ export default function Footer() {
 
         <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-line pt-6 text-sm text-muted sm:flex-row sm:items-center">
           <p>
-            <LocaleLink href="/admin" aria-label="Staff login" title="Staff" className="transition-colors hover:text-gold-bright">©</LocaleLink>{" "}
-            {year} {dict.meta.siteName}. {f.rights}
+            © {year} {dict.meta.siteName}. {f.rights}
           </p>
           <p className="text-gold-deep">{f.madeIn}</p>
           <div className="flex items-center gap-4">
@@ -91,6 +90,9 @@ export default function Footer() {
             <a href={SITE.social.instagram} target="_blank" rel="noopener noreferrer" className="footer-link">Instagram</a>
             <a href={SITE.social.facebook} target="_blank" rel="noopener noreferrer" className="footer-link">Facebook</a>
             <a href={SITE.social.tiktok} target="_blank" rel="noopener noreferrer" className="footer-link">TikTok</a>
+            <LocaleLink href="/admin" className="footer-staff-link" title={f.staffLogin}>
+              {f.staffLogin}
+            </LocaleLink>
           </div>
         </div>
       </div>
@@ -98,6 +100,8 @@ export default function Footer() {
       <style>{`
         .footer-link { display:block; color: var(--bone); font-size: .9rem; padding: .25rem 0; transition: color .2s, transform .2s; }
         .footer-link:hover { color: var(--gold-bright); transform: translateX(2px); }
+        .footer-staff-link { font-size: .75rem; color: color-mix(in srgb, var(--muted) 55%, transparent); transition: color .2s; }
+        .footer-staff-link:hover { color: var(--muted); }
       `}</style>
     </footer>
   );
