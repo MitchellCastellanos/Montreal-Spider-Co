@@ -7,13 +7,26 @@ import { useCart } from "@/context/CartContext";
 import { useAuth, type Order } from "@/context/AuthContext";
 import { useI18n, useT } from "@/i18n/I18nProvider";
 import { formatPrice, maskCard } from "@/lib/format";
-import { DELIVERY_ZONES, PICKUP_POINTS, FREE_DELIVERY_THRESHOLD } from "@/lib/locations";
+import { DELIVERY_ZONES, FREE_DELIVERY_THRESHOLD } from "@/lib/locations";
 import { t } from "@/lib/types";
 import { SITE } from "@/lib/site";
 
 type Method = "delivery" | "pickup";
 
-export default function CheckoutView() {
+export interface PickupOption {
+  id: string;
+  name: string;
+  neighborhood: string;
+  hours: { en: string; fr: string };
+}
+
+export default function CheckoutView({
+  pickups,
+  pickupPolicy,
+}: {
+  pickups: PickupOption[];
+  pickupPolicy: string;
+}) {
   const { dict, locale } = useI18n();
   const tr = useT();
   const { resolved, subtotal, clear } = useCart();
@@ -22,7 +35,7 @@ export default function CheckoutView() {
 
   const [method, setMethod] = useState<Method>("delivery");
   const [zoneId, setZoneId] = useState(DELIVERY_ZONES[0].id);
-  const [pickupId, setPickupId] = useState(PICKUP_POINTS[0].id);
+  const [pickupId, setPickupId] = useState(pickups[0]?.id ?? "");
   const [useSaved, setUseSaved] = useState<string | null>(user?.cards.find((c) => c.isDefault)?.id ?? user?.cards[0]?.id ?? null);
   const [saveCard, setSaveCard] = useState(false);
   const [form, setForm] = useState({
@@ -169,14 +182,18 @@ export default function CheckoutView() {
               <div className="mt-4">
                 <Field label={co.selectPickup}>
                   <select className="input" value={pickupId} onChange={(e) => setPickupId(e.target.value)}>
-                    {PICKUP_POINTS.map((p) => (
+                    {pickups.map((p) => (
                       <option key={p.id} value={p.id}>{p.name} — {p.neighborhood}</option>
                     ))}
                   </select>
                 </Field>
-                <p className="mt-2 text-sm text-bone">
-                  {t(PICKUP_POINTS.find((p) => p.id === pickupId)!.hours, locale)}
-                </p>
+                {pickups.find((p) => p.id === pickupId) && (
+                  <p className="mt-2 text-sm text-bone">{t(pickups.find((p) => p.id === pickupId)!.hours, locale)}</p>
+                )}
+                <div className="mt-3 flex items-start gap-2 rounded-lg border border-gold/25 bg-gold/5 p-3 text-xs leading-relaxed text-bone">
+                  <span className="text-gold-bright">⏳</span>
+                  <span>{pickupPolicy}</span>
+                </div>
               </div>
             )}
           </Section>

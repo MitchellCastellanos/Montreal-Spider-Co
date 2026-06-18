@@ -294,8 +294,13 @@
     "liveArrivalTitle": "Live arrival guarantee",
     "liveArrivalBody": "Every local delivery and pickup is covered by our live arrival guarantee. In the rare event of an issue, we make it right.",
     "hours": "Hours",
+    "pickupPolicy": "Pickup policy",
     "outsideTitle": "Outside our delivery area?",
     "outsideBody": "We're expanding. Message us with your location and we'll let you know when we reach you."
+  },
+  "terms": {
+    "kicker": "The fine print",
+    "title": "Terms & Conditions"
   },
   "about": {
     "kicker": "Our story",

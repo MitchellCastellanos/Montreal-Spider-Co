@@ -11,6 +11,8 @@ import {
   type ProductSizeInput,
 } from "@/lib/data/products";
 import { uploadProductImage, hasStorage } from "@/lib/storage";
+import { createPickupPoint, updatePickupPoint, deletePickupPoint, type PickupInput } from "@/lib/data/locations";
+import { updateSettings } from "@/lib/data/settings";
 import { addLibraryImage } from "@/lib/data/species-library";
 
 export type ActionState = { error?: string; ok?: boolean };
@@ -153,4 +155,60 @@ export async function deleteProductAction(formData: FormData): Promise<void> {
     revalidatePath("/", "layout");
   }
   redirect(`/${locale}/admin`);
+}
+
+// --- Pickup points ---------------------------------------------------------
+
+export async function savePickupAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  if (!(await isAdminAuthed())) return { error: "unauthorized" };
+  const id = str(formData, "id");
+  const locale = str(formData, "locale") || "en";
+  if (!str(formData, "name") || !str(formData, "addressEn")) return { error: "missing_fields" };
+
+  const input: PickupInput = {
+    name: str(formData, "name"),
+    neighborhood: str(formData, "neighborhood"),
+    addressEn: str(formData, "addressEn"),
+    addressFr: str(formData, "addressFr") || str(formData, "addressEn"),
+    hoursEn: str(formData, "hoursEn"),
+    hoursFr: str(formData, "hoursFr") || str(formData, "hoursEn"),
+    active: bool(formData, "active"),
+  };
+
+  try {
+    if (id) await updatePickupPoint(id, input);
+    else await createPickupPoint(input);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "save_failed" };
+  }
+  revalidatePath("/", "layout");
+  redirect(`/${locale}/admin/pickup`);
+}
+
+export async function deletePickupAction(formData: FormData): Promise<void> {
+  if (!(await isAdminAuthed())) return;
+  const id = str(formData, "id");
+  const locale = str(formData, "locale") || "en";
+  if (id) {
+    await deletePickupPoint(id);
+    revalidatePath("/", "layout");
+  }
+  redirect(`/${locale}/admin/pickup`);
+}
+
+// --- Store settings (pickup terms, T&C) ------------------------------------
+
+export async function saveSettingsAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  if (!(await isAdminAuthed())) return { error: "unauthorized" };
+  try {
+    await updateSettings({
+      pickupWindowDays: Math.max(1, Math.round(num(formData, "pickupWindowDays", 2))),
+      pickupTerms: { en: str(formData, "pickupTermsEn"), fr: str(formData, "pickupTermsFr") },
+      terms: { en: str(formData, "termsEn"), fr: str(formData, "termsFr") },
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "save_failed" };
+  }
+  revalidatePath("/", "layout");
+  return { ok: true };
 }
