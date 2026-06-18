@@ -1,6 +1,6 @@
-// Montreal Spider Co. — database schema (Supabase Postgres)
+// Montreal Spider Co. — database schema (Neon Postgres)
 // Run `npx prisma generate` after changes, and `npx prisma migrate deploy`
-// (or `npx prisma db push`) to apply to your database. See SETUP_SUPABASE.md.
+// (or `npx prisma db push`) to apply to your database. See SETUP_DATABASE.md.
 
 generator client {
   provider = "prisma-client-js"
@@ -85,4 +85,27 @@ model ProductSize {
   position  Int     @default(0)
 
   @@index([productId])
+}
+
+/** Key/value store for admin-managed site options (e.g. default product photo). */
+model SiteSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+/** Reusable species photos uploaded from the admin — searchable when assigning product images. */
+model SpeciesLibraryImage {
+  id         String   @id @default(cuid())
+  url        String
+  label      String   @default("")
+  scientific String   @default("")
+  genus      String   @default("")
+  slug       String   @default("")
+  notes      String   @default("")
+  createdAt  DateTime @default(now())
+
+  @@index([scientific])
+  @@index([genus])
+  @@index([label])
 }

@@ -120,15 +120,15 @@ Then set `www` to **redirect to** `montrealspiderco.ca` (or vice-versa) in the D
 ## ⚙️ Environment variables
 
 Copy `.env.example` → `.env.local` for local dev (and mirror the keys in Vercel).
-Only `NEXT_PUBLIC_SITE_URL` is used today; the rest are commented placeholders for the
-production integrations above.
+See **`SETUP_DATABASE.md`** for Neon + Cloudinary + admin setup.
 
 | Variable | Used now? | Purpose |
 |---|---|---|
 | `NEXT_PUBLIC_SITE_URL` | ✅ | Canonical/OG/sitemap base URL |
+| `DATABASE_URL` / `DIRECT_URL` | ✅ (admin + shop) | Neon Postgres via Prisma |
+| `CLOUDINARY_*` | ✅ (admin uploads) | Product image CDN |
+| `ADMIN_PASSWORD` / `AUTH_SECRET` | ✅ | Admin panel login |
 | `STRIPE_*` / `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | ⛔ placeholder | Payments |
-| `DATABASE_URL` | ⛔ placeholder | Orders / accounts / customers |
-| `AUTH_SECRET` | ⛔ placeholder | Auth |
 | `RESEND_API_KEY` | ⛔ placeholder | Email / newsletter |
 
 ---
