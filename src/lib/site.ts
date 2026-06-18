@@ -1,12 +1,12 @@
 // Production canonical URL. On Vercel, NEXT_PUBLIC_SITE_URL can override this so
 // preview deployments generate correct canonical/OG/sitemap links.
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://montrealspiderco.ca";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://montrealspider.ca";
 
 export const SITE = {
   name: "Montreal Spider Co.",
   shortName: "Montreal Spider Co.",
   url: SITE_URL,
-  email: "hello@montrealspiderco.ca",
+  email: "hello@montrealspider.ca",
   city: "Montréal",
   region: "QC",
   country: "CA",

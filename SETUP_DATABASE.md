@@ -143,7 +143,7 @@ AUTH_SECRET="..."    # ya generado en tu máquina
 Add **all** the same variables in **Vercel → Project → Settings → Environment
 Variables** (Production + Preview), then redeploy.
 
-- Use `NEXT_PUBLIC_SITE_URL=https://montrealspiderco.ca` in production (not localhost).
+- Use `NEXT_PUBLIC_SITE_URL=https://montrealspider.ca` in production (not localhost).
 - `npm run build` runs `prisma generate` automatically (via `postinstall`).
 - Run `npm run db:push` and `npm run db:seed` once against the production
   `DATABASE_URL` (e.g. from your machine with the prod values) to create + seed the tables.

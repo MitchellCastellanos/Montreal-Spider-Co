@@ -4,7 +4,7 @@ The official e-commerce website for **Montreal Spider Co.** — Quebec's premium
 captive-bred tarantula specialist. Bilingual (EN/FR), fully responsive, SEO-optimized,
 and built to stand out.
 
-**Production URL:** https://montrealspiderco.ca
+**Production URL:** https://montrealspider.ca
 **Stack:** Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS v4 · Framer Motion
 
 ---
@@ -73,11 +73,11 @@ server). The list below is the single source of truth for what to build next.
 2. **Payments** — Stripe checkout + webhooks (the launch blocker for selling).
 3. **Orders + real accounts** — persist orders to the DB; move accounts to a real auth provider.
 4. **Email** — order confirmations, contact form, newsletter.
-5. **Deploy** — Vercel + the `montrealspiderco.ca` domain (below).
+5. **Deploy** — Vercel + the `montrealspider.ca` domain (below).
 
 ---
 
-## ☁️ Deploy to Vercel + connect `montrealspiderco.ca`
+## ☁️ Deploy to Vercel + connect `montrealspider.ca`
 
 The repo is Vercel-ready: `vercel.json` pins the framework, build command and the
 Montreal region (`yul1`), and `NEXT_PUBLIC_SITE_URL` makes canonical/OG/sitemap URLs
@@ -87,15 +87,15 @@ environment-aware. There is **nothing to configure in code** — these are dashb
 1. Go to <https://vercel.com/new> and **import** the GitHub repo `MitchellCastellanos/Montreal-Spider-Co`.
 2. Framework preset: **Next.js** (auto-detected). Leave build/install commands as-is.
 3. Add an Environment Variable:
-   - `NEXT_PUBLIC_SITE_URL` = `https://montrealspiderco.ca`
+   - `NEXT_PUBLIC_SITE_URL` = `https://montrealspider.ca`
 4. **Deploy.** You'll get a `*.vercel.app` URL to verify the build.
 
 > Prefer the CLI? `npm i -g vercel`, then `vercel` (preview) and `vercel --prod`.
 
 ### 2. Add the custom domain
 In **Vercel → Project → Settings → Domains**, add both:
-- `montrealspiderco.ca`
-- `www.montrealspiderco.ca`
+- `montrealspider.ca`
+- `www.montrealspider.ca`
 
 Vercel will show the exact records to add at your domain registrar. The standard setup is:
 
@@ -104,7 +104,7 @@ Vercel will show the exact records to add at your domain registrar. The standard
 | `A`     | `@` (apex)  | `76.76.21.21` |
 | `CNAME` | `www`       | `cname.vercel-dns.com` |
 
-Then set `www` to **redirect to** `montrealspiderco.ca` (or vice-versa) in the Domains panel.
+Then set `www` to **redirect to** `montrealspider.ca` (or vice-versa) in the Domains panel.
 
 > ℹ️ Vercel may display a different IP/CNAME for your project — **always use the values
 > Vercel shows you**, not these, if they differ. Alternatively, point your domain's
@@ -112,7 +112,7 @@ Then set `www` to **redirect to** `montrealspiderco.ca` (or vice-versa) in the D
 
 ### 3. After DNS propagates (minutes–hours)
 - Vercel issues the SSL certificate automatically (HTTPS).
-- Confirm `https://montrealspiderco.ca` → redirects to `/en` (or `/fr` by browser language).
+- Confirm `https://montrealspider.ca` → redirects to `/en` (or `/fr` by browser language).
 - Re-deploys happen automatically on every push to the production branch.
 
 ---
