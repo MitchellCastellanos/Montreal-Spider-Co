@@ -15,26 +15,10 @@ import { createPickupPoint, updatePickupPoint, deletePickupPoint, type PickupInp
 import { updateSettings } from "@/lib/data/settings";
 import { addLibraryImage } from "@/lib/data/species-library";
 import { linkProductToSpecies, type SpeciesInput } from "@/lib/data/species";
-import { generateSpeciesProfile } from "@/lib/ai/generate-species";
 import { parseWeeklyHoursJson } from "@/lib/opening-hours";
-import { deriveAccent, deriveGenus, deriveHue } from "@/lib/species-utils";
+import { deriveGenus } from "@/lib/species-utils";
 
 export type ActionState = { error?: string; ok?: boolean };
-
-export type GenerateSpeciesResult = { error?: string; profile?: SpeciesInput };
-
-export async function generateSpeciesContent(scientific: string, notes?: string): Promise<GenerateSpeciesResult> {
-  if (!(await isAdminAuthed())) return { error: "unauthorized" };
-  try {
-    const profile = await generateSpeciesProfile(scientific, notes);
-    profile.hue = deriveHue(profile.scientific);
-    profile.accent = deriveAccent(profile.scientific);
-    if (!profile.genus) profile.genus = deriveGenus(profile.scientific);
-    return { profile };
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : "ai_failed" };
-  }
-}
 
 function speciesInputFromForm(formData: FormData, image: string | null): SpeciesInput {
   return {

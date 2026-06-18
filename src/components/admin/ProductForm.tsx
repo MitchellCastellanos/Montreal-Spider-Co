@@ -1,14 +1,15 @@
 "use client";
 
-import { useActionState, useMemo, useState, useTransition } from "react";
+import { useActionState, useMemo, useState } from "react";
 import Link from "next/link";
-import { saveProductAction, generateSpeciesContent, type ActionState } from "@/app/[locale]/admin/actions";
+import { saveProductAction, type ActionState } from "@/app/[locale]/admin/actions";
 import { useI18n } from "@/i18n/I18nProvider";
 import { localeHref } from "@/lib/href";
 import type { Product } from "@/lib/types";
 import type { LibraryImage } from "@/lib/data/species-library";
 import type { SpeciesProfile } from "@/lib/data/species";
 import ProductImageField from "@/components/admin/ProductImageField";
+import SpeciesChatGptHelper from "@/components/admin/SpeciesChatGptHelper";
 import {
   DEFAULT_SIZE_ROWS,
   deriveAccent,
@@ -118,15 +119,12 @@ export default function ProductForm({
 }) {
   const { locale } = useI18n();
   const [state, action, pending] = useActionState<ActionState, FormData>(saveProductAction, {});
-  const [aiPending, startAi] = useTransition();
 
   const initial = product ? productToForm(product) : emptySpeciesFields();
   const [form, setForm] = useState(initial);
   const [slugTouched, setSlugTouched] = useState(!!product);
   const [speciesSearch, setSpeciesSearch] = useState("");
   const [selectedSpeciesId, setSelectedSpeciesId] = useState("");
-  const [aiNotes, setAiNotes] = useState("");
-  const [aiError, setAiError] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(!product);
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
@@ -166,6 +164,22 @@ export default function ProductForm({
     );
   }, [speciesList, speciesSearch]);
 
+  const isInCatalog = useMemo(() => {
+    const sci = form.scientific.trim().toLowerCase();
+    if (!sci) return false;
+    return speciesList.some((s) => s.scientific.toLowerCase() === sci);
+  }, [form.scientific, speciesList]);
+
+  const applyChatGptFields = (fields: Partial<SpeciesFormFields>) => {
+    const commonEn = fields.commonEn ?? form.commonEn;
+    patch({
+      ...fields,
+      slug: slugTouched ? form.slug : deriveSlug(form.scientific || fields.scientific || "", commonEn),
+    });
+    setDetailsOpen(true);
+    setSelectedSpeciesId("");
+  };
+
   const loadSpecies = (species: SpeciesProfile) => {
     const mapped = speciesToForm(species);
     patch({
@@ -175,54 +189,6 @@ export default function ProductForm({
     setSelectedSpeciesId(species.id);
     setSpeciesSearch("");
     setDetailsOpen(true);
-  };
-
-  const runAi = () => {
-    if (!form.scientific.trim()) {
-      setAiError("Enter a scientific name first.");
-      return;
-    }
-    setAiError(null);
-    startAi(async () => {
-      const result = await generateSpeciesContent(form.scientific, aiNotes);
-      if (result.error) {
-        setAiError(result.error);
-        return;
-      }
-      if (result.profile) {
-        const p = result.profile;
-        patch({
-          commonEn: p.commonEn,
-          commonFr: p.commonFr,
-          genus: p.genus,
-          experience: p.experience,
-          type: p.type,
-          temperament: p.temperament,
-          hue: p.hue,
-          accent: p.accent,
-          careGuide: p.careGuide ?? "",
-          adultSizeEn: p.adultSizeEn,
-          adultSizeFr: p.adultSizeFr,
-          growthEn: p.growthEn,
-          growthFr: p.growthFr,
-          originEn: p.originEn,
-          originFr: p.originFr,
-          lifespanEn: p.lifespanEn,
-          lifespanFr: p.lifespanFr,
-          humidity: p.humidity,
-          temperature: p.temperature,
-          enclosureEn: p.enclosureEn,
-          enclosureFr: p.enclosureFr,
-          dietEn: p.dietEn,
-          dietFr: p.dietFr,
-          descriptionEn: p.descriptionEn,
-          descriptionFr: p.descriptionFr,
-          slug: slugTouched ? form.slug : deriveSlug(p.scientific, p.commonEn),
-        });
-        setDetailsOpen(true);
-        setSelectedSpeciesId("");
-      }
-    });
   };
 
   const setSize = (i: number, patchSize: Partial<SizeRow>) =>
@@ -319,30 +285,27 @@ export default function ProductForm({
           </div>
         </Section>
 
-        {/* AI generator */}
-        <Section title="Generate species content (AI)">
-          <p className="mb-3 text-sm text-bone">
-            Enter the scientific name above, add optional notes, then generate description + specs in EN &amp; FR. Review before saving.
-          </p>
-          <Field label="Notes for AI (optional)">
-            <input
-              value={aiNotes}
-              onChange={(e) => setAiNotes(e.target.value)}
-              placeholder="e.g. slings 2–3 cm, docile beginner species"
-              className="input"
+        {/* ChatGPT prompt — new species not in catalog */}
+        {!isInCatalog && (
+          <Section title="New species? Use ChatGPT">
+            <p className="mb-4 text-sm text-bone">
+              This species isn&apos;t in your catalog yet. Copy the prompt below into ChatGPT, paste the reply back here,
+              then save — the profile (and photo, or site default) is stored for future listings.
+            </p>
+            <SpeciesChatGptHelper
+              scientific={form.scientific}
+              careGuides={careGuides}
+              onApply={applyChatGptFields}
             />
-          </Field>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <button type="button" className="btn btn-gold" onClick={runAi} disabled={aiPending || !form.scientific.trim()}>
-              {aiPending ? "Generating…" : "✨ Generate EN + FR content"}
-            </button>
-            {aiError && (
-              <p className="text-sm text-danger">
-                {aiError.includes("OPENAI_API_KEY") ? "Add OPENAI_API_KEY to .env.local to use AI generation." : aiError}
-              </p>
-            )}
-          </div>
-        </Section>
+          </Section>
+        )}
+
+        {isInCatalog && !selectedSpeciesId && form.scientific.trim() && (
+          <p className="rounded-xl border border-line bg-ink-soft/40 px-4 py-3 text-sm text-bone">
+            <span className="text-cream">{form.scientific}</span> is already in your species catalog — use{" "}
+            <strong className="text-gold-bright">Load from species library</strong> above to auto-fill, or edit fields below.
+          </p>
+        )}
 
         {/* Sizes */}
         <Section title="Sizes & stock">
