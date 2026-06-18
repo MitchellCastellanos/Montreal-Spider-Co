@@ -74,7 +74,7 @@ export async function generateMetadata({
       description: dict.meta.defaultDescription,
       images: ["/og/og-image.png"],
     },
-    icons: { icon: "/favicon.ico" },
+    // Favicon/app icons are auto-detected from src/app/icon.png & apple-icon.png
     robots: { index: true, follow: true },
   };
 }
