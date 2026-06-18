@@ -6,6 +6,18 @@ import { DEFAULT_SETTINGS } from "../src/lib/data/setting-defaults";
 const prisma = new PrismaClient();
 
 async function main() {
+  // Seed each table only when it is EMPTY. This makes the seed safe to run on
+  // every deploy: it self-heals a freshly created table once, and never
+  // resurrects rows you later deleted in the admin panel.
+  const [productCount, pickupCount, settingCount] = await Promise.all([
+    prisma.product.count(),
+    prisma.pickupPoint.count(),
+    prisma.setting.count(),
+  ]);
+
+  if (productCount > 0) {
+    console.log(`Products already seeded (${productCount}) — skipping.`);
+  } else {
   console.log(`Seeding ${PRODUCTS.length} products…`);
   for (const p of PRODUCTS) {
     await prisma.product.upsert({
@@ -59,7 +71,11 @@ async function main() {
       },
     });
   }
+  }
 
+  if (pickupCount > 0) {
+    console.log(`Pickup points already seeded (${pickupCount}) — skipping.`);
+  } else {
   console.log(`Seeding ${PICKUP_POINTS.length} pickup points…`);
   for (let i = 0; i < PICKUP_POINTS.length; i++) {
     const p = PICKUP_POINTS[i];
@@ -76,7 +92,11 @@ async function main() {
     // Use the seed id as the row id so re-seeding is idempotent.
     await prisma.pickupPoint.upsert({ where: { id: p.id }, update: {}, create: { id: p.id, ...data } });
   }
+  }
 
+  if (settingCount > 0) {
+    console.log(`Settings already seeded (${settingCount}) — skipping.`);
+  } else {
   console.log("Seeding default settings…");
   const settings = [
     { key: "pickupWindowDays", valueEn: String(DEFAULT_SETTINGS.pickupWindowDays), valueFr: String(DEFAULT_SETTINGS.pickupWindowDays) },
@@ -85,6 +105,7 @@ async function main() {
   ];
   for (const s of settings) {
     await prisma.setting.upsert({ where: { key: s.key }, update: {}, create: s });
+  }
   }
 
   console.log("Seed complete.");

@@ -144,9 +144,14 @@ Add **all** the same variables in **Vercel → Project → Settings → Environm
 Variables** (Production + Preview), then redeploy.
 
 - Use `NEXT_PUBLIC_SITE_URL=https://montrealspider.ca` in production (not localhost).
-- `npm run build` runs `prisma generate` automatically (via `postinstall`).
-- Run `npm run db:push` and `npm run db:seed` once against the production
-  `DATABASE_URL` (e.g. from your machine with the prod values) to create + seed the tables.
+- **Migrations are automatic.** Every Vercel deploy runs `scripts/db-deploy.mjs`
+  before `next build`: when `DATABASE_URL` is set it runs `prisma db push`
+  (syncs the schema — new tables/columns apply automatically) and then seeds
+  **only empty tables**. So you never run migrations by hand after adding a model.
+  - Additive changes apply silently; a destructive change fails the build on
+    purpose so it gets reviewed.
+  - The seed never resurrects rows you deleted in the admin (it only fills empty tables).
+  - Requires both `DATABASE_URL` and `DIRECT_URL` in the Vercel env.
 - Product pages use ISR (`revalidate = 60`): admin changes appear within ~1 minute;
   brand-new products render on demand immediately.
 
