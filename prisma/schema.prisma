@@ -104,10 +104,15 @@ model Product {
   descriptionEn String       @default("")
   descriptionFr String       @default("")
   careGuide     String?
-  arrived       DateTime     @default(now())
-  sizes         ProductSize[]
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  arrived                DateTime     @default(now())
+  /** Fulfillment from warehouse stock (delivery or pickup). */
+  availableAtPickup      Boolean      @default(true)
+  /** Also offered through authorized distributors (separate stock). */
+  availableAtDistributor Boolean      @default(false)
+  sizes                  ProductSize[]
+  distributorStocks      ProductDistributorStock[]
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
 
   @@index([experience])
   @@index([genus])
@@ -141,6 +146,35 @@ model PickupPoint {
   active       Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+/** Partner shops that carry our spiders — separate from pickup points. */
+model AuthorizedDistributor {
+  id           String   @id @default(cuid())
+  name         String
+  neighborhood String   @default("")
+  address      String
+  hours        Json     @default("{}")
+  mapsUrl      String   @default("")
+  phone        String   @default("")
+  position     Int      @default(0)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  stock        ProductDistributorStock[]
+}
+
+model ProductDistributorStock {
+  id            String                @id @default(cuid())
+  productId     String
+  product       Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
+  distributorId String
+  distributor   AuthorizedDistributor @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  stock         Int                   @default(0)
+
+  @@unique([productId, distributorId])
+  @@index([productId])
+  @@index([distributorId])
 }
 
 /** Bilingual key/value store for store policies (pickup terms, T&C). */

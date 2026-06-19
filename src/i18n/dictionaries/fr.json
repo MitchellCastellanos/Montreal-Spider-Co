@@ -50,7 +50,24 @@
     "required": "requis",
     "optional": "facultatif",
     "free": "Gratuit",
-    "newsletter": "Infolettre"
+    "newsletter": "Infolettre",
+    "atDistributor": "Chez un distributeur autorisé!",
+    "distributorHoverTitle": "Détails de la boutique partenaire",
+    "distributorOnly": "Visitez un distributeur",
+    "distributorCtaToday": "Disponible dès aujourd'hui chez {store}",
+    "distributorCtaSoon": "Disponible dès {day} chez {store}",
+    "distributorCtaHint": "Survolez pour l'adresse, les heures et le téléphone — rendez-vous directement en boutique."
+  },
+  "concepts": {
+    "learnMore": "En savoir plus",
+    "pickup": {
+      "title": "Point de cueillette",
+      "tooltip": "Un partenaire local de confiance où vous récupérez votre commande gratuitement une fois préparée dans notre entrepôt."
+    },
+    "distributor": {
+      "title": "Distributeur autorisé",
+      "tooltip": "Une boutique partenaire indépendante qui détient nos araignées sur place. Rendez-vous directement chez eux — distinct de la commande en ligne."
+    }
   },
   "home": {
     "heroKicker": "Fondée en 2026 · Montréal, QC",
@@ -115,6 +132,7 @@
     "price": "Fourchette de prix",
     "availability": "Disponibilité",
     "onlyInStock": "En stock seulement",
+    "onlyAtDistributor": "Chez un distributeur autorisé",
     "noResults": "Aucune mygale ne correspond à vos filtres.",
     "noResultsHint": "Élargissez votre fourchette de prix ou retirez un filtre."
   },
@@ -317,8 +335,28 @@
     "liveArrivalBody": "Chaque livraison et cueillette locale est couverte par notre garantie d'arrivée vivante. Dans le rare cas d'un problème, nous le réglons.",
     "hours": "Heures",
     "pickupPolicy": "Politique de cueillette",
+    "distributorsTitle": "Distributeurs autorisés",
+    "distributorsBody": "Certaines espèces sont aussi en stock chez nos boutiques partenaires à Montréal. Repérez l'écusson dans la boutique ou rendez-vous directement chez un distributeur.",
     "outsideTitle": "En dehors de notre zone de livraison?",
     "outsideBody": "Nous nous développons. Écrivez-nous votre emplacement et nous vous préviendrons dès que nous vous rejoignons."
+  },
+  "pickupPoints": {
+    "kicker": "Comment ça marche",
+    "title": "Qu'est-ce qu'un point de cueillette?",
+    "subtitle": "Cueillette gratuite chez des partenaires locaux de confiance — votre mygale est préparée dans notre entrepôt, puis prête à récupérer.",
+    "body1": "Lorsque vous choisissez la cueillette au paiement, nous préparons votre commande à partir de notre stock d'entrepôt et l'envoyons à un point partenaire près de chez vous. Vous la récupérez en personne pendant les heures d'ouverture — sans frais de livraison.",
+    "body2": "Les points de cueillette ne sont pas des animaleries qui vendent nos mygales en rayon. Ce sont des lieux de remise sécurisés avec lesquels nous travaillons à Montréal et dans les environs.",
+    "cta": "Voir les points de cueillette",
+    "ctaHref": "/delivery"
+  },
+  "authorizedDistributors": {
+    "kicker": "Boutiques partenaires",
+    "title": "Qu'est-ce qu'un distributeur autorisé?",
+    "subtitle": "Boutiques indépendantes qui détiennent les mygales Montreal Spider Co. sur place — rendez-vous directement chez eux pour acheter en personne.",
+    "body1": "Les distributeurs autorisés proposent des espèces sélectionnées de notre collection dans leur propre inventaire. Le stock chez un distributeur est distinct de notre entrepôt et de la boutique en ligne.",
+    "body2": "Repérez l'écusson « Chez un distributeur autorisé » sur les fiches produits. Survolez pour voir quels partenaires détiennent cette espèce et leurs coordonnées.",
+    "cta": "Parcourir la boutique",
+    "ctaHref": "/shop"
   },
   "terms": {
     "kicker": "Les détails",

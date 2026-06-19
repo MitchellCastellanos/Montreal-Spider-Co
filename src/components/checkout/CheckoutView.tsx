@@ -12,6 +12,7 @@ import type { WeeklyHours } from "@/lib/opening-hours";
 import { DELIVERY_ZONES, FREE_DELIVERY_THRESHOLD } from "@/lib/locations";
 import { t } from "@/lib/types";
 import { SITE } from "@/lib/site";
+import ConceptInfo from "@/components/ConceptInfo";
 
 type Method = "delivery" | "pickup";
 type CheckoutAuthMode = "signin" | "guest";
@@ -315,7 +316,7 @@ export default function CheckoutView({
           <Section title={co.delivery}>
             <div className="grid gap-3 sm:grid-cols-2">
               <MethodCard active={method === "delivery"} onClick={() => setMethod("delivery")} title={co.deliveryLocal} desc={co.deliveryLocalDesc} />
-              <MethodCard active={method === "pickup"} onClick={() => setMethod("pickup")} title={co.deliveryPickup} desc={co.deliveryPickupDesc} badge={dict.common.free} />
+              <MethodCard active={method === "pickup"} onClick={() => setMethod("pickup")} title={co.deliveryPickup} titleExtra={<ConceptInfo concept="pickup" className="ml-1" />} desc={co.deliveryPickupDesc} badge={dict.common.free} />
             </div>
 
             {method === "delivery" ? (
@@ -478,11 +479,18 @@ function Field({ label, error, children }: { label: string; error?: boolean; chi
     </label>
   );
 }
-function MethodCard({ active, onClick, title, desc, badge }: { active: boolean; onClick: () => void; title: string; desc: string; badge?: string }) {
+function MethodCard({ active, onClick, title, titleExtra, desc, badge }: { active: boolean; onClick: () => void; title: string; titleExtra?: React.ReactNode; desc: string; badge?: string }) {
   return (
     <button type="button" onClick={onClick} className={`rounded-xl border p-4 text-left transition ${active ? "border-gold bg-gold/10" : "border-line hover:border-gold/50"}`}>
       <div className="flex items-center justify-between">
-        <span className="font-semibold text-cream">{title}</span>
+        <span className="flex items-center font-semibold text-cream">
+          {title}
+          {titleExtra && (
+            <span className="ml-1" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+              {titleExtra}
+            </span>
+          )}
+        </span>
         {badge && <span className="badge">{badge}</span>}
       </div>
       <p className="mt-1 text-sm text-bone">{desc}</p>

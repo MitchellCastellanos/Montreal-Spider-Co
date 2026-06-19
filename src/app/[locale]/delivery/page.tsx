@@ -5,12 +5,14 @@ import { pageMeta } from "@/lib/pageMeta";
 import { localeHref } from "@/lib/href";
 import { DELIVERY_ZONES, FREE_DELIVERY_THRESHOLD } from "@/lib/locations";
 import { getPickupPoints } from "@/lib/data/locations";
+import { getDistributors } from "@/lib/data/distributors";
 import { getSettings, resolvePickupTerms } from "@/lib/data/settings";
 import { formatWeeklyHoursLines } from "@/lib/opening-hours";
 import { t } from "@/lib/types";
 import { formatPrice } from "@/lib/format";
 import PageHero from "@/components/PageHero";
 import Reveal from "@/components/Reveal";
+import ConceptInfo from "@/components/ConceptInfo";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -28,7 +30,7 @@ export default async function DeliveryPage({ params }: { params: Promise<{ local
   const loc: Locale = isLocale(locale) ? locale : "en";
   const dict = await getDictionary(loc);
   const d = dict.delivery;
-  const [pickups, settings] = await Promise.all([getPickupPoints(), getSettings()]);
+  const [pickups, distributors, settings] = await Promise.all([getPickupPoints(), getDistributors(), getSettings()]);
   const pickupPolicy = resolvePickupTerms(settings, loc);
 
   return (
@@ -102,7 +104,9 @@ export default async function DeliveryPage({ params }: { params: Promise<{ local
       <section className="border-t border-line bg-ink-soft/40">
         <div className="container-x py-16">
           <Reveal className="mb-8">
-            <h2 className="font-display text-3xl font-bold text-cream">{d.pickupTitle}</h2>
+            <h2 className="font-display text-3xl font-bold text-cream">
+              {d.pickupTitle} <ConceptInfo concept="pickup" className="ml-2" />
+            </h2>
             <p className="mt-2 max-w-2xl text-bone">{d.pickupBody}</p>
           </Reveal>
 
@@ -153,6 +157,34 @@ export default async function DeliveryPage({ params }: { params: Promise<{ local
           </div>
         </div>
       </section>
+
+      {distributors.length > 0 && (
+        <section className="border-t border-line">
+          <div className="container-x py-16">
+            <Reveal className="mb-8">
+              <h2 className="font-display text-3xl font-bold text-cream">
+                {d.distributorsTitle} <ConceptInfo concept="distributor" className="ml-2" />
+              </h2>
+              <p className="mt-2 max-w-2xl text-bone">{d.distributorsBody}</p>
+            </Reveal>
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {distributors.map((dist, i) => (
+                <Reveal key={dist.id} delay={i * 0.06}>
+                  <div className="card-glow h-full rounded-2xl p-5">
+                    <h3 className="font-display text-lg font-semibold text-cream">{dist.name}</h3>
+                    <p className="mt-1 text-sm text-bone">{dist.address}</p>
+                    {dist.phone && (
+                      <p className="mt-2 text-sm">
+                        <a href={`tel:${dist.phone.replace(/\s/g, "")}`} className="text-gold-bright hover:underline">{dist.phone}</a>
+                      </p>
+                    )}
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="container-x py-16">
         <Reveal>

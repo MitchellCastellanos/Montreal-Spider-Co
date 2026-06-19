@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { PRODUCTS } from "../src/lib/products";
 import { PICKUP_POINTS } from "../src/lib/locations";
+import { AUTHORIZED_DISTRIBUTORS } from "../src/lib/locations";
 import { DEFAULT_SETTINGS } from "../src/lib/data/setting-defaults";
 
 const prisma = new PrismaClient();
@@ -9,9 +10,10 @@ async function main() {
   // Seed each table only when it is EMPTY. This makes the seed safe to run on
   // every deploy: it self-heals a freshly created table once, and never
   // resurrects rows you later deleted in the admin panel.
-  const [productCount, pickupCount, settingCount, speciesCount] = await Promise.all([
+  const [productCount, pickupCount, distributorCount, settingCount, speciesCount] = await Promise.all([
     prisma.product.count(),
     prisma.pickupPoint.count(),
+    prisma.authorizedDistributor.count(),
     prisma.setting.count(),
     prisma.species.count(),
   ]);
@@ -94,6 +96,29 @@ async function main() {
       where: { id: p.id },
       update: {},
       create: { id: p.id, ...data, hours: p.hours as unknown as object },
+    });
+  }
+  }
+
+  if (distributorCount > 0) {
+    console.log(`Distributors already seeded (${distributorCount}) — skipping.`);
+  } else {
+  console.log(`Seeding ${AUTHORIZED_DISTRIBUTORS.length} authorized distributors…`);
+  for (let i = 0; i < AUTHORIZED_DISTRIBUTORS.length; i++) {
+    const d = AUTHORIZED_DISTRIBUTORS[i];
+    const data = {
+      name: d.name,
+      neighborhood: d.neighborhood,
+      address: d.address,
+      mapsUrl: d.mapsUrl ?? "",
+      phone: d.phone ?? "",
+      position: i,
+      active: true,
+    };
+    await prisma.authorizedDistributor.upsert({
+      where: { id: d.id },
+      update: {},
+      create: { id: d.id, ...data, hours: d.hours as unknown as object },
     });
   }
   }

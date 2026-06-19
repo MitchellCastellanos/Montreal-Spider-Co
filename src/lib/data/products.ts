@@ -1,17 +1,47 @@
 import "server-only";
-import type { Product as DbProduct, ProductSize as DbSize } from "@prisma/client";
+import type { Product as DbProduct, ProductSize as DbSize, ProductDistributorStock as DbDistStock, AuthorizedDistributor as DbDistributor } from "@prisma/client";
 import { prisma, hasDatabase } from "@/lib/db";
 import { getDefaultProductImage } from "@/lib/data/site-settings";
 import { logDbFallback } from "@/lib/data/db-safe";
+import { getDistributors } from "@/lib/data/distributors";
 import { PRODUCTS as SEED, GENERA as SEED_GENERA } from "@/lib/products";
-import type { Product } from "@/lib/types";
+import { parseWeeklyHours, EMPTY_WEEKLY_HOURS } from "@/lib/opening-hours";
+import type { DistributorSnippet, Product, ProductDistributorStock } from "@/lib/types";
 
 export type { Product };
 
-type DbProductWithSizes = DbProduct & { sizes: DbSize[] };
+type DbProductFull = DbProduct & {
+  sizes: DbSize[];
+  distributorStocks?: (DbDistStock & { distributor?: DbDistributor })[];
+};
 
-function mapProduct(p: DbProductWithSizes, defaultImage?: string | null): Product {
+const productInclude = {
+  sizes: true,
+  distributorStocks: { include: { distributor: true } },
+} as const;
+
+function mapDistributorSnippet(d: DbDistributor): DistributorSnippet {
+  return {
+    id: d.id,
+    name: d.name,
+    neighborhood: d.neighborhood,
+    address: d.address,
+    phone: d.phone,
+    mapsUrl: d.mapsUrl,
+    hours: parseWeeklyHours(d.hours) ?? { ...EMPTY_WEEKLY_HOURS },
+  };
+}
+
+function mapProduct(p: DbProductFull, defaultImage?: string | null): Product {
   const image = p.image ?? defaultImage ?? undefined;
+  const distributorStocks: ProductDistributorStock[] = (p.distributorStocks ?? []).map((ds) => ({
+    distributorId: ds.distributorId,
+    stock: ds.stock,
+  }));
+  const distributors: DistributorSnippet[] = (p.distributorStocks ?? [])
+    .filter((ds) => ds.stock > 0 && ds.distributor?.active)
+    .map((ds) => mapDistributorSnippet(ds.distributor!));
+
   return {
     id: p.id,
     slug: p.slug,
@@ -26,6 +56,10 @@ function mapProduct(p: DbProductWithSizes, defaultImage?: string | null): Produc
       .map((s) => ({ id: s.key, label: { en: s.labelEn, fr: s.labelFr }, price: s.price, stock: s.stock })),
     featured: p.featured,
     newArrival: p.newArrival,
+    availableAtPickup: p.availableAtPickup,
+    availableAtDistributor: p.availableAtDistributor,
+    distributorStocks,
+    distributors: p.availableAtDistributor ? distributors : undefined,
     rating: p.rating,
     reviews: p.reviews,
     hue: p.hue,
@@ -45,6 +79,29 @@ function mapProduct(p: DbProductWithSizes, defaultImage?: string | null): Produc
   };
 }
 
+/** Attach full distributor list for storefront tooltips. */
+async function attachDistributorDetails(products: Product[]): Promise<Product[]> {
+  const allDistributors = await getDistributors();
+  return products.map((p) => {
+    if (!p.availableAtDistributor) return p;
+    const stockMap = new Map((p.distributorStocks ?? []).map((s) => [s.distributorId, s.stock]));
+    const withStock = allDistributors.filter((d) => (stockMap.get(d.id) ?? 0) > 0);
+    const list = withStock.length > 0 ? withStock : allDistributors;
+    return {
+      ...p,
+      distributors: list.map((d) => ({
+        id: d.id,
+        name: d.name,
+        neighborhood: d.neighborhood,
+        address: d.address,
+        phone: d.phone,
+        mapsUrl: d.mapsUrl,
+        hours: d.hours,
+      })),
+    };
+  });
+}
+
 /** True when reading live data from the database (vs the static seed). */
 export const isLive = hasDatabase;
 
@@ -52,58 +109,68 @@ export async function getAllProducts(): Promise<Product[]> {
   if (prisma) {
     try {
       const [rows, defaultImage] = await Promise.all([
-        prisma.product.findMany({ include: { sizes: true }, orderBy: { arrived: "desc" } }),
+        prisma.product.findMany({ include: productInclude, orderBy: { arrived: "desc" } }),
         getDefaultProductImage(),
       ]);
-      return rows.map((p) => mapProduct(p, defaultImage));
+      return attachDistributorDetails(rows.map((p) => mapProduct(p, defaultImage)));
     } catch (e) {
       logDbFallback("getAllProducts", e);
     }
   }
-  return SEED;
+  return attachDistributorDetails(SEED);
 }
 
 export async function getProductBySlug(slug: string): Promise<Product | null> {
   if (prisma) {
     try {
       const [row, defaultImage] = await Promise.all([
-        prisma.product.findUnique({ where: { slug }, include: { sizes: true } }),
+        prisma.product.findUnique({ where: { slug }, include: productInclude }),
         getDefaultProductImage(),
       ]);
-      return row ? mapProduct(row, defaultImage) : null;
+      if (!row) return null;
+      const mapped = mapProduct(row, defaultImage);
+      return (await attachDistributorDetails([mapped]))[0];
     } catch (e) {
       logDbFallback("getProductBySlug", e);
     }
   }
-  return SEED.find((p) => p.slug === slug) ?? null;
+  const found = SEED.find((p) => p.slug === slug);
+  if (!found) return null;
+  return (await attachDistributorDetails([found]))[0];
 }
 
 export async function getProductById(id: string): Promise<Product | null> {
   if (prisma) {
     try {
       const [row, defaultImage] = await Promise.all([
-        prisma.product.findUnique({ where: { id }, include: { sizes: true } }),
+        prisma.product.findUnique({ where: { id }, include: productInclude }),
         getDefaultProductImage(),
       ]);
-      return row ? mapProduct(row, defaultImage) : null;
+      if (!row) return null;
+      const mapped = mapProduct(row, defaultImage);
+      return (await attachDistributorDetails([mapped]))[0];
     } catch (e) {
       logDbFallback("getProductById", e);
     }
   }
-  return SEED.find((p) => p.id === id) ?? null;
+  const found = SEED.find((p) => p.id === id);
+  if (!found) return null;
+  return (await attachDistributorDetails([found]))[0];
 }
 
 /** Admin edit form — returns the stored image only (no site default fallback). */
 export async function getProductByIdForAdmin(id: string): Promise<Product | null> {
   if (prisma) {
     try {
-      const row = await prisma.product.findUnique({ where: { id }, include: { sizes: true } });
+      const row = await prisma.product.findUnique({ where: { id }, include: productInclude });
       return row ? mapProduct(row, null) : null;
     } catch (e) {
       logDbFallback("getProductByIdForAdmin", e);
     }
   }
-  return SEED.find((p) => p.id === id) ?? null;
+  const found = SEED.find((p) => p.id === id);
+  if (!found) return null;
+  return (await attachDistributorDetails([found]))[0];
 }
 
 export async function getFeatured(count = 4): Promise<Product[]> {
@@ -138,6 +205,11 @@ export interface ProductSizeInput {
   stock: number;
 }
 
+export interface ProductDistributorStockInput {
+  distributorId: string;
+  stock: number;
+}
+
 export interface ProductInput {
   slug: string;
   scientific: string;
@@ -149,6 +221,8 @@ export interface ProductInput {
   temperament: "docile" | "skittish" | "defensive";
   featured: boolean;
   newArrival: boolean;
+  availableAtPickup: boolean;
+  availableAtDistributor: boolean;
   rating: number;
   reviews: number;
   hue: number;
@@ -172,6 +246,13 @@ export interface ProductInput {
   descriptionFr: string;
   careGuide: string | null;
   sizes: ProductSizeInput[];
+  distributorStocks: ProductDistributorStockInput[];
+}
+
+function distributorStockCreates(stocks: ProductDistributorStockInput[]) {
+  return stocks
+    .filter((s) => s.distributorId && Number.isFinite(s.stock))
+    .map((s) => ({ distributorId: s.distributorId, stock: Math.max(0, Math.round(s.stock)) }));
 }
 
 function requireDb() {
@@ -181,11 +262,12 @@ function requireDb() {
 
 export async function createProduct(input: ProductInput): Promise<string> {
   const db = requireDb();
-  const { sizes, ...fields } = input;
+  const { sizes, distributorStocks, ...fields } = input;
   const created = await db.product.create({
     data: {
       ...fields,
       sizes: { create: sizes.map((s, i) => ({ ...s, position: i })) },
+      distributorStocks: { create: distributorStockCreates(distributorStocks) },
     },
   });
   return created.id;
@@ -193,14 +275,16 @@ export async function createProduct(input: ProductInput): Promise<string> {
 
 export async function updateProduct(id: string, input: ProductInput): Promise<void> {
   const db = requireDb();
-  const { sizes, ...fields } = input;
+  const { sizes, distributorStocks, ...fields } = input;
   await db.$transaction([
     db.productSize.deleteMany({ where: { productId: id } }),
+    db.productDistributorStock.deleteMany({ where: { productId: id } }),
     db.product.update({
       where: { id },
       data: {
         ...fields,
         sizes: { create: sizes.map((s, i) => ({ ...s, position: i })) },
+        distributorStocks: { create: distributorStockCreates(distributorStocks) },
       },
     }),
   ]);

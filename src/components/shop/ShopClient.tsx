@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import ProductCard from "@/components/ProductCard";
 import { useI18n, useT } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
-import { basePrice, totalStock, type Experience, type Product, type SpiderType, type Temperament } from "@/lib/types";
+import { basePrice, isAvailableAtDistributor, totalStock, type Experience, type Product, type SpiderType, type Temperament } from "@/lib/types";
 
 type Sort = "featured" | "price-asc" | "price-desc" | "name" | "newest";
 
@@ -30,6 +30,7 @@ export default function ShopClient({ products, genera }: { products: Product[]; 
   const [genus, setGenus] = useState<string[]>(initArray("genus"));
   const [maxPrice, setMaxPrice] = useState<number>(Number(sp.get("maxPrice")) || priceCeiling);
   const [inStock, setInStock] = useState<boolean>(sp.get("inStock") === "1");
+  const [atDistributor, setAtDistributor] = useState<boolean>(sp.get("distributor") === "1");
   const [sort, setSort] = useState<Sort>((sp.get("sort") as Sort) || "featured");
   const [query, setQuery] = useState<string>(sp.get("q") || "");
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -43,11 +44,12 @@ export default function ShopClient({ products, genera }: { products: Product[]; 
     if (genus.length) params.set("genus", genus.join(","));
     if (maxPrice < priceCeiling) params.set("maxPrice", String(maxPrice));
     if (inStock) params.set("inStock", "1");
+    if (atDistributor) params.set("distributor", "1");
     if (sort !== "featured") params.set("sort", sort);
     if (query) params.set("q", query);
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }, [experience, type, temperament, genus, maxPrice, inStock, sort, query, pathname, router, priceCeiling]);
+  }, [experience, type, temperament, genus, maxPrice, inStock, atDistributor, sort, query, pathname, router, priceCeiling]);
 
   const toggle = (list: string[], setList: (v: string[]) => void, value: string) =>
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
@@ -60,6 +62,7 @@ export default function ShopClient({ products, genera }: { products: Product[]; 
       if (genus.length && !genus.includes(p.genus)) return false;
       if (basePrice(p) > maxPrice) return false;
       if (inStock && totalStock(p) === 0) return false;
+      if (atDistributor && !isAvailableAtDistributor(p)) return false;
       if (query) {
         const q = query.toLowerCase();
         const hay = `${p.scientific} ${p.common.en} ${p.common.fr} ${p.genus}`.toLowerCase();
@@ -83,10 +86,10 @@ export default function ShopClient({ products, genera }: { products: Product[]; 
       }
     });
     return result;
-  }, [products, experience, type, temperament, genus, maxPrice, inStock, query, sort, tr]);
+  }, [products, experience, type, temperament, genus, maxPrice, inStock, atDistributor, query, sort, tr]);
 
   const activeCount =
-    experience.length + type.length + temperament.length + genus.length + (inStock ? 1 : 0) + (maxPrice < priceCeiling ? 1 : 0);
+    experience.length + type.length + temperament.length + genus.length + (inStock ? 1 : 0) + (atDistributor ? 1 : 0) + (maxPrice < priceCeiling ? 1 : 0);
 
   const clearAll = () => {
     setExperience([]);
@@ -95,6 +98,7 @@ export default function ShopClient({ products, genera }: { products: Product[]; 
     setGenus([]);
     setMaxPrice(priceCeiling);
     setInStock(false);
+    setAtDistributor(false);
     setQuery("");
   };
 
@@ -142,6 +146,7 @@ export default function ShopClient({ products, genera }: { products: Product[]; 
       </FilterGroup>
       <FilterGroup title={s.availability}>
         <CheckRow label={s.onlyInStock} checked={inStock} onChange={() => setInStock((v) => !v)} />
+        <CheckRow label={s.onlyAtDistributor} checked={atDistributor} onChange={() => setAtDistributor((v) => !v)} />
       </FilterGroup>
     </div>
   );

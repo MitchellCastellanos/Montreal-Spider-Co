@@ -2,10 +2,18 @@ import Link from "next/link";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getAllProducts } from "@/lib/data/products";
 import { hasDatabase } from "@/lib/db";
-import { t, basePrice, totalStock } from "@/lib/types";
+import { t, basePrice, warehouseStock, distributorStockTotal } from "@/lib/types";
 import { formatPrice } from "@/lib/format";
 import { localeHref } from "@/lib/href";
 import { deleteProductAction } from "./actions";
+
+function channelBadges(p: Awaited<ReturnType<typeof getAllProducts>>[number]) {
+  const badges: string[] = [];
+  if (p.availableAtPickup !== false) badges.push("Pickup");
+  if (p.availableAtDistributor) badges.push("Distributor");
+  if (badges.length === 0) badges.push("Warehouse only");
+  return badges;
+}
 
 export default async function AdminProductsPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -16,8 +24,8 @@ export default async function AdminProductsPage({ params }: { params: Promise<{ 
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl font-bold text-cream">Products</h1>
-          <p className="text-sm text-muted">{products.length} in catalog</p>
+          <h1 className="font-display text-2xl font-bold text-cream">Products & inventory</h1>
+          <p className="text-sm text-muted">{products.length} in catalog — warehouse and distributor stock</p>
         </div>
         {hasDatabase && (
           <Link href={localeHref(loc, "/admin/products/new")} className="btn btn-gold">
@@ -31,14 +39,18 @@ export default async function AdminProductsPage({ params }: { params: Promise<{ 
           <thead className="bg-ink-soft text-xs uppercase tracking-wide text-gold-deep">
             <tr>
               <th className="px-4 py-3">Species</th>
-              <th className="px-4 py-3">Level</th>
+              <th className="px-4 py-3">Channels</th>
+              <th className="px-4 py-3">Warehouse</th>
+              <th className="px-4 py-3">Distributors</th>
               <th className="px-4 py-3">From</th>
-              <th className="px-4 py-3">Stock</th>
               <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {products.map((p) => (
+            {products.map((p) => {
+              const wh = warehouseStock(p);
+              const dist = distributorStockTotal(p);
+              return (
               <tr key={p.id} className="text-bone">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
@@ -55,9 +67,22 @@ export default async function AdminProductsPage({ params }: { params: Promise<{ 
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3 capitalize">{p.experience}</td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-1">
+                    {channelBadges(p).map((b) => (
+                      <span key={b} className="rounded-full border border-line px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted">
+                        {b}
+                      </span>
+                    ))}
+                  </div>
+                </td>
+                <td className={`px-4 py-3 font-medium ${wh === 0 ? "text-muted" : wh <= 5 ? "text-gold-deep" : "text-cream"}`}>
+                  {wh}
+                </td>
+                <td className={`px-4 py-3 font-medium ${!p.availableAtDistributor ? "text-muted" : dist === 0 ? "text-muted" : "text-cream"}`}>
+                  {p.availableAtDistributor ? dist : "—"}
+                </td>
                 <td className="px-4 py-3 text-gold-bright">{formatPrice(basePrice(p), loc)}</td>
-                <td className="px-4 py-3">{totalStock(p)}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-2">
                     {hasDatabase ? (
@@ -79,7 +104,8 @@ export default async function AdminProductsPage({ params }: { params: Promise<{ 
                   </div>
                 </td>
               </tr>
-            ))}
+            );
+            })}
           </tbody>
         </table>
       </div>

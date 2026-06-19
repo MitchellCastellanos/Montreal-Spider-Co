@@ -3,10 +3,11 @@
 import { motion } from "framer-motion";
 import LocaleLink from "./LocaleLink";
 import SpeciesImage from "./SpeciesImage";
+import DistributorAvailabilityCta from "./DistributorAvailabilityCta";
 import { useCart, snapshotFromProduct } from "@/context/CartContext";
 import { useI18n, useT } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
-import { basePrice, totalStock, type Product } from "@/lib/types";
+import { basePrice, isAvailableAtDistributor, isPurchasableOnline, warehouseStock, type Product } from "@/lib/types";
 
 const expColor: Record<string, string> = {
   beginner: "text-ok",
@@ -19,7 +20,9 @@ export default function ProductCard({ product }: { product: Product }) {
   const { add } = useCart();
   const tr = useT();
 
-  const stock = totalStock(product);
+  const stock = warehouseStock(product);
+  const online = isPurchasableOnline(product);
+  const atDistributor = isAvailableAtDistributor(product);
   const cheapest = product.sizes.reduce((a, b) => (b.price < a.price ? b : a), product.sizes[0]);
   const low = stock > 0 && stock <= 5;
 
@@ -43,7 +46,7 @@ export default function ProductCard({ product }: { product: Product }) {
               <span className="badge">{dict.home.featuredKicker}</span>
             )}
           </div>
-          {stock === 0 && (
+          {!online && !atDistributor && (
             <div className="absolute inset-0 flex items-center justify-center bg-ink/70">
               <span className="badge text-sm">{dict.common.soldOut}</span>
             </div>
@@ -73,6 +76,12 @@ export default function ProductCard({ product }: { product: Product }) {
           <Chip>{dict.filters[product.temperament]}</Chip>
         </div>
 
+        {atDistributor && product.distributors && (
+          <div className="mb-3">
+            <DistributorAvailabilityCta distributors={product.distributors} variant="card" />
+          </div>
+        )}
+
         <div className="mt-auto flex items-end justify-between gap-2 pt-2">
           <div>
             <p className="text-[11px] uppercase tracking-wide text-muted">{dict.common.from}</p>
@@ -80,7 +89,7 @@ export default function ProductCard({ product }: { product: Product }) {
             {low && <p className="text-[11px] text-gold-deep">{dict.common.lowStock}</p>}
           </div>
           <button
-            disabled={stock === 0}
+            disabled={!online}
             onClick={() => add(product.id, cheapest.id, 1, snapshotFromProduct(product, cheapest))}
             className="btn btn-gold px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
             aria-label={`${dict.common.addToCart} — ${tr(product.common)}`}

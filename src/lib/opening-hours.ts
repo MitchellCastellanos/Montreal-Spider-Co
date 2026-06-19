@@ -13,7 +13,7 @@ export type WeeklyHours = Record<DayKey, DayHours>;
 export const DAY_KEYS: DayKey[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 /** Monday = index 0 … Sunday = index 6 (matches Google Business Profile order). */
-const MONDAY_ANCHOR = new Date(2000, 0, 3);
+export const MONDAY_ANCHOR = new Date(2000, 0, 3);
 
 export const EMPTY_WEEKLY_HOURS: WeeklyHours = {
   mon: { closed: true },

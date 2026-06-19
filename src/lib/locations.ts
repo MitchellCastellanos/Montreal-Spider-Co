@@ -63,6 +63,33 @@ export const PICKUP_POINTS: PickupPoint[] = [
   },
 ];
 
+export const AUTHORIZED_DISTRIBUTORS: PickupPoint[] = [
+  {
+    id: "exotik-mtl",
+    name: "Exotik Montréal",
+    address: "Rue Saint-Denis, Le Plateau-Mont-Royal",
+    neighborhood: "Le Plateau-Mont-Royal",
+    hours: sameHours(["tue", "wed", "thu", "fri", "sat"], "11:00", "19:00"),
+    phone: "514-555-0198",
+  },
+  {
+    id: "reptile-laval",
+    name: "Reptile Laval",
+    address: "Boulevard Curé-Labelle, Laval",
+    neighborhood: "Laval",
+    hours: sameHours(["wed", "thu", "fri", "sat", "sun"], "10:00", "18:00"),
+    phone: "450-555-0144",
+  },
+  {
+    id: "south-shore-pets",
+    name: "South Shore Exotics",
+    address: "Chemin de Chambly, Longueuil",
+    neighborhood: "Longueuil",
+    hours: sameHours(["thu", "fri", "sat"], "12:00", "18:00"),
+    phone: "450-555-0177",
+  },
+];
+
 export const DELIVERY_ZONES: DeliveryZone[] = [
   {
     id: "central",

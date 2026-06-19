@@ -10,6 +10,8 @@ import type { LibraryImage } from "@/lib/data/species-library";
 import type { SpeciesProfile } from "@/lib/data/species";
 import ProductImageField from "@/components/admin/ProductImageField";
 import SpeciesChatGptHelper from "@/components/admin/SpeciesChatGptHelper";
+import type { DistributorView } from "@/lib/data/distributors";
+import ConceptInfo from "@/components/ConceptInfo";
 import {
   DEFAULT_SIZE_ROWS,
   deriveAccent,
@@ -104,18 +106,25 @@ function speciesToForm(species: SpeciesProfile): SpeciesFormFields {
   };
 }
 
+interface DistributorStockRow {
+  distributorId: string;
+  stock: number;
+}
+
 export default function ProductForm({
   product,
   careGuides,
   defaultProductImage,
   libraryImages,
   speciesList,
+  distributors,
 }: {
   product: Product | null;
   careGuides: string[];
   defaultProductImage: string | null;
   libraryImages: LibraryImage[];
   speciesList: SpeciesProfile[];
+  distributors: DistributorView[];
 }) {
   const { locale } = useI18n();
   const [state, action, pending] = useActionState<ActionState, FormData>(saveProductAction, {});
@@ -132,6 +141,15 @@ export default function ProductForm({
     product
       ? product.sizes.map((s) => ({ key: s.id, labelEn: s.label.en, labelFr: s.label.fr, price: s.price, stock: s.stock }))
       : DEFAULT_SIZE_ROWS.map((s) => ({ ...s }))
+  );
+
+  const [availableAtPickup, setAvailableAtPickup] = useState(product?.availableAtPickup ?? true);
+  const [availableAtDistributor, setAvailableAtDistributor] = useState(product?.availableAtDistributor ?? false);
+  const [distributorStocks, setDistributorStocks] = useState<DistributorStockRow[]>(() =>
+    distributors.map((d) => ({
+      distributorId: d.id,
+      stock: product?.distributorStocks?.find((s) => s.distributorId === d.id)?.stock ?? 0,
+    }))
   );
 
   const patch = (fields: Partial<SpeciesFormFields>) => setForm((prev) => ({ ...prev, ...fields }));
@@ -196,6 +214,9 @@ export default function ProductForm({
   const addSize = () => setSizes((prev) => [...prev, { key: `s${prev.length + 1}`, labelEn: "", labelFr: "", price: 0, stock: 0 }]);
   const removeSize = (i: number) => setSizes((prev) => prev.filter((_, idx) => idx !== i));
 
+  const setDistributorStock = (distributorId: string, stock: number) =>
+    setDistributorStocks((prev) => prev.map((r) => (r.distributorId === distributorId ? { ...r, stock } : r)));
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -209,6 +230,7 @@ export default function ProductForm({
         <input type="hidden" name="locale" value={locale} />
         {product && <input type="hidden" name="id" value={product.id} />}
         <input type="hidden" name="sizes" value={JSON.stringify(sizes)} />
+        <input type="hidden" name="distributorStocks" value={JSON.stringify(distributorStocks)} />
         <input type="hidden" name="rating" value={form.rating} />
         <input type="hidden" name="reviews" value={form.reviews} />
         <input type="hidden" name="hue" value={form.hue} />
@@ -308,7 +330,8 @@ export default function ProductForm({
         )}
 
         {/* Sizes */}
-        <Section title="Sizes & stock">
+        <Section title="Warehouse stock & sizes">
+          <p className="mb-3 text-sm text-bone">Stock in your warehouse — used for online orders, delivery, and pickup.</p>
           <div className="space-y-3">
             {sizes.map((s, i) => (
               <div key={i} className="grid grid-cols-2 gap-2 rounded-xl border border-line p-3 sm:grid-cols-[80px_1fr_1fr_100px_80px_40px]">
@@ -322,6 +345,63 @@ export default function ProductForm({
             ))}
           </div>
           <button type="button" onClick={addSize} className="btn btn-ghost mt-3">+ Add size</button>
+        </Section>
+
+        <Section title="Availability channels">
+          <div className="space-y-4">
+            <label className="flex items-center gap-2 text-sm text-bone">
+              <input
+                type="checkbox"
+                name="availableAtPickup"
+                checked={availableAtPickup}
+                onChange={(e) => setAvailableAtPickup(e.target.checked)}
+                className="accent-[var(--gold)]"
+              />
+              Available at pickup points <ConceptInfo concept="pickup" className="ml-1" />
+            </label>
+            <label className="flex items-center gap-2 text-sm text-bone">
+              <input
+                type="checkbox"
+                name="availableAtDistributor"
+                checked={availableAtDistributor}
+                onChange={(e) => setAvailableAtDistributor(e.target.checked)}
+                className="accent-[var(--gold)]"
+              />
+              Available at authorized distributors <ConceptInfo concept="distributor" className="ml-1" />
+            </label>
+            {availableAtDistributor && distributors.length > 0 && (
+              <div className="rounded-xl border border-line p-4">
+                <p className="mb-3 text-sm font-medium text-cream">Distributor stock</p>
+                <div className="space-y-2">
+                  {distributors.map((d) => {
+                    const row = distributorStocks.find((r) => r.distributorId === d.id);
+                    return (
+                      <div key={d.id} className="flex items-center justify-between gap-3 text-sm">
+                        <span className="text-bone">{d.name}</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={row?.stock ?? 0}
+                          onChange={(e) => setDistributorStock(d.id, Number(e.target.value))}
+                          className="input w-24"
+                          aria-label={`Stock at ${d.name}`}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {availableAtDistributor && distributors.length === 0 && (
+              <p className="text-sm text-muted">
+                No distributors yet — add them under{" "}
+                <Link href={localeHref(locale, "/admin/pickup?tab=distributors")} className="text-gold-bright hover:underline">
+                  Locations
+                </Link>
+                .
+              </p>
+            )}
+          </div>
         </Section>
 
         {/* Photo */}

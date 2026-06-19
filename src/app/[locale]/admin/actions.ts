@@ -9,9 +9,11 @@ import {
   deleteProduct,
   type ProductInput,
   type ProductSizeInput,
+  type ProductDistributorStockInput,
 } from "@/lib/data/products";
 import { uploadProductImage, hasStorage } from "@/lib/storage";
 import { createPickupPoint, updatePickupPoint, deletePickupPoint, deletePickupPoints, setPickupPointsActive, setPickupActive, type PickupInput } from "@/lib/data/locations";
+import { createDistributor, updateDistributor, deleteDistributor, deleteDistributors, setDistributorsActive, setDistributorActive, type DistributorInput } from "@/lib/data/distributors";
 import { updateSettings } from "@/lib/data/settings";
 import { sendTemplateTestEmail } from "@/lib/email";
 import { addLibraryImage } from "@/lib/data/species-library";
@@ -96,6 +98,14 @@ export async function saveProductAction(_prev: ActionState, formData: FormData):
   sizes = sizes.filter((s) => s.key && Number.isFinite(s.price));
   if (sizes.length === 0) return { error: "sizes_required" };
 
+  let distributorStocks: ProductDistributorStockInput[] = [];
+  try {
+    distributorStocks = JSON.parse(str(formData, "distributorStocks") || "[]");
+  } catch {
+    return { error: "distributor_stocks_invalid" };
+  }
+  if (!Array.isArray(distributorStocks)) distributorStocks = [];
+
   const slug = str(formData, "slug").toLowerCase().replace(/\s+/g, "-");
   if (!slug || !str(formData, "scientific") || !str(formData, "commonEn")) {
     return { error: "missing_fields" };
@@ -143,6 +153,8 @@ export async function saveProductAction(_prev: ActionState, formData: FormData):
     temperament: (str(formData, "temperament") || "docile") as ProductInput["temperament"],
     featured: bool(formData, "featured"),
     newArrival: bool(formData, "newArrival"),
+    availableAtPickup: bool(formData, "availableAtPickup"),
+    availableAtDistributor: bool(formData, "availableAtDistributor"),
     rating: num(formData, "rating", 5),
     reviews: Math.round(num(formData, "reviews", 0)),
     hue: Math.round(num(formData, "hue", 36)),
@@ -166,6 +178,7 @@ export async function saveProductAction(_prev: ActionState, formData: FormData):
     descriptionFr: str(formData, "descriptionFr"),
     careGuide: str(formData, "careGuide") || null,
     sizes,
+    distributorStocks,
   };
 
   try {
@@ -268,6 +281,80 @@ export async function togglePickupActiveAction(formData: FormData): Promise<void
   const id = str(formData, "id");
   if (id) {
     await setPickupActive(id, bool(formData, "active"));
+    revalidatePath("/", "layout");
+  }
+}
+
+// --- Authorized distributors -----------------------------------------------
+
+export async function saveDistributorAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  if (!(await isAdminAuthed())) return { error: "unauthorized" };
+  const id = str(formData, "id");
+  const locale = str(formData, "locale") || "en";
+  if (!str(formData, "name") || !str(formData, "address")) return { error: "missing_fields" };
+
+  const hours = parseWeeklyHoursJson(str(formData, "hours"));
+  if (!hours) return { error: "hours_invalid" };
+
+  const input: DistributorInput = {
+    name: str(formData, "name"),
+    neighborhood: str(formData, "neighborhood"),
+    address: str(formData, "address"),
+    hours,
+    mapsUrl: str(formData, "mapsUrl"),
+    phone: str(formData, "phone"),
+    active: bool(formData, "active"),
+  };
+
+  try {
+    if (id) await updateDistributor(id, input);
+    else await createDistributor(input);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "save_failed" };
+  }
+  revalidatePath("/", "layout");
+  redirect(`/${locale}/admin/pickup?tab=distributors`);
+}
+
+export async function deleteDistributorAction(formData: FormData): Promise<void> {
+  if (!(await isAdminAuthed())) return;
+  const id = str(formData, "id");
+  const locale = str(formData, "locale") || "en";
+  if (id) {
+    await deleteDistributor(id);
+    revalidatePath("/", "layout");
+  }
+  redirect(`/${locale}/admin/pickup?tab=distributors`);
+}
+
+function parseDistributorIds(formData: FormData): string[] {
+  try {
+    const parsed = JSON.parse(str(formData, "ids") || "[]");
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string" && x.length > 0) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function bulkDistributorAction(formData: FormData): Promise<void> {
+  if (!(await isAdminAuthed())) return;
+  const locale = str(formData, "locale") || "en";
+  const action = str(formData, "action");
+  const ids = parseDistributorIds(formData);
+  if (ids.length > 0) {
+    if (action === "delete") await deleteDistributors(ids);
+    else if (action === "activate") await setDistributorsActive(ids, true);
+    else if (action === "deactivate") await setDistributorsActive(ids, false);
+    revalidatePath("/", "layout");
+  }
+  redirect(`/${locale}/admin/pickup?tab=distributors`);
+}
+
+export async function toggleDistributorActiveAction(formData: FormData): Promise<void> {
+  if (!(await isAdminAuthed())) return;
+  const id = str(formData, "id");
+  if (id) {
+    await setDistributorActive(id, bool(formData, "active"));
     revalidatePath("/", "layout");
   }
 }

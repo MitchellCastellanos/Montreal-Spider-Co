@@ -50,7 +50,24 @@
     "required": "required",
     "optional": "optional",
     "free": "Free",
-    "newsletter": "Newsletter"
+    "newsletter": "Newsletter",
+    "atDistributor": "At authorized distributor!",
+    "distributorHoverTitle": "Partner store details",
+    "distributorOnly": "Visit a distributor",
+    "distributorCtaToday": "Available today at {store}'s store",
+    "distributorCtaSoon": "Available as soon as {day} at {store}'s store",
+    "distributorCtaHint": "Hover for address, hours and phone — visit the store directly."
+  },
+  "concepts": {
+    "learnMore": "Learn more",
+    "pickup": {
+      "title": "Pickup point",
+      "tooltip": "A trusted local partner where you collect your order for free after we prepare it from our warehouse."
+    },
+    "distributor": {
+      "title": "Authorized distributor",
+      "tooltip": "An independent partner shop that stocks our spiders on-site. Visit them directly — separate from online checkout."
+    }
   },
   "home": {
     "heroKicker": "Est. 2026 · Montréal, QC",
@@ -115,6 +132,7 @@
     "price": "Price range",
     "availability": "Availability",
     "onlyInStock": "In stock only",
+    "onlyAtDistributor": "At authorized distributor",
     "noResults": "No spiders match your filters.",
     "noResultsHint": "Try widening your price range or clearing a filter."
   },
@@ -317,8 +335,28 @@
     "liveArrivalBody": "Every local delivery and pickup is covered by our live arrival guarantee. In the rare event of an issue, we make it right.",
     "hours": "Hours",
     "pickupPolicy": "Pickup policy",
+    "distributorsTitle": "Authorized distributors",
+    "distributorsBody": "Some species are also stocked at partner shops across Montreal. Look for the badge in the shop, or visit a distributor directly.",
     "outsideTitle": "Outside our delivery area?",
     "outsideBody": "We're expanding. Message us with your location and we'll let you know when we reach you."
+  },
+  "pickupPoints": {
+    "kicker": "How it works",
+    "title": "What is a pickup point?",
+    "subtitle": "Free collection at trusted local partners — your spider is prepared at our warehouse, then ready for you to pick up.",
+    "body1": "When you choose pickup at checkout, we prepare your order from our warehouse stock and send it to a partner location near you. You collect it in person during their opening hours — no delivery fee.",
+    "body2": "Pickup points are not pet shops selling our spiders off the shelf. They are secure hand-off locations we work with across Montreal and the surrounding area.",
+    "cta": "See pickup locations",
+    "ctaHref": "/delivery"
+  },
+  "authorizedDistributors": {
+    "kicker": "Partner shops",
+    "title": "What is an authorized distributor?",
+    "subtitle": "Independent shops that stock Montreal Spider Co. spiders on-site — visit them directly to buy in person.",
+    "body1": "Authorized distributors carry selected species from our collection in their own inventory. Stock at a distributor is separate from our warehouse and online shop.",
+    "body2": "Look for the \"At authorized distributor\" badge on product cards in our shop. Hover to see which partners carry that species and their contact details.",
+    "cta": "Browse the shop",
+    "ctaHref": "/shop"
   },
   "terms": {
     "kicker": "The fine print",
