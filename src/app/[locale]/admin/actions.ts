@@ -13,6 +13,7 @@ import {
 import { uploadProductImage, hasStorage } from "@/lib/storage";
 import { createPickupPoint, updatePickupPoint, deletePickupPoint, deletePickupPoints, setPickupPointsActive, setPickupActive, type PickupInput } from "@/lib/data/locations";
 import { updateSettings } from "@/lib/data/settings";
+import { sendTemplateTestEmail } from "@/lib/email";
 import { addLibraryImage } from "@/lib/data/species-library";
 import { linkProductToSpecies, type SpeciesInput } from "@/lib/data/species";
 import { parseWeeklyHoursJson } from "@/lib/opening-hours";
@@ -285,5 +286,24 @@ export async function saveSettingsAction(_prev: ActionState, formData: FormData)
     return { error: e instanceof Error ? e.message : "save_failed" };
   }
   revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+// --- Email templates (test sends) ------------------------------------------
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export async function sendTestEmailAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  if (!(await isAdminAuthed())) return { error: "unauthorized" };
+
+  const templateId = str(formData, "templateId");
+  const to = str(formData, "to");
+  const locale = (str(formData, "emailLocale") === "fr" ? "fr" : "en") as "en" | "fr";
+
+  if (!templateId) return { error: "Select a template first." };
+  if (!EMAIL_RE.test(to)) return { error: "Enter a valid email address." };
+
+  const result = await sendTemplateTestEmail({ templateId, to, locale });
+  if (!result.ok) return { error: result.error };
   return { ok: true };
 }
