@@ -3,6 +3,17 @@ import { locales, defaultLocale } from "./i18n/config";
 
 const PUBLIC_FILE = /\.(.*)$/;
 
+/** `/en/api/catalog` → `/api/catalog` so locale-prefixed API URLs still hit route handlers. */
+function localePrefixedApiPath(pathname: string): string | null {
+  for (const loc of locales) {
+    const prefix = `/${loc}/api`;
+    if (pathname === prefix || pathname.startsWith(`${prefix}/`)) {
+      return pathname.slice(`/${loc}`.length);
+    }
+  }
+  return null;
+}
+
 function pickLocale(request: NextRequest): string {
   const cookie = request.cookies.get("NEXT_LOCALE")?.value;
   if (cookie && (locales as readonly string[]).includes(cookie)) return cookie;
@@ -21,6 +32,13 @@ function pickLocale(request: NextRequest): string {
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  const apiPath = localePrefixedApiPath(pathname);
+  if (apiPath) {
+    const url = request.nextUrl.clone();
+    url.pathname = apiPath;
+    return NextResponse.rewrite(url);
+  }
 
   // Skip internals, API and static files
   if (
