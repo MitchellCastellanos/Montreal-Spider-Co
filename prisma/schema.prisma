@@ -126,11 +126,17 @@ model ProductSize {
   key       String
   labelEn   String
   labelFr   String
+  /** Minimum leg span in inches (filterable; 0.125 = 1/8″). */
+  sizeMinInches Float @default(0.125)
+  /** Maximum leg span in inches. */
+  sizeMaxInches Float @default(0.25)
   price     Float
   stock     Int     @default(0)
   position  Int     @default(0)
 
   @@index([productId])
+  @@index([sizeMinInches])
+  @@index([sizeMaxInches])
 }
 
 model StoreLocation {

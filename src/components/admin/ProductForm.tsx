@@ -21,11 +21,14 @@ import {
   emptySpeciesFields,
   type SpeciesFormFields,
 } from "@/lib/species-utils";
+import { INCH_OPTIONS, nearestInchOption } from "@/lib/size-inches";
 
 interface SizeRow {
   key: string;
   labelEn: string;
   labelFr: string;
+  sizeMinInches: number;
+  sizeMaxInches: number;
   price: number;
   stock: number;
 }
@@ -139,7 +142,15 @@ export default function ProductForm({
 
   const [sizes, setSizes] = useState<SizeRow[]>(
     product
-      ? product.sizes.map((s) => ({ key: s.id, labelEn: s.label.en, labelFr: s.label.fr, price: s.price, stock: s.stock }))
+      ? product.sizes.map((s) => ({
+          key: s.id,
+          labelEn: s.label.en,
+          labelFr: s.label.fr,
+          sizeMinInches: s.sizeMinInches,
+          sizeMaxInches: s.sizeMaxInches,
+          price: s.price,
+          stock: s.stock,
+        }))
       : DEFAULT_SIZE_ROWS.map((s) => ({ ...s }))
   );
 
@@ -211,7 +222,11 @@ export default function ProductForm({
 
   const setSize = (i: number, patchSize: Partial<SizeRow>) =>
     setSizes((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patchSize } : s)));
-  const addSize = () => setSizes((prev) => [...prev, { key: `s${prev.length + 1}`, labelEn: "", labelFr: "", price: 0, stock: 0 }]);
+  const addSize = () =>
+    setSizes((prev) => [
+      ...prev,
+      { key: `s${prev.length + 1}`, labelEn: "", labelFr: "", sizeMinInches: 0.125, sizeMaxInches: 0.25, price: 0, stock: 0 },
+    ]);
   const removeSize = (i: number) => setSizes((prev) => prev.filter((_, idx) => idx !== i));
 
   const setDistributorStock = (distributorId: string, stock: number) =>
@@ -332,15 +347,82 @@ export default function ProductForm({
         {/* Sizes */}
         <Section title="Warehouse stock & sizes">
           <p className="mb-3 text-sm text-bone">Stock in your warehouse — used for online orders, delivery, and pickup.</p>
+          <div className="hidden gap-2 px-3 pb-1 text-xs font-bold uppercase tracking-wider text-gold-deep sm:grid sm:grid-cols-[72px_1fr_1fr_88px_88px_88px_64px_36px]">
+            <span>Key</span>
+            <span>Label (EN)</span>
+            <span>Label (FR)</span>
+            <span>Min (in)</span>
+            <span>Max (in)</span>
+            <span>Price ($)</span>
+            <span>Stock</span>
+            <span aria-hidden />
+          </div>
           <div className="space-y-3">
             {sizes.map((s, i) => (
-              <div key={i} className="grid grid-cols-2 gap-2 rounded-xl border border-line p-3 sm:grid-cols-[80px_1fr_1fr_100px_80px_40px]">
-                <input value={s.key} onChange={(e) => setSize(i, { key: e.target.value })} className="input" placeholder="key" aria-label="key" />
-                <input value={s.labelEn} onChange={(e) => setSize(i, { labelEn: e.target.value })} className="input" placeholder="Label EN" />
-                <input value={s.labelFr} onChange={(e) => setSize(i, { labelFr: e.target.value })} className="input" placeholder="Label FR" />
-                <input type="number" step="0.01" value={s.price} onChange={(e) => setSize(i, { price: Number(e.target.value) })} className="input" placeholder="Price" />
-                <input type="number" value={s.stock} onChange={(e) => setSize(i, { stock: Number(e.target.value) })} className="input" placeholder="Stock" />
-                <button type="button" onClick={() => removeSize(i)} className="rounded-lg border border-line text-muted hover:border-danger hover:text-danger" aria-label="remove">×</button>
+              <div
+                key={i}
+                className="grid grid-cols-2 gap-2 rounded-xl border border-line p-3 sm:grid-cols-[72px_1fr_1fr_88px_88px_88px_64px_36px] sm:items-center sm:gap-2 sm:p-2"
+              >
+                <label className="field sm:contents">
+                  <span className="text-xs text-muted sm:hidden">Key</span>
+                  <input value={s.key} onChange={(e) => setSize(i, { key: e.target.value })} className="input" placeholder="s" />
+                </label>
+                <label className="field sm:contents">
+                  <span className="text-xs text-muted sm:hidden">Label (EN)</span>
+                  <input value={s.labelEn} onChange={(e) => setSize(i, { labelEn: e.target.value })} className="input" placeholder="Sling" />
+                </label>
+                <label className="field sm:contents">
+                  <span className="text-xs text-muted sm:hidden">Label (FR)</span>
+                  <input value={s.labelFr} onChange={(e) => setSize(i, { labelFr: e.target.value })} className="input" placeholder="Jeune" />
+                </label>
+                <label className="field sm:contents">
+                  <span className="text-xs text-muted sm:hidden">Min (in)</span>
+                  <select
+                    value={s.sizeMinInches}
+                    onChange={(e) => {
+                      const sizeMinInches = nearestInchOption(Number(e.target.value));
+                      const sizeMaxInches = Math.max(sizeMinInches, s.sizeMaxInches);
+                      setSize(i, { sizeMinInches, sizeMaxInches });
+                    }}
+                    className="input"
+                  >
+                    {INCH_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field sm:contents">
+                  <span className="text-xs text-muted sm:hidden">Max (in)</span>
+                  <select
+                    value={s.sizeMaxInches}
+                    onChange={(e) => {
+                      const sizeMaxInches = nearestInchOption(Number(e.target.value));
+                      const sizeMinInches = Math.min(s.sizeMinInches, sizeMaxInches);
+                      setSize(i, { sizeMinInches, sizeMaxInches });
+                    }}
+                    className="input"
+                  >
+                    {INCH_OPTIONS.filter((o) => o.value >= s.sizeMinInches).map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field sm:contents">
+                  <span className="text-xs text-muted sm:hidden">Price ($)</span>
+                  <input type="number" step="0.01" min={0} value={s.price} onChange={(e) => setSize(i, { price: Number(e.target.value) })} className="input" />
+                </label>
+                <label className="field sm:contents">
+                  <span className="text-xs text-muted sm:hidden">Stock</span>
+                  <input type="number" min={0} value={s.stock} onChange={(e) => setSize(i, { stock: Number(e.target.value) })} className="input" />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => removeSize(i)}
+                  className="col-span-2 rounded-lg border border-line py-2 text-muted hover:border-danger hover:text-danger sm:col-span-1 sm:py-1"
+                  aria-label="Remove size"
+                >
+                  ×
+                </button>
               </div>
             ))}
           </div>

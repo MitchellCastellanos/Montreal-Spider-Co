@@ -11,6 +11,7 @@ import {
   type ProductSizeInput,
   type ProductDistributorStockInput,
 } from "@/lib/data/products";
+import { nearestInchOption } from "@/lib/size-inches";
 import { uploadProductImage, hasStorage } from "@/lib/storage";
 import {
   bulkUpdateLocations,
@@ -99,7 +100,18 @@ export async function saveProductAction(_prev: ActionState, formData: FormData):
   } catch {
     return { error: "sizes_invalid" };
   }
-  sizes = sizes.filter((s) => s.key && Number.isFinite(s.price));
+  sizes = sizes
+    .filter((s) => s.key && Number.isFinite(s.price))
+    .map((s) => {
+      let sizeMinInches = Number(s.sizeMinInches);
+      let sizeMaxInches = Number(s.sizeMaxInches);
+      if (!Number.isFinite(sizeMinInches)) sizeMinInches = 0.125;
+      if (!Number.isFinite(sizeMaxInches)) sizeMaxInches = sizeMinInches;
+      sizeMinInches = nearestInchOption(sizeMinInches);
+      sizeMaxInches = nearestInchOption(sizeMaxInches);
+      if (sizeMaxInches < sizeMinInches) [sizeMinInches, sizeMaxInches] = [sizeMaxInches, sizeMinInches];
+      return { ...s, sizeMinInches, sizeMaxInches };
+    });
   if (sizes.length === 0) return { error: "sizes_required" };
 
   let distributorStocks: ProductDistributorStockInput[] = [];

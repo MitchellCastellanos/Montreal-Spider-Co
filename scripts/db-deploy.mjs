@@ -36,6 +36,8 @@ run("Migrating legacy location tables", "node scripts/migrate-legacy-locations.m
 //    destructive changes fail the build so they get reviewed).
 run("Syncing schema (prisma db push)", "prisma db push --skip-generate", { fatal: true });
 
+run("Backfilling size inches on legacy rows", "node scripts/backfill-size-inches.mjs", { fatal: false });
+
 // 3) Seed base data — the seed only fills EMPTY tables, so this is safe to run
 //    on every deploy and won't resurrect rows you deleted in the admin.
 run("Seeding base data (empty tables only)", "prisma db seed", { fatal: false });

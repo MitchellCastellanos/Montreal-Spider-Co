@@ -38,9 +38,9 @@ export function deriveAccent(scientific: string): string {
 }
 
 export const DEFAULT_SIZE_ROWS = [
-  { key: "s", labelEn: "Sling (2–3 cm)", labelFr: "Jeune (2–3 cm)", price: 0, stock: 0 },
-  { key: "j", labelEn: "Juvenile (4–6 cm)", labelFr: "Juvénile (4–6 cm)", price: 0, stock: 0 },
-  { key: "u", labelEn: "Sub-adult (8–10 cm)", labelFr: "Sub-adulte (8–10 cm)", price: 0, stock: 0 },
+  { key: "s", labelEn: "Sling", labelFr: "Jeune", sizeMinInches: 0.125, sizeMaxInches: 0.75, price: 0, stock: 0 },
+  { key: "j", labelEn: "Juvenile", labelFr: "Juvénile", sizeMinInches: 0.875, sizeMaxInches: 1.75, price: 0, stock: 0 },
+  { key: "u", labelEn: "Sub-adult", labelFr: "Sub-adulte", sizeMinInches: 2, sizeMaxInches: 3.5, price: 0, stock: 0 },
 ] as const;
 
 export type SpeciesFormFields = {

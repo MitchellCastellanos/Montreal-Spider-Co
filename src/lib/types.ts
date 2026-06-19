@@ -14,6 +14,9 @@ export type Temperament = "docile" | "skittish" | "defensive";
 export interface SizeOption {
   id: string;
   label: L;
+  /** Leg span range in inches (used for shop filters). */
+  sizeMinInches: number;
+  sizeMaxInches: number;
   price: number;
   stock: number;
 }

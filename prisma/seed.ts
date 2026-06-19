@@ -61,6 +61,8 @@ async function main() {
             key: s.id,
             labelEn: s.label.en,
             labelFr: s.label.fr,
+            sizeMinInches: s.sizeMinInches,
+            sizeMaxInches: s.sizeMaxInches,
             price: s.price,
             stock: s.stock,
             position: i,

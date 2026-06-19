@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { useCart, snapshotFromProduct } from "@/context/CartContext";
 import { useI18n, useT } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
+import { formatInchRange } from "@/lib/size-inches";
 import type { Product } from "@/lib/types";
 
 export default function AddToCart({ product }: { product: Product }) {
@@ -44,6 +45,7 @@ export default function AddToCart({ product }: { product: Product }) {
                 } ${disabled ? "cursor-not-allowed opacity-40" : ""}`}
               >
                 <span className="block text-sm font-semibold text-cream">{tr(s.label)}</span>
+                <span className="block text-xs text-muted">{formatInchRange(s.sizeMinInches, s.sizeMaxInches)}</span>
                 <span className="block text-xs text-gold-bright">{formatPrice(s.price, locale)}</span>
               </button>
             );

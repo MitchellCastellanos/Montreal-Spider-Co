@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import ProductCard from "@/components/ProductCard";
 import { useI18n, useT } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
+import { INCH_OPTIONS, MAX_INCHES, MIN_INCHES, productMatchesSizeFilter } from "@/lib/size-inches";
 import { basePrice, isAvailableAtDistributor, totalStock, type Experience, type Product, type SpiderType, type Temperament } from "@/lib/types";
 
 type Sort = "featured" | "price-asc" | "price-desc" | "name" | "newest";
@@ -31,6 +32,8 @@ export default function ShopClient({ products, genera }: { products: Product[]; 
   const [maxPrice, setMaxPrice] = useState<number>(Number(sp.get("maxPrice")) || priceCeiling);
   const [inStock, setInStock] = useState<boolean>(sp.get("inStock") === "1");
   const [atDistributor, setAtDistributor] = useState<boolean>(sp.get("distributor") === "1");
+  const [sizeMin, setSizeMin] = useState<number>(Number(sp.get("sizeMin")) || 0);
+  const [sizeMax, setSizeMax] = useState<number>(Number(sp.get("sizeMax")) || 0);
   const [sort, setSort] = useState<Sort>((sp.get("sort") as Sort) || "featured");
   const [query, setQuery] = useState<string>(sp.get("q") || "");
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -45,11 +48,13 @@ export default function ShopClient({ products, genera }: { products: Product[]; 
     if (maxPrice < priceCeiling) params.set("maxPrice", String(maxPrice));
     if (inStock) params.set("inStock", "1");
     if (atDistributor) params.set("distributor", "1");
+    if (sizeMin > 0) params.set("sizeMin", String(sizeMin));
+    if (sizeMax > 0) params.set("sizeMax", String(sizeMax));
     if (sort !== "featured") params.set("sort", sort);
     if (query) params.set("q", query);
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }, [experience, type, temperament, genus, maxPrice, inStock, atDistributor, sort, query, pathname, router, priceCeiling]);
+  }, [experience, type, temperament, genus, maxPrice, inStock, atDistributor, sizeMin, sizeMax, sort, query, pathname, router, priceCeiling]);
 
   const toggle = (list: string[], setList: (v: string[]) => void, value: string) =>
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
@@ -63,6 +68,11 @@ export default function ShopClient({ products, genera }: { products: Product[]; 
       if (basePrice(p) > maxPrice) return false;
       if (inStock && totalStock(p) === 0) return false;
       if (atDistributor && !isAvailableAtDistributor(p)) return false;
+      if (sizeMin > 0 || sizeMax > 0) {
+        const lo = sizeMin > 0 ? sizeMin : MIN_INCHES;
+        const hi = sizeMax > 0 ? sizeMax : MAX_INCHES;
+        if (!productMatchesSizeFilter(p.sizes, lo, hi)) return false;
+      }
       if (query) {
         const q = query.toLowerCase();
         const hay = `${p.scientific} ${p.common.en} ${p.common.fr} ${p.genus}`.toLowerCase();
@@ -86,10 +96,10 @@ export default function ShopClient({ products, genera }: { products: Product[]; 
       }
     });
     return result;
-  }, [products, experience, type, temperament, genus, maxPrice, inStock, atDistributor, query, sort, tr]);
+  }, [products, experience, type, temperament, genus, maxPrice, inStock, atDistributor, sizeMin, sizeMax, query, sort, tr]);
 
   const activeCount =
-    experience.length + type.length + temperament.length + genus.length + (inStock ? 1 : 0) + (atDistributor ? 1 : 0) + (maxPrice < priceCeiling ? 1 : 0);
+    experience.length + type.length + temperament.length + genus.length + (inStock ? 1 : 0) + (atDistributor ? 1 : 0) + (maxPrice < priceCeiling ? 1 : 0) + (sizeMin > 0 || sizeMax > 0 ? 1 : 0);
 
   const clearAll = () => {
     setExperience([]);
@@ -99,6 +109,8 @@ export default function ShopClient({ products, genera }: { products: Product[]; 
     setMaxPrice(priceCeiling);
     setInStock(false);
     setAtDistributor(false);
+    setSizeMin(0);
+    setSizeMax(0);
     setQuery("");
   };
 
@@ -142,6 +154,40 @@ export default function ShopClient({ products, genera }: { products: Product[]; 
         <div className="mt-1 flex justify-between text-xs text-bone">
           <span>{formatPrice(20, locale)}</span>
           <span className="text-gold-bright">≤ {formatPrice(maxPrice, locale)}</span>
+        </div>
+      </FilterGroup>
+      <FilterGroup title={s.size}>
+        <div className="space-y-2">
+          <label className="block text-sm text-bone">
+            <span className="mb-1 block text-xs text-muted">{s.sizeMin}</span>
+            <select
+              value={sizeMin}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                setSizeMin(next);
+                if (sizeMax > 0 && next > sizeMax) setSizeMax(next);
+              }}
+              className="input w-full"
+            >
+              <option value={0}>{s.sizeAny}</option>
+              {INCH_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-sm text-bone">
+            <span className="mb-1 block text-xs text-muted">{s.sizeMax}</span>
+            <select
+              value={sizeMax}
+              onChange={(e) => setSizeMax(Number(e.target.value))}
+              className="input w-full"
+            >
+              <option value={0}>{s.sizeAny}</option>
+              {INCH_OPTIONS.filter((o) => sizeMin === 0 || o.value >= sizeMin).map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </label>
         </div>
       </FilterGroup>
       <FilterGroup title={s.availability}>

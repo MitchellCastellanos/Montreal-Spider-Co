@@ -53,7 +53,14 @@ function mapProduct(p: DbProductFull, defaultImage?: string | null): Product {
     temperament: p.temperament,
     sizes: [...p.sizes]
       .sort((a, b) => a.position - b.position)
-      .map((s) => ({ id: s.key, label: { en: s.labelEn, fr: s.labelFr }, price: s.price, stock: s.stock })),
+      .map((s) => ({
+        id: s.key,
+        label: { en: s.labelEn, fr: s.labelFr },
+        sizeMinInches: s.sizeMinInches,
+        sizeMaxInches: s.sizeMaxInches,
+        price: s.price,
+        stock: s.stock,
+      })),
     featured: p.featured,
     newArrival: p.newArrival,
     availableAtPickup: p.availableAtPickup,
@@ -201,6 +208,8 @@ export interface ProductSizeInput {
   key: string;
   labelEn: string;
   labelFr: string;
+  sizeMinInches: number;
+  sizeMaxInches: number;
   price: number;
   stock: number;
 }

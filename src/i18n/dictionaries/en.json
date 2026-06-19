@@ -133,6 +133,10 @@
     "availability": "Availability",
     "onlyInStock": "In stock only",
     "onlyAtDistributor": "At authorized distributor",
+    "size": "Leg span (inches)",
+    "sizeMin": "From",
+    "sizeMax": "Up to",
+    "sizeAny": "Any",
     "noResults": "No spiders match your filters.",
     "noResultsHint": "Try widening your price range or clearing a filter."
   },

@@ -133,6 +133,10 @@
     "availability": "Disponibilité",
     "onlyInStock": "En stock seulement",
     "onlyAtDistributor": "Chez un distributeur autorisé",
+    "size": "Envergure (pouces)",
+    "sizeMin": "À partir de",
+    "sizeMax": "Jusqu'à",
+    "sizeAny": "Toutes",
     "noResults": "Aucune mygale ne correspond à vos filtres.",
     "noResultsHint": "Élargissez votre fourchette de prix ou retirez un filtre."
   },
