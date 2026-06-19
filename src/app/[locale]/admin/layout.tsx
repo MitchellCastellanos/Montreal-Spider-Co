@@ -37,6 +37,7 @@ export default async function AdminLayout({
     { href: "/admin/media", label: "Media & photos" },
     { href: "/admin/settings", label: "Settings" },
     { href: "/admin/customers", label: "Customers" },
+    { href: "/admin/templates", label: "Email templates" },
   ];
 
   return (
