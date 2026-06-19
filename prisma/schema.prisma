@@ -133,48 +133,34 @@ model ProductSize {
   @@index([productId])
 }
 
-model PickupPoint {
-  id           String   @id @default(cuid())
-  name         String
-  neighborhood String   @default("")
-  address      String
-  /** Weekly schedule — { mon: { open, close } | { closed: true }, … } */
-  hours        Json     @default("{}")
-  mapsUrl      String   @default("")
-  phone        String   @default("")
-  position     Int      @default(0)
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-}
-
-/** Partner shops that carry our spiders — separate from pickup points. */
-model AuthorizedDistributor {
-  id           String   @id @default(cuid())
-  name         String
-  neighborhood String   @default("")
-  address      String
-  hours        Json     @default("{}")
-  mapsUrl      String   @default("")
-  phone        String   @default("")
-  position     Int      @default(0)
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  stock        ProductDistributorStock[]
+model StoreLocation {
+  id            String   @id @default(cuid())
+  name          String
+  neighborhood  String   @default("")
+  address       String
+  hours         Json     @default("{}")
+  mapsUrl       String   @default("")
+  phone         String   @default("")
+  position      Int      @default(0)
+  active        Boolean  @default(true)
+  isPickup      Boolean  @default(false)
+  isDistributor Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  distributorStock ProductDistributorStock[]
 }
 
 model ProductDistributorStock {
-  id            String                @id @default(cuid())
-  productId     String
-  product       Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
-  distributorId String
-  distributor   AuthorizedDistributor @relation(fields: [distributorId], references: [id], onDelete: Cascade)
-  stock         Int                   @default(0)
+  id         String        @id @default(cuid())
+  productId  String
+  product    Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  locationId String
+  location   StoreLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  stock      Int           @default(0)
 
-  @@unique([productId, distributorId])
+  @@unique([productId, locationId])
   @@index([productId])
-  @@index([distributorId])
+  @@index([locationId])
 }
 
 /** Bilingual key/value store for store policies (pickup terms, T&C). */

@@ -1,29 +1,29 @@
-import { Suspense } from "react";
 import { isLocale, type Locale } from "@/i18n/config";
-import { getAllPickupPoints } from "@/lib/data/locations";
-import { getAllDistributors } from "@/lib/data/distributors";
+import { getAllLocations } from "@/lib/data/locations";
 import { hasDatabase } from "@/lib/db";
-import LocationsHub from "@/components/admin/LocationsHub";
+import LocationsEditor from "@/components/admin/LocationsEditor";
 
-export default async function AdminPickupPage({ params }: { params: Promise<{ locale: string }> }) {
+export default async function AdminLocationsPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   const loc: Locale = isLocale(locale) ? locale : "en";
-  const [points, distributors] = await Promise.all([getAllPickupPoints(), getAllDistributors()]);
-
-  if (!hasDatabase) {
-    return (
-      <div>
-        <h1 className="mb-4 font-display text-2xl font-bold text-cream">Locations</h1>
-        <p className="text-sm text-muted">
-          Connect a database (see <code className="text-cream">SETUP_DATABASE.md</code>) to manage pickup points and distributors.
-        </p>
-      </div>
-    );
-  }
+  const locations = await getAllLocations();
 
   return (
-    <Suspense fallback={<div className="text-muted">Loading…</div>}>
-      <LocationsHub pickups={points} distributors={distributors} locale={loc} />
-    </Suspense>
+    <div>
+      <div className="mb-6">
+        <h1 className="font-display text-2xl font-bold text-cream">Locations</h1>
+        <p className="text-sm text-muted">
+          {locations.length} location(s) — mark each as pickup point, authorized distributor, or both. Edit inline and save all at once.
+        </p>
+      </div>
+
+      {hasDatabase ? (
+        <LocationsEditor locations={locations} locale={loc} />
+      ) : (
+        <p className="text-sm text-muted">
+          Connect a database (see <code className="text-cream">SETUP_DATABASE.md</code>) to manage locations.
+        </p>
+      )}
+    </div>
   );
 }

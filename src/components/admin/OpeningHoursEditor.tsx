@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   DAY_KEYS,
   EMPTY_WEEKLY_HOURS,
@@ -34,11 +34,17 @@ function normalizeHours(hours: WeeklyHours): WeeklyHours {
 export default function OpeningHoursEditor({
   name,
   initial,
+  onChange,
 }: {
   name: string;
   initial: WeeklyHours;
+  onChange?: (hours: WeeklyHours) => void;
 }) {
   const [hours, setHours] = useState(() => normalizeHours(initial));
+
+  useEffect(() => {
+    onChange?.(hours);
+  }, [hours, onChange]);
 
   function setDay(day: DayKey, patch: Partial<WeeklyHours[DayKey]>) {
     setHours((prev) => {

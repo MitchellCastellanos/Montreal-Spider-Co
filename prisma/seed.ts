@@ -1,19 +1,14 @@
 import { PrismaClient } from "@prisma/client";
 import { PRODUCTS } from "../src/lib/products";
-import { PICKUP_POINTS } from "../src/lib/locations";
-import { AUTHORIZED_DISTRIBUTORS } from "../src/lib/locations";
+import { STORE_LOCATIONS } from "../src/lib/locations";
 import { DEFAULT_SETTINGS } from "../src/lib/data/setting-defaults";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  // Seed each table only when it is EMPTY. This makes the seed safe to run on
-  // every deploy: it self-heals a freshly created table once, and never
-  // resurrects rows you later deleted in the admin panel.
-  const [productCount, pickupCount, distributorCount, settingCount, speciesCount] = await Promise.all([
+  const [productCount, locationCount, settingCount, speciesCount] = await Promise.all([
     prisma.product.count(),
-    prisma.pickupPoint.count(),
-    prisma.authorizedDistributor.count(),
+    prisma.storeLocation.count(),
     prisma.setting.count(),
     prisma.species.count(),
   ]);
@@ -76,49 +71,28 @@ async function main() {
   }
   }
 
-  if (pickupCount > 0) {
-    console.log(`Pickup points already seeded (${pickupCount}) — skipping.`);
+  if (locationCount > 0) {
+    console.log(`Locations already seeded (${locationCount}) — skipping.`);
   } else {
-  console.log(`Seeding ${PICKUP_POINTS.length} pickup points…`);
-  for (let i = 0; i < PICKUP_POINTS.length; i++) {
-    const p = PICKUP_POINTS[i];
-    const data = {
-      name: p.name,
-      neighborhood: p.neighborhood,
-      address: p.address,
-      mapsUrl: p.mapsUrl ?? "",
-      phone: p.phone ?? "",
-      position: i,
-      active: true,
-    };
-    // Use the seed id as the row id so re-seeding is idempotent.
-    await prisma.pickupPoint.upsert({
-      where: { id: p.id },
+  console.log(`Seeding ${STORE_LOCATIONS.length} store locations…`);
+  for (let i = 0; i < STORE_LOCATIONS.length; i++) {
+    const l = STORE_LOCATIONS[i];
+    await prisma.storeLocation.upsert({
+      where: { id: l.id },
       update: {},
-      create: { id: p.id, ...data, hours: p.hours as unknown as object },
-    });
-  }
-  }
-
-  if (distributorCount > 0) {
-    console.log(`Distributors already seeded (${distributorCount}) — skipping.`);
-  } else {
-  console.log(`Seeding ${AUTHORIZED_DISTRIBUTORS.length} authorized distributors…`);
-  for (let i = 0; i < AUTHORIZED_DISTRIBUTORS.length; i++) {
-    const d = AUTHORIZED_DISTRIBUTORS[i];
-    const data = {
-      name: d.name,
-      neighborhood: d.neighborhood,
-      address: d.address,
-      mapsUrl: d.mapsUrl ?? "",
-      phone: d.phone ?? "",
-      position: i,
-      active: true,
-    };
-    await prisma.authorizedDistributor.upsert({
-      where: { id: d.id },
-      update: {},
-      create: { id: d.id, ...data, hours: d.hours as unknown as object },
+      create: {
+        id: l.id,
+        name: l.name,
+        neighborhood: l.neighborhood,
+        address: l.address,
+        mapsUrl: l.mapsUrl ?? "",
+        phone: l.phone ?? "",
+        position: i,
+        active: true,
+        isPickup: l.isPickup,
+        isDistributor: l.isDistributor,
+        hours: l.hours as unknown as object,
+      },
     });
   }
   }

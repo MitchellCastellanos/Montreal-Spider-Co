@@ -4,7 +4,7 @@ import { getDefaultProductImage } from "@/lib/data/site-settings";
 import { suggestLibraryImages } from "@/lib/data/species-library";
 import { listSpecies } from "@/lib/data/species";
 import { CARE_GUIDES } from "@/lib/care";
-import { getAllDistributors } from "@/lib/data/distributors";
+import { getDistributorLocations } from "@/lib/data/locations";
 import ProductForm from "@/components/admin/ProductForm";
 
 export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
@@ -15,7 +15,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
     getDefaultProductImage(),
     suggestLibraryImages(product.scientific, product.genus, product.slug),
     listSpecies(),
-    getAllDistributors(),
+    getDistributorLocations(),
   ]);
   return (
     <ProductForm

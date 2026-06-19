@@ -10,7 +10,7 @@ import type { LibraryImage } from "@/lib/data/species-library";
 import type { SpeciesProfile } from "@/lib/data/species";
 import ProductImageField from "@/components/admin/ProductImageField";
 import SpeciesChatGptHelper from "@/components/admin/SpeciesChatGptHelper";
-import type { DistributorView } from "@/lib/data/distributors";
+import type { DistributorView } from "@/lib/data/locations";
 import ConceptInfo from "@/components/ConceptInfo";
 import {
   DEFAULT_SIZE_ROWS,
@@ -395,7 +395,7 @@ export default function ProductForm({
             {availableAtDistributor && distributors.length === 0 && (
               <p className="text-sm text-muted">
                 No distributors yet — add them under{" "}
-                <Link href={localeHref(locale, "/admin/pickup?tab=distributors")} className="text-gold-bright hover:underline">
+                <Link href={localeHref(locale, "/admin/pickup")} className="text-gold-bright hover:underline">
                   Locations
                 </Link>
                 .

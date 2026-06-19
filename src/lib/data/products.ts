@@ -1,5 +1,5 @@
 import "server-only";
-import type { Product as DbProduct, ProductSize as DbSize, ProductDistributorStock as DbDistStock, AuthorizedDistributor as DbDistributor } from "@prisma/client";
+import type { Product as DbProduct, ProductSize as DbSize, ProductDistributorStock as DbDistStock, StoreLocation as DbLocation } from "@prisma/client";
 import { prisma, hasDatabase } from "@/lib/db";
 import { getDefaultProductImage } from "@/lib/data/site-settings";
 import { logDbFallback } from "@/lib/data/db-safe";
@@ -12,15 +12,15 @@ export type { Product };
 
 type DbProductFull = DbProduct & {
   sizes: DbSize[];
-  distributorStocks?: (DbDistStock & { distributor?: DbDistributor })[];
+  distributorStocks?: (DbDistStock & { location?: DbLocation })[];
 };
 
 const productInclude = {
   sizes: true,
-  distributorStocks: { include: { distributor: true } },
+  distributorStocks: { include: { location: true } },
 } as const;
 
-function mapDistributorSnippet(d: DbDistributor): DistributorSnippet {
+function mapDistributorSnippet(d: DbLocation): DistributorSnippet {
   return {
     id: d.id,
     name: d.name,
@@ -35,12 +35,12 @@ function mapDistributorSnippet(d: DbDistributor): DistributorSnippet {
 function mapProduct(p: DbProductFull, defaultImage?: string | null): Product {
   const image = p.image ?? defaultImage ?? undefined;
   const distributorStocks: ProductDistributorStock[] = (p.distributorStocks ?? []).map((ds) => ({
-    distributorId: ds.distributorId,
+    distributorId: ds.locationId,
     stock: ds.stock,
   }));
   const distributors: DistributorSnippet[] = (p.distributorStocks ?? [])
-    .filter((ds) => ds.stock > 0 && ds.distributor?.active)
-    .map((ds) => mapDistributorSnippet(ds.distributor!));
+    .filter((ds) => ds.stock > 0 && ds.location?.active && ds.location.isDistributor)
+    .map((ds) => mapDistributorSnippet(ds.location!));
 
   return {
     id: p.id,
@@ -252,7 +252,7 @@ export interface ProductInput {
 function distributorStockCreates(stocks: ProductDistributorStockInput[]) {
   return stocks
     .filter((s) => s.distributorId && Number.isFinite(s.stock))
-    .map((s) => ({ distributorId: s.distributorId, stock: Math.max(0, Math.round(s.stock)) }));
+    .map((s) => ({ locationId: s.distributorId, stock: Math.max(0, Math.round(s.stock)) }));
 }
 
 function requireDb() {

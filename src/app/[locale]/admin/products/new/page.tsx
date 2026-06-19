@@ -2,7 +2,7 @@ import { CARE_GUIDES } from "@/lib/care";
 import { getDefaultProductImage } from "@/lib/data/site-settings";
 import { listLibraryImages } from "@/lib/data/species-library";
 import { listSpecies } from "@/lib/data/species";
-import { getAllDistributors } from "@/lib/data/distributors";
+import { getDistributorLocations } from "@/lib/data/locations";
 import ProductForm from "@/components/admin/ProductForm";
 
 export default async function NewProductPage() {
@@ -10,7 +10,7 @@ export default async function NewProductPage() {
     getDefaultProductImage(),
     listLibraryImages(),
     listSpecies(),
-    getAllDistributors(),
+    getDistributorLocations(),
   ]);
   return (
     <ProductForm
