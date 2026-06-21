@@ -32,6 +32,8 @@ function run(label, cmd, { fatal }) {
 // 1) Migrate legacy PickupPoint / AuthorizedDistributor tables when present.
 run("Migrating legacy location tables", "node scripts/migrate-legacy-locations.mjs", { fatal: true });
 
+run("Dropping legacy product rating columns", "node scripts/drop-product-ratings.mjs", { fatal: false });
+
 // 2) Sync the schema to the database (additive changes apply automatically;
 //    destructive changes fail the build so they get reviewed).
 run("Syncing schema (prisma db push)", "prisma db push --skip-generate", { fatal: true });

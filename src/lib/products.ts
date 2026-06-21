@@ -34,8 +34,6 @@ export const PRODUCTS: Product[] = [
     type: "terrestrial",
     temperament: "docile",
     featured: true,
-    rating: 4.9,
-    reviews: 128,
     hue: 220,
     accent: "#3a3a44",
     sizes: [
@@ -68,8 +66,6 @@ export const PRODUCTS: Product[] = [
     type: "terrestrial",
     temperament: "docile",
     featured: true,
-    rating: 4.9,
-    reviews: 96,
     hue: 42,
     accent: "#b8893a",
     sizes: [
@@ -102,8 +98,6 @@ export const PRODUCTS: Product[] = [
     type: "terrestrial",
     temperament: "docile",
     featured: true,
-    rating: 5.0,
-    reviews: 211,
     hue: 12,
     accent: "#c0492f",
     sizes: [
@@ -135,8 +129,6 @@ export const PRODUCTS: Product[] = [
     experience: "beginner",
     type: "terrestrial",
     temperament: "docile",
-    rating: 4.8,
-    reviews: 87,
     hue: 30,
     accent: "#7a5a3a",
     sizes: [
@@ -167,8 +159,6 @@ export const PRODUCTS: Product[] = [
     experience: "beginner",
     type: "terrestrial",
     temperament: "docile",
-    rating: 4.7,
-    reviews: 54,
     hue: 38,
     accent: "#c9a86a",
     sizes: [
@@ -201,8 +191,6 @@ export const PRODUCTS: Product[] = [
     temperament: "skittish",
     featured: true,
     newArrival: true,
-    rating: 4.8,
-    reviews: 73,
     hue: 265,
     accent: "#6c5bbf",
     sizes: [
@@ -233,8 +221,6 @@ export const PRODUCTS: Product[] = [
     experience: "intermediate",
     type: "arboreal",
     temperament: "docile",
-    rating: 4.6,
-    reviews: 61,
     hue: 330,
     accent: "#a85b7a",
     sizes: [
@@ -266,8 +252,6 @@ export const PRODUCTS: Product[] = [
     type: "terrestrial",
     temperament: "skittish",
     featured: true,
-    rating: 4.9,
-    reviews: 142,
     hue: 175,
     accent: "#2bb39a",
     sizes: [
@@ -299,8 +283,6 @@ export const PRODUCTS: Product[] = [
     experience: "beginner",
     type: "terrestrial",
     temperament: "skittish",
-    rating: 4.6,
-    reviews: 49,
     hue: 0,
     accent: "#8c2f2f",
     sizes: [
@@ -331,8 +313,6 @@ export const PRODUCTS: Product[] = [
     experience: "intermediate",
     type: "terrestrial",
     temperament: "defensive",
-    rating: 4.7,
-    reviews: 66,
     hue: 350,
     accent: "#9a4a55",
     sizes: [
@@ -364,8 +344,6 @@ export const PRODUCTS: Product[] = [
     experience: "advanced",
     type: "terrestrial",
     temperament: "defensive",
-    rating: 4.8,
-    reviews: 38,
     hue: 18,
     accent: "#7a3526",
     sizes: [
@@ -396,8 +374,6 @@ export const PRODUCTS: Product[] = [
     experience: "advanced",
     type: "fossorial",
     temperament: "defensive",
-    rating: 4.7,
-    reviews: 91,
     hue: 28,
     accent: "#d2761f",
     sizes: [
@@ -429,8 +405,6 @@ export const PRODUCTS: Product[] = [
     type: "fossorial",
     temperament: "defensive",
     newArrival: true,
-    rating: 4.9,
-    reviews: 44,
     hue: 205,
     accent: "#5a7fa8",
     sizes: [
@@ -462,8 +436,6 @@ export const PRODUCTS: Product[] = [
     type: "arboreal",
     temperament: "defensive",
     featured: true,
-    rating: 5.0,
-    reviews: 57,
     hue: 210,
     accent: "#3f6fd1",
     sizes: [
@@ -494,8 +466,6 @@ export const PRODUCTS: Product[] = [
     experience: "intermediate",
     type: "arboreal",
     temperament: "skittish",
-    rating: 4.7,
-    reviews: 52,
     hue: 32,
     accent: "#c47a1e",
     sizes: [
@@ -526,8 +496,6 @@ export const PRODUCTS: Product[] = [
     experience: "beginner",
     type: "terrestrial",
     temperament: "skittish",
-    rating: 4.6,
-    reviews: 33,
     hue: 45,
     accent: "#b89030",
     sizes: [
@@ -558,8 +526,6 @@ export const PRODUCTS: Product[] = [
     experience: "intermediate",
     type: "terrestrial",
     temperament: "skittish",
-    rating: 4.7,
-    reviews: 41,
     hue: 8,
     accent: "#a23f2c",
     sizes: [
@@ -591,8 +557,6 @@ export const PRODUCTS: Product[] = [
     type: "terrestrial",
     temperament: "skittish",
     newArrival: true,
-    rating: 4.8,
-    reviews: 47,
     hue: 26,
     accent: "#cf7a23",
     sizes: [

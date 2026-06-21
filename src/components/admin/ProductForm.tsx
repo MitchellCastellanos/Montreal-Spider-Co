@@ -47,8 +47,6 @@ function productToForm(product: Product): SpeciesFormFields {
     experience: product.experience,
     type: product.type,
     temperament: product.temperament,
-    rating: product.rating,
-    reviews: product.reviews,
     hue: product.hue,
     accent: product.accent,
     featured: product.featured ?? false,
@@ -83,8 +81,6 @@ function speciesToForm(species: SpeciesProfile): SpeciesFormFields {
     experience: species.experience,
     type: species.type,
     temperament: species.temperament,
-    rating: 5,
-    reviews: 0,
     hue: species.hue,
     accent: species.accent,
     featured: false,
@@ -243,8 +239,6 @@ export default function ProductForm({
         {product && <input type="hidden" name="id" value={product.id} />}
         <input type="hidden" name="sizes" value={JSON.stringify(sizes.map(({ stock: _s, ...rest }) => ({ ...rest, stock: 0 })))} />
         <input type="hidden" name="distributorStocks" value={JSON.stringify(distributorStocks.map((r) => ({ ...r, stock: 0 })))} />
-        <input type="hidden" name="rating" value={form.rating} />
-        <input type="hidden" name="reviews" value={form.reviews} />
         <input type="hidden" name="hue" value={form.hue} />
         <input type="hidden" name="accent" value={form.accent} />
 

@@ -82,8 +82,6 @@ model Product {
   temperament   Temperament
   featured      Boolean      @default(false)
   newArrival    Boolean      @default(false)
-  rating        Float        @default(5)
-  reviews       Int          @default(0)
   hue           Int          @default(36)
   accent        String       @default("#c9a24b")
   image         String?

@@ -33,8 +33,6 @@ async function main() {
         temperament: p.temperament,
         featured: p.featured ?? false,
         newArrival: p.newArrival ?? false,
-        rating: p.rating,
-        reviews: p.reviews,
         hue: p.hue,
         accent: p.accent,
         image: p.image ?? null,

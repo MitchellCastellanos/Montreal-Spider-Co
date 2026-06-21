@@ -144,12 +144,7 @@ export default async function ProductPage({
             </h1>
             <p className="mt-1 text-lg italic text-muted">{product.scientific}</p>
 
-            <div className="mt-3 flex items-center gap-3 text-sm">
-              <span className="text-gold-bright">{"★".repeat(Math.round(product.rating))}</span>
-              <span className="text-bone">{product.rating.toFixed(1)} · {product.reviews} {loc === "fr" ? "avis" : "reviews"}</span>
-            </div>
-
-            <p className="mt-2 text-2xl font-bold text-cream">
+            <p className="mt-3 text-2xl font-bold text-cream">
               <span className="text-sm font-normal text-muted">{dict.common.from} </span>
               {formatPrice(Math.min(...product.sizes.map((s) => s.price)), loc)}
             </p>

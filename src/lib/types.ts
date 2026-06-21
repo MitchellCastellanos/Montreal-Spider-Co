@@ -57,8 +57,6 @@ export interface Product {
   distributorStocks?: ProductDistributorStock[];
   /** Distributors carrying this product (populated when availableAtDistributor). */
   distributors?: DistributorSnippet[];
-  rating: number;
-  reviews: number;
   hue: number; // base hue for the generated species graphic
   accent: string;
   /** Optional product photo URL (Cloudinary or /public path). Falls back to placeholder. */

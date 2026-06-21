@@ -32,6 +32,7 @@ import {
   updateTarantulAppId,
   exportSoldSpecimensCsv,
   syncAggregateStock,
+  deleteSpecimens,
 } from "@/lib/data/specimens";
 import type { PaymentMethod, SalesChannel } from "@prisma/client";
 import { parseWeeklyHoursJson } from "@/lib/opening-hours";
@@ -182,8 +183,6 @@ export async function saveProductAction(_prev: ActionState, formData: FormData):
     newArrival: bool(formData, "newArrival"),
     availableAtPickup: bool(formData, "availableAtPickup"),
     availableAtDistributor: bool(formData, "availableAtDistributor"),
-    rating: num(formData, "rating", 5),
-    reviews: Math.round(num(formData, "reviews", 0)),
     hue: Math.round(num(formData, "hue", 36)),
     accent: str(formData, "accent") || "#c9a24b",
     image,
@@ -457,6 +456,27 @@ export async function updateTarantulAppIdAction(_prev: ActionState, formData: Fo
 
   revalidatePath("/", "layout");
   return { ok: true };
+}
+
+export async function deleteSpecimensAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  if (!(await isAdminAuthed())) return { error: "unauthorized" };
+  const locale = str(formData, "locale") || "en";
+
+  let specimenIds: string[] = [];
+  try {
+    specimenIds = JSON.parse(str(formData, "specimenIds") || "[]");
+  } catch {
+    return { error: "specimens_invalid" };
+  }
+
+  try {
+    await deleteSpecimens(specimenIds);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "delete_failed" };
+  }
+
+  revalidatePath("/", "layout");
+  redirect(`/${locale}/admin/inventory`);
 }
 
 export async function exportSalesCsvAction(formData: FormData): Promise<{ csv?: string; error?: string }> {

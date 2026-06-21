@@ -671,3 +671,28 @@ export async function exportSoldSpecimensCsv(from?: Date, to?: Date): Promise<st
 
   return header + lines.join("\n");
 }
+
+export async function deleteSpecimens(specimenIds: string[]): Promise<void> {
+  const db = requireDb();
+  if (!specimenIds.length) throw new Error("No specimens selected.");
+
+  await db.$transaction(async (tx) => {
+    for (const id of specimenIds) {
+      const s = await tx.specimen.findUnique({
+        where: { id },
+        include: { orderLineLinks: true },
+      });
+      if (!s) throw new Error(`Specimen not found: ${id}`);
+      if (s.status === "sold") {
+        throw new Error(`Cannot delete sold specimen${s.tarantulAppId ? ` (${s.tarantulAppId})` : ""}.`);
+      }
+      if (s.orderLineLinks.length > 0) {
+        throw new Error(`Specimen ${id} is linked to an order.`);
+      }
+      await tx.inventoryMovement.deleteMany({ where: { specimenId: id } });
+      await tx.specimen.delete({ where: { id } });
+    }
+  });
+
+  await syncAggregateStock();
+}

@@ -59,9 +59,9 @@ export default function ProductCard({ product }: { product: Product }) {
           <span className={`text-[11px] font-bold uppercase tracking-wider ${expColor[product.experience]}`}>
             {dict.filters[product.experience]}
           </span>
-          <span className="flex items-center gap-1 text-xs text-bone">
-            <span className="text-gold-bright">★</span> {product.rating.toFixed(1)}
-          </span>
+          {low && (
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-gold-deep">{dict.common.lowStock}</span>
+          )}
         </div>
 
         <LocaleLink href={`/product/${product.slug}`}>

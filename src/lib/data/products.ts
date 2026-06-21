@@ -67,8 +67,6 @@ function mapProduct(p: DbProductFull, defaultImage?: string | null): Product {
     availableAtDistributor: p.availableAtDistributor,
     distributorStocks,
     distributors: p.availableAtDistributor ? distributors : undefined,
-    rating: p.rating,
-    reviews: p.reviews,
     hue: p.hue,
     accent: p.accent,
     image,
@@ -232,8 +230,6 @@ export interface ProductInput {
   newArrival: boolean;
   availableAtPickup: boolean;
   availableAtDistributor: boolean;
-  rating: number;
-  reviews: number;
   hue: number;
   accent: string;
   image: string | null;

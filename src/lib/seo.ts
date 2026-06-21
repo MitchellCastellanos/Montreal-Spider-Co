@@ -52,11 +52,6 @@ export function productSchema(product: Product, locale: Locale) {
     description: t(product.description, locale),
     category: "Tarantula",
     brand: { "@type": "Brand", name: SITE.name },
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: product.rating,
-      reviewCount: product.reviews,
-    },
     offers: {
       "@type": "AggregateOffer",
       priceCurrency: SITE.currency,

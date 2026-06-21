@@ -92,7 +92,7 @@ export default function ShopClient({ products, genera }: { products: Product[]; 
         case "newest":
           return b.arrived.localeCompare(a.arrived);
         default:
-          return Number(!!b.featured) - Number(!!a.featured) || b.rating - a.rating;
+          return Number(!!b.featured) - Number(!!a.featured) || b.arrived.localeCompare(a.arrived);
       }
     });
     return result;

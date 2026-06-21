@@ -6,6 +6,7 @@ import {
   receiveSpecimensAction,
   sellSpecimensAction,
   transferSpecimensAction,
+  deleteSpecimensAction,
   updateTarantulAppIdAction,
   writeOffSpecimensAction,
   type ActionState,
@@ -62,6 +63,17 @@ export default function InventoryHub({
       return next;
     });
 
+  const toggleAllFiltered = () => {
+    const ids = filtered.map((s) => s.id);
+    const allSelected = ids.length > 0 && ids.every((id) => selected.has(id));
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allSelected) ids.forEach((id) => next.delete(id));
+      else ids.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+
   const tabs: { id: Tab; label: string }[] = [
     { id: "list", label: "All specimens" },
     { id: "receive", label: "Receive stock" },
@@ -115,7 +127,10 @@ export default function InventoryHub({
               ))}
             </select>
             {selected.size > 0 && (
-              <span className="self-center text-sm text-gold-bright">{selected.size} selected</span>
+              <>
+                <span className="self-center text-sm text-gold-bright">{selected.size} selected</span>
+                <DeleteSelectedButton locale={locale} selectedIds={[...selected]} />
+              </>
             )}
           </div>
 
@@ -123,7 +138,15 @@ export default function InventoryHub({
             <table className="w-full text-left text-sm">
               <thead className="bg-ink-soft text-xs uppercase tracking-wide text-gold-deep">
                 <tr>
-                  <th className="px-3 py-3 w-10" />
+                  <th className="px-3 py-3 w-10">
+                    <input
+                      type="checkbox"
+                      checked={filtered.length > 0 && filtered.every((s) => selected.has(s.id))}
+                      onChange={toggleAllFiltered}
+                      className="accent-[var(--gold)]"
+                      aria-label="Select all visible"
+                    />
+                  </th>
                   <th className="px-3 py-3">TarantulApp ID</th>
                   <th className="px-3 py-3">Species</th>
                   <th className="px-3 py-3">Size</th>
@@ -177,6 +200,37 @@ export default function InventoryHub({
         <WriteOffForm locale={locale} selectedIds={[...selected]} />
       )}
     </div>
+  );
+}
+
+function DeleteSelectedButton({
+  locale,
+  selectedIds,
+}: {
+  locale: Locale;
+  selectedIds: string[];
+}) {
+  const [state, action, pending] = useActionState<ActionState, FormData>(deleteSpecimensAction, {});
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    if (!confirm(`Delete ${selectedIds.length} specimen(s)? This cannot be undone.`)) {
+      e.preventDefault();
+    }
+  };
+
+  return (
+    <form action={action} onSubmit={handleSubmit}>
+      <input type="hidden" name="locale" value={locale} />
+      <input type="hidden" name="specimenIds" value={JSON.stringify(selectedIds)} />
+      <button
+        type="submit"
+        disabled={pending || selectedIds.length === 0}
+        className="rounded-xl border border-danger/50 px-3 py-2 text-sm text-danger hover:bg-danger/10 disabled:opacity-50"
+      >
+        {pending ? "Deleting…" : "Delete selected"}
+      </button>
+      {state.error && <span className="ml-2 text-xs text-danger">{state.error}</span>}
+    </form>
   );
 }
 

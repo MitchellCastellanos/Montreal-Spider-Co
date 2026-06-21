@@ -52,8 +52,6 @@ export type SpeciesFormFields = {
   experience: string;
   type: string;
   temperament: string;
-  rating: number;
-  reviews: number;
   hue: number;
   accent: string;
   featured: boolean;
@@ -87,8 +85,6 @@ export function emptySpeciesFields(): SpeciesFormFields {
     experience: "beginner",
     type: "terrestrial",
     temperament: "docile",
-    rating: 5,
-    reviews: 0,
     hue: 36,
     accent: "#c9a24b",
     featured: false,
