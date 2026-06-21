@@ -229,9 +229,6 @@ export default function ProductForm({
     ]);
   const removeSize = (i: number) => setSizes((prev) => prev.filter((_, idx) => idx !== i));
 
-  const setDistributorStock = (distributorId: string, stock: number) =>
-    setDistributorStocks((prev) => prev.map((r) => (r.distributorId === distributorId ? { ...r, stock } : r)));
-
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -244,8 +241,8 @@ export default function ProductForm({
       <form action={action} className="space-y-6">
         <input type="hidden" name="locale" value={locale} />
         {product && <input type="hidden" name="id" value={product.id} />}
-        <input type="hidden" name="sizes" value={JSON.stringify(sizes)} />
-        <input type="hidden" name="distributorStocks" value={JSON.stringify(distributorStocks)} />
+        <input type="hidden" name="sizes" value={JSON.stringify(sizes.map(({ stock: _s, ...rest }) => ({ ...rest, stock: 0 })))} />
+        <input type="hidden" name="distributorStocks" value={JSON.stringify(distributorStocks.map((r) => ({ ...r, stock: 0 })))} />
         <input type="hidden" name="rating" value={form.rating} />
         <input type="hidden" name="reviews" value={form.reviews} />
         <input type="hidden" name="hue" value={form.hue} />
@@ -346,7 +343,13 @@ export default function ProductForm({
 
         {/* Sizes */}
         <Section title="Warehouse stock & sizes">
-          <p className="mb-3 text-sm text-bone">Stock in your warehouse — used for online orders, delivery, and pickup.</p>
+          <p className="mb-3 text-sm text-bone">
+            Stock is managed per specimen in{" "}
+            <Link href={localeHref(locale, "/admin/inventory")} className="text-gold-bright hover:underline">
+              Inventory
+            </Link>
+            . Set prices and size tiers here; receive stock separately.
+          </p>
           <div className="hidden gap-2 px-3 pb-1 text-xs font-bold uppercase tracking-wider text-gold-deep sm:grid sm:grid-cols-[72px_1fr_1fr_88px_88px_88px_64px_36px]">
             <span>Key</span>
             <span>Label (EN)</span>
@@ -354,7 +357,7 @@ export default function ProductForm({
             <span>Min (in)</span>
             <span>Max (in)</span>
             <span>Price ($)</span>
-            <span>Stock</span>
+            <span>In stock</span>
             <span aria-hidden />
           </div>
           <div className="space-y-3">
@@ -412,8 +415,8 @@ export default function ProductForm({
                   <input type="number" step="0.01" min={0} value={s.price} onChange={(e) => setSize(i, { price: Number(e.target.value) })} className="input" />
                 </label>
                 <label className="field sm:contents">
-                  <span className="text-xs text-muted sm:hidden">Stock</span>
-                  <input type="number" min={0} value={s.stock} onChange={(e) => setSize(i, { stock: Number(e.target.value) })} className="input" />
+                  <span className="text-xs text-muted sm:hidden">In stock</span>
+                  <span className="flex h-10 items-center px-2 text-sm font-medium text-cream">{s.stock}</span>
                 </label>
                 <button
                   type="button"
@@ -453,25 +456,24 @@ export default function ProductForm({
             </label>
             {availableAtDistributor && distributors.length > 0 && (
               <div className="rounded-xl border border-line p-4">
-                <p className="mb-3 text-sm font-medium text-cream">Distributor stock</p>
-                <div className="space-y-2">
+                <p className="mb-3 text-sm font-medium text-cream">
+                  Distributor stock — managed in{" "}
+                  <Link href={localeHref(locale, "/admin/inventory")} className="text-gold-bright hover:underline">
+                    Inventory
+                  </Link>{" "}
+                  (transfer specimens to consignment).
+                </p>
+                <ul className="space-y-1 text-sm text-bone">
                   {distributors.map((d) => {
                     const row = distributorStocks.find((r) => r.distributorId === d.id);
                     return (
-                      <div key={d.id} className="flex items-center justify-between gap-3 text-sm">
-                        <span className="text-bone">{d.name}</span>
-                        <input
-                          type="number"
-                          min={0}
-                          value={row?.stock ?? 0}
-                          onChange={(e) => setDistributorStock(d.id, Number(e.target.value))}
-                          className="input w-24"
-                          aria-label={`Stock at ${d.name}`}
-                        />
-                      </div>
+                      <li key={d.id} className="flex justify-between">
+                        <span>{d.name}</span>
+                        <span className="text-cream">{row?.stock ?? 0}</span>
+                      </li>
                     );
                   })}
-                </div>
+                </ul>
               </div>
             )}
             {availableAtDistributor && distributors.length === 0 && (

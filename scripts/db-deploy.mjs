@@ -38,6 +38,8 @@ run("Syncing schema (prisma db push)", "prisma db push --skip-generate", { fatal
 
 run("Backfilling size inches on legacy rows", "node scripts/backfill-size-inches.mjs", { fatal: false });
 
+run("Backfilling specimens from legacy stock counts", "node scripts/backfill-specimens.mjs", { fatal: false });
+
 // 3) Seed base data — the seed only fills EMPTY tables, so this is safe to run
 //    on every deploy and won't resurrect rows you deleted in the admin.
 run("Seeding base data (empty tables only)", "prisma db seed", { fatal: false });

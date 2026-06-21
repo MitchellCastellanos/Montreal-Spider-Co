@@ -23,6 +23,17 @@ import { updateSettings } from "@/lib/data/settings";
 import { sendTemplateTestEmail } from "@/lib/email";
 import { addLibraryImage } from "@/lib/data/species-library";
 import { linkProductToSpecies, type SpeciesInput } from "@/lib/data/species";
+import {
+  receiveSpecimens,
+  sellSpecimensManual,
+  transferToConsignment,
+  transferToWarehouse,
+  writeOffSpecimens,
+  updateTarantulAppId,
+  exportSoldSpecimensCsv,
+  syncAggregateStock,
+} from "@/lib/data/specimens";
+import type { PaymentMethod, SalesChannel } from "@prisma/client";
 import { parseWeeklyHoursJson } from "@/lib/opening-hours";
 import { deriveGenus } from "@/lib/species-utils";
 
@@ -208,6 +219,7 @@ export async function saveProductAction(_prev: ActionState, formData: FormData):
     if (bool(formData, "saveSpeciesTemplate") && productId) {
       await linkProductToSpecies(productId, speciesInputFromForm(formData, image));
     }
+    await syncAggregateStock(productId);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "save_failed" };
   }
@@ -317,4 +329,148 @@ export async function sendTestEmailAction(_prev: ActionState, formData: FormData
   const result = await sendTemplateTestEmail({ templateId, to, locale });
   if (!result.ok) return { error: result.error };
   return { ok: true };
+}
+
+// --- Inventory & specimens -------------------------------------------------
+
+export async function receiveSpecimensAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  if (!(await isAdminAuthed())) return { error: "unauthorized" };
+  const locale = str(formData, "locale") || "en";
+
+  const quantity = Math.round(num(formData, "quantity", 1));
+  const tarantulAppIdsRaw = str(formData, "tarantulAppIds");
+  const tarantulAppIds = tarantulAppIdsRaw
+    ? tarantulAppIdsRaw
+        .split(/[\n,]+/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : undefined;
+
+  try {
+    await receiveSpecimens({
+      productId: str(formData, "productId"),
+      sizeKey: str(formData, "sizeKey"),
+      quantity,
+      unitCost: num(formData, "unitCost", 0),
+      purchasedAt: new Date(str(formData, "purchasedAt") || new Date().toISOString().slice(0, 10)),
+      supplier: str(formData, "supplier"),
+      notes: str(formData, "notes"),
+      tarantulAppId: str(formData, "tarantulAppId") || undefined,
+      tarantulAppIds,
+      locationType: str(formData, "locationType") === "consignment" ? "consignment" : "warehouse",
+      locationId: str(formData, "locationId") || undefined,
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "receive_failed" };
+  }
+
+  revalidatePath("/", "layout");
+  redirect(`/${locale}/admin/inventory`);
+}
+
+export async function transferSpecimensAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  if (!(await isAdminAuthed())) return { error: "unauthorized" };
+  const locale = str(formData, "locale") || "en";
+  const direction = str(formData, "direction");
+
+  let specimenIds: string[] = [];
+  try {
+    specimenIds = JSON.parse(str(formData, "specimenIds") || "[]");
+  } catch {
+    return { error: "specimens_invalid" };
+  }
+
+  try {
+    if (direction === "warehouse") {
+      await transferToWarehouse(specimenIds, str(formData, "notes"));
+    } else {
+      await transferToConsignment({
+        specimenIds,
+        locationId: str(formData, "locationId"),
+        notes: str(formData, "notes"),
+      });
+    }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "transfer_failed" };
+  }
+
+  revalidatePath("/", "layout");
+  redirect(`/${locale}/admin/inventory`);
+}
+
+export async function sellSpecimensAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  if (!(await isAdminAuthed())) return { error: "unauthorized" };
+  const locale = str(formData, "locale") || "en";
+
+  let specimenIds: string[] = [];
+  try {
+    specimenIds = JSON.parse(str(formData, "specimenIds") || "[]");
+  } catch {
+    return { error: "specimens_invalid" };
+  }
+
+  try {
+    await sellSpecimensManual({
+      specimenIds,
+      salePrice: num(formData, "salePrice", 0),
+      salesChannel: (str(formData, "salesChannel") || "other") as SalesChannel,
+      paymentMethod: (str(formData, "paymentMethod") || "cash") as PaymentMethod,
+      notes: str(formData, "notes"),
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "sale_failed" };
+  }
+
+  revalidatePath("/", "layout");
+  redirect(`/${locale}/admin/inventory`);
+}
+
+export async function writeOffSpecimensAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  if (!(await isAdminAuthed())) return { error: "unauthorized" };
+  const locale = str(formData, "locale") || "en";
+
+  let specimenIds: string[] = [];
+  try {
+    specimenIds = JSON.parse(str(formData, "specimenIds") || "[]");
+  } catch {
+    return { error: "specimens_invalid" };
+  }
+
+  try {
+    await writeOffSpecimens({ specimenIds, notes: str(formData, "notes") });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "writeoff_failed" };
+  }
+
+  revalidatePath("/", "layout");
+  redirect(`/${locale}/admin/inventory`);
+}
+
+export async function updateTarantulAppIdAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  if (!(await isAdminAuthed())) return { error: "unauthorized" };
+
+  try {
+    await updateTarantulAppId(str(formData, "specimenId"), str(formData, "tarantulAppId") || null);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "update_failed" };
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function exportSalesCsvAction(formData: FormData): Promise<{ csv?: string; error?: string }> {
+  if (!(await isAdminAuthed())) return { error: "unauthorized" };
+
+  const fromStr = str(formData, "from");
+  const toStr = str(formData, "to");
+  try {
+    const csv = await exportSoldSpecimensCsv(
+      fromStr ? new Date(fromStr) : undefined,
+      toStr ? new Date(toStr) : undefined,
+    );
+    return { csv };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "export_failed" };
+  }
 }

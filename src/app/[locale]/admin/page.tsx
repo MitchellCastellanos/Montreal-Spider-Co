@@ -36,7 +36,12 @@ export default async function AdminProductsPage({ params }: { params: Promise<{ 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-bold text-cream">Products & inventory</h1>
-          <p className="text-sm text-muted">{products.length} in catalog — warehouse and per-distributor stock</p>
+          <p className="text-sm text-muted">
+            {products.length} in catalog —{" "}
+            <Link href={localeHref(loc, "/admin/inventory")} className="text-gold-bright hover:underline">
+              manage specimens
+            </Link>
+          </p>
         </div>
         {hasDatabase && (
           <Link href={localeHref(loc, "/admin/products/new")} className="btn btn-gold">

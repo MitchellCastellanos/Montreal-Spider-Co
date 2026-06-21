@@ -1,6 +1,8 @@
 import "server-only";
 import type Stripe from "stripe";
 import { getProductById } from "@/lib/data/products";
+import { countAvailableWarehouse } from "@/lib/data/specimens";
+import { hasDatabase } from "@/lib/db";
 import { DELIVERY_ZONES, FREE_DELIVERY_THRESHOLD } from "@/lib/locations";
 import { SITE } from "@/lib/site";
 import { getStripe } from "@/lib/stripe";
@@ -85,7 +87,16 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
 
     const size = product.sizes.find((s) => s.id === item.sizeId);
     if (!size) throw new CheckoutError("Size not found.", 400);
-    if (size.stock < item.qty) throw new CheckoutError(`${product.common[locale]} is out of stock.`, 400);
+
+    let availableStock = size.stock;
+    if (hasDatabase) {
+      try {
+        availableStock = await countAvailableWarehouse(product.id, size.id);
+      } catch {
+        availableStock = size.stock;
+      }
+    }
+    if (availableStock < item.qty) throw new CheckoutError(`${product.common[locale]} is out of stock.`, 400);
 
     const name = `${product.common[locale]} — ${size.label[locale]}`;
     subtotal += size.price * item.qty;

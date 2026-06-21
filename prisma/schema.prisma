@@ -111,6 +111,7 @@ model Product {
   availableAtDistributor Boolean      @default(false)
   sizes                  ProductSize[]
   distributorStocks      ProductDistributorStock[]
+  specimens              Specimen[]
   createdAt              DateTime     @default(now())
   updatedAt              DateTime     @updatedAt
 
@@ -154,6 +155,7 @@ model StoreLocation {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   distributorStock ProductDistributorStock[]
+  consignmentSpecimens Specimen[]
 }
 
 model ProductDistributorStock {
@@ -215,6 +217,97 @@ enum FulfillmentMethod {
   pickup
 }
 
+enum SpecimenStatus {
+  available
+  consignment
+  sold
+  written_off
+}
+
+enum SpecimenLocationType {
+  warehouse
+  consignment
+}
+
+enum SalesChannel {
+  web
+  pickup_counter
+  kijiji
+  marketplace
+  distributor
+  event
+  wholesale
+  other
+}
+
+enum PaymentMethod {
+  stripe
+  cash
+  e_transfer
+  other
+}
+
+enum InventoryMovementType {
+  purchase
+  transfer
+  sale
+  write_off
+}
+
+/** Individual tarantula — source of truth for inventory & accounting. */
+model Specimen {
+  id              String               @id @default(cuid())
+  productId       String
+  product         Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sizeKey         String
+  /** TarantulApp Verified Origin ID — optional until registered manually. */
+  tarantulAppId   String?              @unique
+  status          SpecimenStatus       @default(available)
+  locationType    SpecimenLocationType @default(warehouse)
+  locationId      String?
+  location        StoreLocation?       @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  unitCost        Float                @default(0)
+  purchasedAt     DateTime             @default(now())
+  supplier        String               @default("")
+  notes           String               @default("")
+  salePrice       Float?
+  soldAt          DateTime?
+  salesChannel    SalesChannel?
+  paymentMethod   PaymentMethod?
+  orderId         String?
+  order           Order?               @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  orderLineLinks  OrderLineSpecimen[]
+  movements       InventoryMovement[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([productId, sizeKey])
+  @@index([status])
+  @@index([locationType, locationId])
+  @@index([soldAt])
+  @@index([purchasedAt])
+}
+
+model InventoryMovement {
+  id               String                @id @default(cuid())
+  specimenId       String
+  specimen         Specimen              @relation(fields: [specimenId], references: [id], onDelete: Cascade)
+  type             InventoryMovementType
+  fromLocationType SpecimenLocationType?
+  fromLocationId   String?
+  toLocationType   SpecimenLocationType?
+  toLocationId     String?
+  amount           Float?
+  salesChannel     SalesChannel?
+  paymentMethod    PaymentMethod?
+  notes            String                @default("")
+  createdAt        DateTime              @default(now())
+
+  @@index([specimenId])
+  @@index([createdAt])
+  @@index([type])
+}
+
 model Customer {
   id               String    @id @default(cuid())
   email            String    @unique
@@ -266,7 +359,10 @@ model Order {
   zoneId          String?
   pickupId        String?
   locale          String            @default("en")
+  salesChannel    SalesChannel      @default(web)
+  paymentMethod   PaymentMethod     @default(stripe)
   lines           OrderLine[]
+  specimens       Specimen[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -288,6 +384,19 @@ model OrderLine {
   sizeLabelFr String
   qty         Int
   unitPrice   Float
+  specimens   OrderLineSpecimen[]
 
   @@index([orderId])
+}
+
+/** Links each sold unit on an order line to a specific specimen (FIFO or manual). */
+model OrderLineSpecimen {
+  id          String   @id @default(cuid())
+  orderLineId String
+  orderLine   OrderLine @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
+  specimenId  String
+  specimen    Specimen @relation(fields: [specimenId], references: [id], onDelete: Restrict)
+
+  @@unique([specimenId])
+  @@index([orderLineId])
 }

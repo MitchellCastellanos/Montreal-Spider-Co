@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import type { FulfillmentMethod, OrderStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { sendOrderConfirmationEmail } from "@/lib/email";
+import { assignSpecimensFifo, syncAggregateStock } from "@/lib/data/specimens";
 
 interface CartItemRef {
   productId: string;
@@ -73,15 +74,17 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
 
   const order = await prisma.$transaction(async (tx) => {
     for (const item of cartItems) {
-      const size = await tx.productSize.findFirst({
-        where: { productId: item.productId, key: item.sizeKey },
+      const available = await tx.specimen.count({
+        where: {
+          productId: item.productId,
+          sizeKey: item.sizeKey,
+          status: "available",
+          locationType: "warehouse",
+        },
       });
-      if (!size) throw new Error(`Product size not found: ${item.productId}/${item.sizeKey}`);
-      if (size.stock < item.qty) throw new Error(`Insufficient stock for ${item.productId}/${item.sizeKey}`);
-      await tx.productSize.update({
-        where: { id: size.id },
-        data: { stock: { decrement: item.qty } },
-      });
+      if (available < item.qty) {
+        throw new Error(`Insufficient stock for ${item.productId}/${item.sizeKey}`);
+      }
     }
 
     const created = await tx.order.create({
@@ -105,6 +108,8 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
         zoneId: md.zoneId ?? null,
         pickupId: md.pickupId ?? null,
         locale: md.locale ?? "en",
+        salesChannel: "web",
+        paymentMethod: "stripe",
         lines: {
           create: orderItems.map((item) => ({
             productId: item.productId,
@@ -121,8 +126,35 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
       include: { lines: true },
     });
 
+    for (const line of created.lines) {
+      await assignSpecimensFifo(tx, {
+        productId: line.productId,
+        sizeKey: line.sizeKey,
+        qty: line.qty,
+        salePriceEach: line.unitPrice,
+        orderId: created.id,
+        orderLineId: line.id,
+        salesChannel: "web",
+        paymentMethod: "stripe",
+      });
+    }
+
+    for (const item of cartItems) {
+      const size = await tx.productSize.findFirst({
+        where: { productId: item.productId, key: item.sizeKey },
+      });
+      if (size) {
+        await tx.productSize.update({
+          where: { id: size.id },
+          data: { stock: { decrement: item.qty } },
+        });
+      }
+    }
+
     return created;
   });
+
+  await syncAggregateStock();
 
   try {
     await sendOrderConfirmationEmail({
