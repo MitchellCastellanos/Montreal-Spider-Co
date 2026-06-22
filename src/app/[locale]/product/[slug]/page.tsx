@@ -12,7 +12,7 @@ import SpeciesImage from "@/components/SpeciesImage";
 import AddToCart from "@/components/AddToCart";
 import DistributorAvailabilityCta from "@/components/DistributorAvailabilityCta";
 import VerifiedBadge from "@/components/VerifiedBadge";
-import { isAvailableAtDistributor } from "@/lib/types";
+import { basePrice, isAvailableAtDistributor } from "@/lib/types";
 import ProductCard from "@/components/ProductCard";
 import JsonLd from "@/components/JsonLd";
 import Reveal from "@/components/Reveal";
@@ -146,7 +146,7 @@ export default async function ProductPage({
 
             <p className="mt-3 text-2xl font-bold text-cream">
               <span className="text-sm font-normal text-muted">{dict.common.from} </span>
-              {formatPrice(Math.min(...product.sizes.map((s) => s.price)), loc)}
+              {formatPrice(basePrice(product), loc)}
             </p>
 
             <div className="my-6 h-px bg-line" />

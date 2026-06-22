@@ -23,7 +23,8 @@ export default function ProductCard({ product }: { product: Product }) {
   const stock = warehouseStock(product);
   const online = isPurchasableOnline(product);
   const atDistributor = isAvailableAtDistributor(product);
-  const cheapest = product.sizes.reduce((a, b) => (b.price < a.price ? b : a), product.sizes[0]);
+  const inStockUnits = product.availability.filter((u) => u.stock > 0);
+  const cheapest = inStockUnits.length > 0 ? inStockUnits.reduce((a, b) => (b.price < a.price ? b : a)) : null;
   const low = stock > 0 && stock <= 5;
 
   return (
@@ -89,8 +90,8 @@ export default function ProductCard({ product }: { product: Product }) {
             {low && <p className="text-[11px] text-gold-deep">{dict.common.lowStock}</p>}
           </div>
           <button
-            disabled={!online}
-            onClick={() => add(product.id, cheapest.id, 1, snapshotFromProduct(product, cheapest))}
+            disabled={!online || !cheapest}
+            onClick={() => cheapest && add(product.id, cheapest.key, 1, snapshotFromProduct(product, cheapest))}
             className="btn btn-gold px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
             aria-label={`${dict.common.addToCart} — ${tr(product.common)}`}
           >

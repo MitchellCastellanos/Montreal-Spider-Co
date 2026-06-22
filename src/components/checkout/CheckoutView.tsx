@@ -173,7 +173,7 @@ export default function CheckoutView({
           method,
           zoneId: method === "delivery" ? zoneId : undefined,
           pickupId: method === "pickup" ? pickupId : undefined,
-          items: resolved.map((l) => ({ productId: l.productId, sizeId: l.sizeId, qty: l.qty })),
+          items: resolved.map((l) => ({ productId: l.productId, unitKey: l.unitKey, qty: l.qty })),
           customer: {
             name: form.name,
             email: form.email,
@@ -397,7 +397,7 @@ export default function CheckoutView({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm text-cream">{tr(l.product.common)}</p>
-                    <p className="text-xs text-muted">{tr(l.size.label)} × {l.qty}</p>
+                    <p className="text-xs text-muted">{l.size.label} × {l.qty}</p>
                   </div>
                   <span className="text-sm text-bone">{formatPrice(l.lineTotal, locale)}</span>
                 </li>

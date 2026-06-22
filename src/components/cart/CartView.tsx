@@ -43,15 +43,15 @@ export default function CartView() {
                       {tr(line.product.common)}
                     </LocaleLink>
                     <p className="text-xs italic text-muted">{line.product.scientific}</p>
-                    <p className="mt-1 text-sm text-bone">{tr(line.size.label)}</p>
+                    <p className="mt-1 text-sm text-bone">{line.size.label}</p>
                   </div>
-                  <button onClick={() => remove(line.productId, line.sizeId)} className="text-sm text-muted hover:text-danger">{c.remove}</button>
+                  <button onClick={() => remove(line.productId, line.unitKey)} className="text-sm text-muted hover:text-danger">{c.remove}</button>
                 </div>
                 <div className="mt-auto flex items-center justify-between pt-3">
                   <div className="flex items-center gap-2 rounded-lg border border-line p-1">
-                    <button onClick={() => setQty(line.productId, line.sizeId, line.qty - 1)} className="h-7 w-7 rounded text-bone hover:bg-ink hover:text-gold-bright" aria-label="-">−</button>
+                    <button onClick={() => setQty(line.productId, line.unitKey, line.qty - 1)} className="h-7 w-7 rounded text-bone hover:bg-ink hover:text-gold-bright" aria-label="-">−</button>
                     <span className="w-6 text-center text-sm text-cream">{line.qty}</span>
-                    <button onClick={() => setQty(line.productId, line.sizeId, line.qty + 1)} className="h-7 w-7 rounded text-bone hover:bg-ink hover:text-gold-bright" aria-label="+">+</button>
+                    <button onClick={() => setQty(line.productId, line.unitKey, line.qty + 1)} className="h-7 w-7 rounded text-bone hover:bg-ink hover:text-gold-bright" aria-label="+">+</button>
                   </div>
                   <span className="font-display text-lg font-bold text-gold-bright">{formatPrice(line.lineTotal, locale)}</span>
                 </div>

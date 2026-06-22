@@ -37,12 +37,6 @@ export function deriveAccent(scientific: string): string {
   return ACCENT_PALETTE[hash % ACCENT_PALETTE.length];
 }
 
-export const DEFAULT_SIZE_ROWS = [
-  { key: "s", labelEn: "Sling", labelFr: "Jeune", sizeMinInches: 0.125, sizeMaxInches: 0.75, price: 0, stock: 0 },
-  { key: "j", labelEn: "Juvenile", labelFr: "Juvénile", sizeMinInches: 0.875, sizeMaxInches: 1.75, price: 0, stock: 0 },
-  { key: "u", labelEn: "Sub-adult", labelFr: "Sub-adulte", sizeMinInches: 2, sizeMaxInches: 3.5, price: 0, stock: 0 },
-] as const;
-
 export type SpeciesFormFields = {
   scientific: string;
   commonEn: string;

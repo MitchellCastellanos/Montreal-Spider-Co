@@ -107,6 +107,7 @@ model Product {
   availableAtPickup      Boolean      @default(true)
   /** Also offered through authorized distributors (separate stock). */
   availableAtDistributor Boolean      @default(false)
+  /** @deprecated unused — availability/price now comes from Specimen rows. */
   sizes                  ProductSize[]
   distributorStocks      ProductDistributorStock[]
   specimens              Specimen[]
@@ -118,6 +119,7 @@ model Product {
   @@index([speciesId])
 }
 
+/** @deprecated Tier pricing/stock is replaced by per-specimen sizeCm/sex/price. Kept (unused) until the backfill below is verified, then dropped in a follow-up. */
 model ProductSize {
   id        String  @id @default(cuid())
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -252,12 +254,26 @@ enum InventoryMovementType {
   write_off
 }
 
-/** Individual tarantula — source of truth for inventory & accounting. */
+enum SpecimenSex {
+  unsexed
+  male
+  female
+}
+
+/** Individual tarantula — source of truth for inventory, pricing & accounting. */
 model Specimen {
   id              String               @id @default(cuid())
   productId       String
   product         Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
-  sizeKey         String
+  /** @deprecated legacy tier key — kept for old rows, no longer written by new code. */
+  sizeKey         String?
+  /** Exact leg span in cm, entered at intake; UI derives inches/eighths for display. */
+  sizeCm          Float                @default(0)
+  sex             SpecimenSex          @default(unsexed)
+  /** Asking/listing price while available (distinct from `salePrice`, the price it actually sold for). */
+  price           Float                @default(0)
+  /** Per-specimen photo override; falls back to the product/species photo when null. */
+  photoUrl        String?
   /** TarantulApp Verified Origin ID — optional until registered manually. */
   tarantulAppId   String?              @unique
   status          SpecimenStatus       @default(available)
@@ -279,7 +295,7 @@ model Specimen {
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
 
-  @@index([productId, sizeKey])
+  @@index([productId, sizeCm, sex, price])
   @@index([status])
   @@index([locationType, locationId])
   @@index([soldAt])
@@ -375,9 +391,13 @@ model OrderLine {
   orderId     String
   order       Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productId   String
-  sizeKey     String
+  /** @deprecated legacy tier key — kept for old rows, no longer written by new code. */
+  sizeKey     String?
   nameEn      String
   nameFr      String
+  /** Exact leg span in cm bought on this line (new specimen-based model). */
+  sizeCm      Float?
+  sex         SpecimenSex?
   sizeLabelEn String
   sizeLabelFr String
   qty         Int

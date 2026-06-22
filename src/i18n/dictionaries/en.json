@@ -177,7 +177,10 @@
     "guaranteeLive": "Live arrival guarantee",
     "guaranteeLocal": "Local Montreal delivery & pickup",
     "guaranteeSupport": "Lifetime keeper support",
-    "fullGuide": "Read the full care guide"
+    "fullGuide": "Read the full care guide",
+    "sexUnsexed": "Unsexed",
+    "sexMale": "Male",
+    "sexFemale": "Female"
   },
   "cart": {
     "title": "Your cart",

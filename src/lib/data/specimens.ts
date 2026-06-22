@@ -5,13 +5,16 @@ import type {
   Prisma,
   SalesChannel,
   SpecimenLocationType,
+  SpecimenSex,
   SpecimenStatus,
 } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { cmToInches, formatCmAsInches } from "@/lib/size-inches";
 
 export type {
   SpecimenStatus,
   SpecimenLocationType,
+  SpecimenSex,
   SalesChannel,
   PaymentMethod,
   InventoryMovementType,
@@ -21,9 +24,14 @@ export interface SpecimenView {
   id: string;
   productId: string;
   productName: string;
+  productImage: string | null;
   scientific: string;
-  sizeKey: string;
-  sizeLabelEn: string;
+  sizeCm: number;
+  sizeInches: number;
+  sizeLabel: string;
+  sex: SpecimenSex;
+  price: number;
+  photoUrl: string | null;
   tarantulAppId: string | null;
   status: SpecimenStatus;
   locationType: SpecimenLocationType;
@@ -47,20 +55,24 @@ export interface SpecimenFilters {
   q?: string;
 }
 
-export interface ReceiveSpecimensInput {
+/** One row in a "receive batch" intake — one or more identical specimens (same species/size/sex/cost/price/origin). */
+export interface ReceiveBatchRowInput {
   productId: string;
-  sizeKey: string;
-  quantity: number;
+  sizeCm: number;
+  sex: SpecimenSex;
   unitCost: number;
+  price: number;
+  photoUrl?: string | null;
+  quantity: number;
   purchasedAt: Date;
   supplier?: string;
   notes?: string;
-  /** Single specimen or one ID when quantity is 1 */
+  locationType?: SpecimenLocationType;
+  locationId?: string;
+  /** Single ID when quantity is 1 */
   tarantulAppId?: string;
   /** Optional IDs when receiving multiple (length must match quantity if provided) */
   tarantulAppIds?: string[];
-  locationType?: SpecimenLocationType;
-  locationId?: string;
 }
 
 export interface ManualSaleInput {
@@ -97,6 +109,18 @@ export interface FinanceSummary {
   byPayment: { method: PaymentMethod; count: number; revenue: number }[];
 }
 
+/** A distinct (size, sex, price) bucket of in-stock specimens for a product — the storefront "buy box". */
+export interface AvailabilityGroup {
+  productId: string;
+  sizeCm: number;
+  sizeInches: number;
+  sizeLabel: string;
+  sex: SpecimenSex;
+  price: number;
+  stock: number;
+  photoUrl: string | null;
+}
+
 function requireDb() {
   if (!prisma) throw new Error("Database not configured.");
   return prisma;
@@ -106,7 +130,10 @@ function mapSpecimen(
   s: {
     id: string;
     productId: string;
-    sizeKey: string;
+    sizeCm: number;
+    sex: SpecimenSex;
+    price: number;
+    photoUrl: string | null;
     tarantulAppId: string | null;
     status: SpecimenStatus;
     locationType: SpecimenLocationType;
@@ -119,18 +146,22 @@ function mapSpecimen(
     soldAt: Date | null;
     salesChannel: SalesChannel | null;
     paymentMethod: PaymentMethod | null;
-    product: { commonEn: string; scientific: string; sizes: { key: string; labelEn: string }[] };
+    product: { commonEn: string; scientific: string; image: string | null };
     location: { name: string } | null;
   },
 ): SpecimenView {
-  const size = s.product.sizes.find((sz) => sz.key === s.sizeKey);
   return {
     id: s.id,
     productId: s.productId,
     productName: s.product.commonEn,
+    productImage: s.product.image,
     scientific: s.product.scientific,
-    sizeKey: s.sizeKey,
-    sizeLabelEn: size?.labelEn ?? s.sizeKey,
+    sizeCm: s.sizeCm,
+    sizeInches: cmToInches(s.sizeCm),
+    sizeLabel: formatCmAsInches(s.sizeCm),
+    sex: s.sex,
+    price: s.price,
+    photoUrl: s.photoUrl,
     tarantulAppId: s.tarantulAppId,
     status: s.status,
     locationType: s.locationType,
@@ -148,7 +179,7 @@ function mapSpecimen(
 }
 
 const specimenInclude = {
-  product: { include: { sizes: true } },
+  product: { select: { commonEn: true, scientific: true, image: true } },
   location: true,
 } as const;
 
@@ -185,6 +216,42 @@ export async function getSpecimenById(id: string): Promise<SpecimenView | null> 
   return row ? mapSpecimen(row) : null;
 }
 
+/** Group available warehouse specimens into storefront buy-boxes by (size, sex, price). */
+export async function listAvailabilityGroups(productIds?: string[]): Promise<AvailabilityGroup[]> {
+  const db = requireDb();
+  const rows = await db.specimen.findMany({
+    where: {
+      status: "available",
+      locationType: "warehouse",
+      ...(productIds && productIds.length > 0 ? { productId: { in: productIds } } : {}),
+    },
+    select: { productId: true, sizeCm: true, sex: true, price: true, photoUrl: true },
+    orderBy: { purchasedAt: "asc" },
+  });
+
+  const groups = new Map<string, AvailabilityGroup>();
+  for (const r of rows) {
+    const key = `${r.productId}:${r.sizeCm}:${r.sex}:${r.price}`;
+    const existing = groups.get(key);
+    if (existing) {
+      existing.stock += 1;
+      if (!existing.photoUrl && r.photoUrl) existing.photoUrl = r.photoUrl;
+    } else {
+      groups.set(key, {
+        productId: r.productId,
+        sizeCm: r.sizeCm,
+        sizeInches: cmToInches(r.sizeCm),
+        sizeLabel: formatCmAsInches(r.sizeCm),
+        sex: r.sex,
+        price: r.price,
+        stock: 1,
+        photoUrl: r.photoUrl ?? null,
+      });
+    }
+  }
+  return [...groups.values()];
+}
+
 async function recordMovement(
   tx: Prisma.TransactionClient,
   data: {
@@ -216,30 +283,11 @@ async function recordMovement(
   });
 }
 
-/** Recompute ProductSize.stock and ProductDistributorStock from specimens. */
+/** Recompute ProductDistributorStock from consignment specimens. */
 export async function syncAggregateStock(productId?: string) {
   const db = requireDb();
   await db.$transaction(async (tx) => {
     const productFilter = productId ? { productId } : {};
-
-    const warehouseCounts = await tx.specimen.groupBy({
-      by: ["productId", "sizeKey"],
-      where: { ...productFilter, status: "available", locationType: "warehouse" },
-      _count: { _all: true },
-    });
-
-    const sizes = await tx.productSize.findMany({
-      where: productFilter,
-      select: { id: true, productId: true, key: true },
-    });
-
-    for (const size of sizes) {
-      const match = warehouseCounts.find((c) => c.productId === size.productId && c.sizeKey === size.key);
-      await tx.productSize.update({
-        where: { id: size.id },
-        data: { stock: match?._count._all ?? 0 },
-      });
-    }
 
     const consignmentCounts = await tx.specimen.groupBy({
       by: ["productId", "locationId"],
@@ -262,64 +310,71 @@ export async function syncAggregateStock(productId?: string) {
   });
 }
 
-export async function receiveSpecimens(input: ReceiveSpecimensInput): Promise<string[]> {
+/** Receive a batch of one or more rows (each row = N identical specimens) across one or more species. */
+export async function receiveSpecimenBatch(rows: ReceiveBatchRowInput[]): Promise<string[]> {
   const db = requireDb();
-  const qty = Math.max(1, Math.min(100, Math.round(input.quantity)));
-  const locationType = input.locationType ?? "warehouse";
-  const locationId = locationType === "consignment" ? input.locationId : null;
-  if (locationType === "consignment" && !locationId) {
-    throw new Error("Distributor location is required for consignment.");
-  }
-
-  const size = await db.productSize.findFirst({
-    where: { productId: input.productId, key: input.sizeKey },
-  });
-  if (!size) throw new Error("Product size not found.");
+  if (!rows.length) throw new Error("No rows to receive.");
 
   const ids: string[] = [];
-  const tarantulAppIds = input.tarantulAppIds ?? [];
-  if (input.tarantulAppId && qty === 1) tarantulAppIds.push(input.tarantulAppId);
-  if (tarantulAppIds.length > 0 && tarantulAppIds.length !== qty) {
-    throw new Error("Number of TarantulApp IDs must match quantity.");
-  }
 
   await db.$transaction(async (tx) => {
-    for (let i = 0; i < qty; i++) {
-      const tarantulAppId = tarantulAppIds[i]?.trim() || null;
-      if (tarantulAppId) {
-        const taken = await tx.specimen.findUnique({ where: { tarantulAppId } });
-        if (taken) throw new Error(`TarantulApp ID already in use: ${tarantulAppId}`);
+    for (const row of rows) {
+      const qty = Math.max(1, Math.min(200, Math.round(row.quantity)));
+      const locationType = row.locationType ?? "warehouse";
+      const locationId = locationType === "consignment" ? row.locationId : null;
+      if (locationType === "consignment" && !locationId) {
+        throw new Error("Distributor location is required for consignment.");
+      }
+      if (!(row.sizeCm > 0)) throw new Error("Size (cm) is required.");
+
+      const tarantulAppIds = row.tarantulAppIds ?? [];
+      if (row.tarantulAppId && qty === 1) tarantulAppIds.push(row.tarantulAppId);
+      if (tarantulAppIds.length > 0 && tarantulAppIds.length !== qty) {
+        throw new Error("Number of TarantulApp IDs must match quantity.");
       }
 
       const status = locationType === "consignment" ? "consignment" : "available";
-      const created = await tx.specimen.create({
-        data: {
-          productId: input.productId,
-          sizeKey: input.sizeKey,
-          tarantulAppId,
-          status,
-          locationType,
-          locationId,
-          unitCost: input.unitCost,
-          purchasedAt: input.purchasedAt,
-          supplier: input.supplier ?? "",
-          notes: input.notes ?? "",
-        },
-      });
-      ids.push(created.id);
 
-      await recordMovement(tx, {
-        specimenId: created.id,
-        type: "purchase",
-        toLocationType: locationType,
-        toLocationId: locationId,
-        amount: input.unitCost,
-        notes: input.supplier ? `Supplier: ${input.supplier}` : "",
-      });
+      for (let i = 0; i < qty; i++) {
+        const tarantulAppId = tarantulAppIds[i]?.trim() || null;
+        if (tarantulAppId) {
+          const taken = await tx.specimen.findUnique({ where: { tarantulAppId } });
+          if (taken) throw new Error(`TarantulApp ID already in use: ${tarantulAppId}`);
+        }
+
+        const created = await tx.specimen.create({
+          data: {
+            productId: row.productId,
+            sizeCm: row.sizeCm,
+            sex: row.sex,
+            price: row.price,
+            photoUrl: row.photoUrl || null,
+            tarantulAppId,
+            status,
+            locationType,
+            locationId,
+            unitCost: row.unitCost,
+            purchasedAt: row.purchasedAt,
+            supplier: row.supplier ?? "",
+            notes: row.notes ?? "",
+          },
+        });
+        ids.push(created.id);
+
+        await recordMovement(tx, {
+          specimenId: created.id,
+          type: "purchase",
+          toLocationType: locationType,
+          toLocationId: locationId,
+          amount: row.unitCost,
+          notes: row.supplier ? `Supplier: ${row.supplier}` : "",
+        });
+      }
     }
   });
 
-  await syncAggregateStock(input.productId);
+  const productIds = [...new Set(rows.map((r) => r.productId))];
+  await Promise.all(productIds.map((id) => syncAggregateStock(id)));
   return ids;
 }
 
@@ -483,12 +538,14 @@ export async function updateTarantulAppId(specimenId: string, tarantulAppId: str
   });
 }
 
-/** FIFO assignment from warehouse for web orders. */
+/** FIFO assignment from warehouse for web orders — matches the (size, sex, price) buy-box the customer ordered. */
 export async function assignSpecimensFifo(
   tx: Prisma.TransactionClient,
   opts: {
     productId: string;
-    sizeKey: string;
+    sizeCm: number;
+    sex: SpecimenSex;
+    price: number;
     qty: number;
     salePriceEach: number;
     orderId: string;
@@ -500,7 +557,9 @@ export async function assignSpecimensFifo(
   const specimens = await tx.specimen.findMany({
     where: {
       productId: opts.productId,
-      sizeKey: opts.sizeKey,
+      sizeCm: opts.sizeCm,
+      sex: opts.sex,
+      price: opts.price,
       status: "available",
       locationType: "warehouse",
     },
@@ -509,7 +568,7 @@ export async function assignSpecimensFifo(
   });
 
   if (specimens.length < opts.qty) {
-    throw new Error(`Insufficient specimens for ${opts.productId}/${opts.sizeKey}`);
+    throw new Error(`Insufficient specimens for ${opts.productId}/${opts.sizeCm}cm/${opts.sex}`);
   }
 
   const soldAt = new Date();
@@ -549,10 +608,15 @@ export async function assignSpecimensFifo(
   return ids;
 }
 
-export async function countAvailableWarehouse(productId: string, sizeKey: string): Promise<number> {
+export async function countAvailableWarehouse(
+  productId: string,
+  sizeCm: number,
+  sex: SpecimenSex,
+  price: number,
+): Promise<number> {
   const db = requireDb();
   return db.specimen.count({
-    where: { productId, sizeKey, status: "available", locationType: "warehouse" },
+    where: { productId, sizeCm, sex, price, status: "available", locationType: "warehouse" },
   });
 }
 
@@ -651,7 +715,7 @@ export async function exportSoldSpecimensCsv(from?: Date, to?: Date): Promise<st
     orderBy: { soldAt: "desc" },
   });
 
-  const header = "soldAt,tarantulAppId,species,scientific,sizeKey,unitCost,salePrice,margin,channel,payment,location\n";
+  const header = "soldAt,tarantulAppId,species,scientific,sizeCm,sex,unitCost,salePrice,margin,channel,payment,location\n";
   const lines = rows.map((s) => {
     const margin = (s.salePrice ?? 0) - s.unitCost;
     return [
@@ -659,7 +723,8 @@ export async function exportSoldSpecimensCsv(from?: Date, to?: Date): Promise<st
       s.tarantulAppId ?? "",
       `"${s.product.commonEn.replace(/"/g, '""')}"`,
       s.product.scientific,
-      s.sizeKey,
+      s.sizeCm.toFixed(2),
+      s.sex,
       s.unitCost.toFixed(2),
       (s.salePrice ?? 0).toFixed(2),
       margin.toFixed(2),

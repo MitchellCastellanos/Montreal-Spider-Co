@@ -11,14 +11,21 @@ export type Experience = "beginner" | "intermediate" | "advanced";
 export type SpiderType = "terrestrial" | "arboreal" | "fossorial";
 export type Temperament = "docile" | "skittish" | "defensive";
 
-export interface SizeOption {
-  id: string;
-  label: L;
-  /** Leg span range in inches (used for shop filters). */
-  sizeMinInches: number;
-  sizeMaxInches: number;
+export type SpecimenSex = "unsexed" | "male" | "female";
+
+/** A distinct in-stock (size, sex, price) bucket for a product — the storefront buy box. */
+export interface AvailableUnit {
+  /** Stable identity for cart/checkout: `${sizeCm}:${sex}:${price}`. */
+  key: string;
+  sizeCm: number;
+  sizeInches: number;
+  /** Formatted leg span, e.g. `2 3/8″`. */
+  sizeLabel: string;
+  sex: SpecimenSex;
   price: number;
   stock: number;
+  /** Per-group photo override; falls back to the product photo when absent. */
+  photo?: string;
 }
 
 export interface ProductDistributorStock {
@@ -46,7 +53,8 @@ export interface Product {
   experience: Experience;
   type: SpiderType;
   temperament: Temperament;
-  sizes: SizeOption[];
+  /** Available specimen buy-boxes, grouped by size/sex/price (replaces the old size-tier model). */
+  availability: AvailableUnit[];
   featured?: boolean;
   newArrival?: boolean;
   /** Warehouse stock can be delivered or picked up at pickup points. */
@@ -76,11 +84,12 @@ export interface Product {
 }
 
 export function basePrice(p: Product): number {
-  return Math.min(...p.sizes.map((s) => s.price));
+  if (p.availability.length === 0) return 0;
+  return Math.min(...p.availability.map((a) => a.price));
 }
 
 export function totalStock(p: Product): number {
-  return p.sizes.reduce((sum, s) => sum + s.stock, 0);
+  return p.availability.reduce((sum, a) => sum + a.stock, 0);
 }
 
 /** Stock held at our warehouse (same as totalStock on sizes). */

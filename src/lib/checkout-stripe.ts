@@ -10,7 +10,7 @@ import type { Locale } from "@/i18n/config";
 
 export interface CheckoutLineInput {
   productId: string;
-  sizeId: string;
+  unitKey: string;
   qty: number;
 }
 
@@ -70,7 +70,8 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
   let subtotal = 0;
   const orderItems: {
     productId: string;
-    sizeKey: string;
+    sizeCm: number;
+    sex: string;
     nameEn: string;
     nameFr: string;
     sizeLabelEn: string;
@@ -85,43 +86,44 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
     const product = await getProductById(item.productId);
     if (!product) throw new CheckoutError("Product not found.", 400);
 
-    const size = product.sizes.find((s) => s.id === item.sizeId);
-    if (!size) throw new CheckoutError("Size not found.", 400);
+    const unit = product.availability.find((u) => u.key === item.unitKey);
+    if (!unit) throw new CheckoutError("Size not found.", 400);
 
-    let availableStock = size.stock;
+    let availableStock = unit.stock;
     if (hasDatabase) {
       try {
-        availableStock = await countAvailableWarehouse(product.id, size.id);
+        availableStock = await countAvailableWarehouse(product.id, unit.sizeCm, unit.sex, unit.price);
       } catch {
-        availableStock = size.stock;
+        availableStock = unit.stock;
       }
     }
     if (availableStock < item.qty) throw new CheckoutError(`${product.common[locale]} is out of stock.`, 400);
 
-    const name = `${product.common[locale]} — ${size.label[locale]}`;
-    subtotal += size.price * item.qty;
+    const name = `${product.common[locale]} — ${unit.sizeLabel}`;
+    subtotal += unit.price * item.qty;
     orderItems.push({
       productId: product.id,
-      sizeKey: size.id,
+      sizeCm: unit.sizeCm,
+      sex: unit.sex,
       nameEn: product.common.en,
       nameFr: product.common.fr,
-      sizeLabelEn: size.label.en,
-      sizeLabelFr: size.label.fr,
+      sizeLabelEn: unit.sizeLabel,
+      sizeLabelFr: unit.sizeLabel,
       qty: item.qty,
-      price: size.price,
+      price: unit.price,
     });
 
     lineItems.push({
       quantity: item.qty,
       price_data: {
         currency: "cad",
-        unit_amount: cadCents(size.price),
+        unit_amount: cadCents(unit.price),
         product_data: {
           name,
           ...(product.image ? { images: [product.image] } : {}),
           metadata: {
             productId: product.id,
-            sizeId: size.id,
+            unitKey: unit.key,
             slug: product.slug,
           },
         },
@@ -169,7 +171,6 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
     customerName: customer.name.trim(),
     customerPhone: customer.phone.trim(),
     customerNotes: customer.notes?.trim() ?? "",
-    cartItems: items.map((i) => `${i.productId}:${i.sizeId}:${i.qty}`).join("|"),
     orderItems: JSON.stringify(orderItems),
     subtotal: subtotal.toFixed(2),
     deliveryFee: deliveryFee.toFixed(2),

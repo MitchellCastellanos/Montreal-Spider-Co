@@ -71,7 +71,7 @@ export default function ShopClient({ products, genera }: { products: Product[]; 
       if (sizeMin > 0 || sizeMax > 0) {
         const lo = sizeMin > 0 ? sizeMin : MIN_INCHES;
         const hi = sizeMax > 0 ? sizeMax : MAX_INCHES;
-        if (!productMatchesSizeFilter(p.sizes, lo, hi)) return false;
+        if (!productMatchesSizeFilter(p.availability, lo, hi)) return false;
       }
       if (query) {
         const q = query.toLowerCase();

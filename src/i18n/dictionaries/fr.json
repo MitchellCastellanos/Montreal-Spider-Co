@@ -177,7 +177,10 @@
     "guaranteeLive": "Garantie d'arrivée vivante",
     "guaranteeLocal": "Livraison & cueillette à Montréal",
     "guaranteeSupport": "Soutien à vie aux éleveurs",
-    "fullGuide": "Lire le guide de soins complet"
+    "fullGuide": "Lire le guide de soins complet",
+    "sexUnsexed": "Non sexé",
+    "sexMale": "Mâle",
+    "sexFemale": "Femelle"
   },
   "cart": {
     "title": "Votre panier",

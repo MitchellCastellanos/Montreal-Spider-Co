@@ -13,7 +13,6 @@ import SpeciesChatGptHelper from "@/components/admin/SpeciesChatGptHelper";
 import type { DistributorView } from "@/lib/data/locations";
 import ConceptInfo from "@/components/ConceptInfo";
 import {
-  DEFAULT_SIZE_ROWS,
   deriveAccent,
   deriveGenus,
   deriveHue,
@@ -21,17 +20,7 @@ import {
   emptySpeciesFields,
   type SpeciesFormFields,
 } from "@/lib/species-utils";
-import { INCH_OPTIONS, nearestInchOption } from "@/lib/size-inches";
-
-interface SizeRow {
-  key: string;
-  labelEn: string;
-  labelFr: string;
-  sizeMinInches: number;
-  sizeMaxInches: number;
-  price: number;
-  stock: number;
-}
+import { basePrice, totalStock } from "@/lib/types";
 
 const EXPERIENCES = ["beginner", "intermediate", "advanced"];
 const TYPES = ["terrestrial", "arboreal", "fossorial"];
@@ -136,20 +125,6 @@ export default function ProductForm({
   const [detailsOpen, setDetailsOpen] = useState(!product);
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
-  const [sizes, setSizes] = useState<SizeRow[]>(
-    product
-      ? product.sizes.map((s) => ({
-          key: s.id,
-          labelEn: s.label.en,
-          labelFr: s.label.fr,
-          sizeMinInches: s.sizeMinInches,
-          sizeMaxInches: s.sizeMaxInches,
-          price: s.price,
-          stock: s.stock,
-        }))
-      : DEFAULT_SIZE_ROWS.map((s) => ({ ...s }))
-  );
-
   const [availableAtPickup, setAvailableAtPickup] = useState(product?.availableAtPickup ?? true);
   const [availableAtDistributor, setAvailableAtDistributor] = useState(product?.availableAtDistributor ?? false);
   const [distributorStocks, setDistributorStocks] = useState<DistributorStockRow[]>(() =>
@@ -216,15 +191,6 @@ export default function ProductForm({
     setDetailsOpen(true);
   };
 
-  const setSize = (i: number, patchSize: Partial<SizeRow>) =>
-    setSizes((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patchSize } : s)));
-  const addSize = () =>
-    setSizes((prev) => [
-      ...prev,
-      { key: `s${prev.length + 1}`, labelEn: "", labelFr: "", sizeMinInches: 0.125, sizeMaxInches: 0.25, price: 0, stock: 0 },
-    ]);
-  const removeSize = (i: number) => setSizes((prev) => prev.filter((_, idx) => idx !== i));
-
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -237,7 +203,6 @@ export default function ProductForm({
       <form action={action} className="space-y-6">
         <input type="hidden" name="locale" value={locale} />
         {product && <input type="hidden" name="id" value={product.id} />}
-        <input type="hidden" name="sizes" value={JSON.stringify(sizes.map(({ stock: _s, ...rest }) => ({ ...rest, stock: 0 })))} />
         <input type="hidden" name="distributorStocks" value={JSON.stringify(distributorStocks.map((r) => ({ ...r, stock: 0 })))} />
         <input type="hidden" name="hue" value={form.hue} />
         <input type="hidden" name="accent" value={form.accent} />
@@ -246,7 +211,7 @@ export default function ProductForm({
         {speciesList.length > 0 && (
           <Section title="Load from species library">
             <p className="mb-3 text-sm text-bone">
-              Pick a saved species profile to auto-fill description, specs, and care. You only set sizes, prices, and stock.
+              Pick a saved species profile to auto-fill description, specs, and care. Stock and pricing are set later in Inventory.
             </p>
             <input
               type="search"
@@ -335,95 +300,21 @@ export default function ProductForm({
           </p>
         )}
 
-        {/* Sizes */}
-        <Section title="Warehouse stock & sizes">
-          <p className="mb-3 text-sm text-bone">
-            Stock is managed per specimen in{" "}
+        {/* Stock & pricing summary */}
+        <Section title="Warehouse stock & pricing">
+          <p className="text-sm text-bone">
+            Every specimen carries its own exact size, sex, cost and sale price — set when you receive it in{" "}
             <Link href={localeHref(locale, "/admin/inventory")} className="text-gold-bright hover:underline">
-              Inventory
+              Inventory → Receive batch
             </Link>
-            . Set prices and size tiers here; receive stock separately.
+            . There are no size tiers to configure here; a specimen shows up on the storefront automatically once it's received as available.
           </p>
-          <div className="hidden gap-2 px-3 pb-1 text-xs font-bold uppercase tracking-wider text-gold-deep sm:grid sm:grid-cols-[72px_1fr_1fr_88px_88px_88px_64px_36px]">
-            <span>Key</span>
-            <span>Label (EN)</span>
-            <span>Label (FR)</span>
-            <span>Min (in)</span>
-            <span>Max (in)</span>
-            <span>Price ($)</span>
-            <span>In stock</span>
-            <span aria-hidden />
-          </div>
-          <div className="space-y-3">
-            {sizes.map((s, i) => (
-              <div
-                key={i}
-                className="grid grid-cols-2 gap-2 rounded-xl border border-line p-3 sm:grid-cols-[72px_1fr_1fr_88px_88px_88px_64px_36px] sm:items-center sm:gap-2 sm:p-2"
-              >
-                <label className="field sm:contents">
-                  <span className="text-xs text-muted sm:hidden">Key</span>
-                  <input value={s.key} onChange={(e) => setSize(i, { key: e.target.value })} className="input" placeholder="s" />
-                </label>
-                <label className="field sm:contents">
-                  <span className="text-xs text-muted sm:hidden">Label (EN)</span>
-                  <input value={s.labelEn} onChange={(e) => setSize(i, { labelEn: e.target.value })} className="input" placeholder="Sling" />
-                </label>
-                <label className="field sm:contents">
-                  <span className="text-xs text-muted sm:hidden">Label (FR)</span>
-                  <input value={s.labelFr} onChange={(e) => setSize(i, { labelFr: e.target.value })} className="input" placeholder="Jeune" />
-                </label>
-                <label className="field sm:contents">
-                  <span className="text-xs text-muted sm:hidden">Min (in)</span>
-                  <select
-                    value={s.sizeMinInches}
-                    onChange={(e) => {
-                      const sizeMinInches = nearestInchOption(Number(e.target.value));
-                      const sizeMaxInches = Math.max(sizeMinInches, s.sizeMaxInches);
-                      setSize(i, { sizeMinInches, sizeMaxInches });
-                    }}
-                    className="input"
-                  >
-                    {INCH_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field sm:contents">
-                  <span className="text-xs text-muted sm:hidden">Max (in)</span>
-                  <select
-                    value={s.sizeMaxInches}
-                    onChange={(e) => {
-                      const sizeMaxInches = nearestInchOption(Number(e.target.value));
-                      const sizeMinInches = Math.min(s.sizeMinInches, sizeMaxInches);
-                      setSize(i, { sizeMinInches, sizeMaxInches });
-                    }}
-                    className="input"
-                  >
-                    {INCH_OPTIONS.filter((o) => o.value >= s.sizeMinInches).map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field sm:contents">
-                  <span className="text-xs text-muted sm:hidden">Price ($)</span>
-                  <input type="number" step="0.01" min={0} value={s.price} onChange={(e) => setSize(i, { price: Number(e.target.value) })} className="input" />
-                </label>
-                <label className="field sm:contents">
-                  <span className="text-xs text-muted sm:hidden">In stock</span>
-                  <span className="flex h-10 items-center px-2 text-sm font-medium text-cream">{s.stock}</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => removeSize(i)}
-                  className="col-span-2 rounded-lg border border-line py-2 text-muted hover:border-danger hover:text-danger sm:col-span-1 sm:py-1"
-                  aria-label="Remove size"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-          <button type="button" onClick={addSize} className="btn btn-ghost mt-3">+ Add size</button>
+          {product && (
+            <p className="mt-3 text-sm text-cream">
+              Currently {totalStock(product)} available
+              {totalStock(product) > 0 ? ` from $${basePrice(product).toFixed(2)}` : ""}.
+            </p>
+          )}
         </Section>
 
         <Section title="Availability channels">

@@ -71,12 +71,12 @@ export default function CartDrawer() {
                           {tr(line.product.common)}
                         </LocaleLink>
                         <p className="truncate text-xs italic text-muted">{line.product.scientific}</p>
-                        <p className="text-xs text-bone">{tr(line.size.label)}</p>
+                        <p className="text-xs text-bone">{line.size.label}</p>
                         <div className="mt-2 flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <button
                               className="h-6 w-6 rounded border border-line text-bone hover:border-gold"
-                              onClick={() => setQty(line.productId, line.sizeId, line.qty - 1)}
+                              onClick={() => setQty(line.productId, line.unitKey, line.qty - 1)}
                               aria-label="-"
                             >
                               −
@@ -84,7 +84,7 @@ export default function CartDrawer() {
                             <span className="w-5 text-center text-sm text-cream">{line.qty}</span>
                             <button
                               className="h-6 w-6 rounded border border-line text-bone hover:border-gold"
-                              onClick={() => setQty(line.productId, line.sizeId, line.qty + 1)}
+                              onClick={() => setQty(line.productId, line.unitKey, line.qty + 1)}
                               aria-label="+"
                             >
                               +
@@ -96,7 +96,7 @@ export default function CartDrawer() {
                         </div>
                       </div>
                       <button
-                        onClick={() => remove(line.productId, line.sizeId)}
+                        onClick={() => remove(line.productId, line.unitKey)}
                         className="self-start text-xs text-muted hover:text-danger"
                         aria-label={c.remove}
                       >

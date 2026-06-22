@@ -8,10 +8,8 @@ import {
   updateProduct,
   deleteProduct,
   type ProductInput,
-  type ProductSizeInput,
   type ProductDistributorStockInput,
 } from "@/lib/data/products";
-import { nearestInchOption } from "@/lib/size-inches";
 import { uploadProductImage, hasStorage } from "@/lib/storage";
 import {
   bulkUpdateLocations,
@@ -24,7 +22,7 @@ import { sendTemplateTestEmail } from "@/lib/email";
 import { addLibraryImage } from "@/lib/data/species-library";
 import { linkProductToSpecies, type SpeciesInput } from "@/lib/data/species";
 import {
-  receiveSpecimens,
+  receiveSpecimenBatch,
   sellSpecimensManual,
   transferToConsignment,
   transferToWarehouse,
@@ -33,8 +31,9 @@ import {
   exportSoldSpecimensCsv,
   syncAggregateStock,
   deleteSpecimens,
+  type ReceiveBatchRowInput,
 } from "@/lib/data/specimens";
-import type { PaymentMethod, SalesChannel } from "@prisma/client";
+import type { PaymentMethod, SalesChannel, SpecimenSex } from "@prisma/client";
 import { parseWeeklyHoursJson } from "@/lib/opening-hours";
 import { deriveGenus } from "@/lib/species-utils";
 
@@ -104,27 +103,6 @@ export async function saveProductAction(_prev: ActionState, formData: FormData):
 
   const id = str(formData, "id");
   const locale = str(formData, "locale") || "en";
-
-  // Sizes are submitted as a JSON string from the client form.
-  let sizes: ProductSizeInput[] = [];
-  try {
-    sizes = JSON.parse(str(formData, "sizes") || "[]");
-  } catch {
-    return { error: "sizes_invalid" };
-  }
-  sizes = sizes
-    .filter((s) => s.key && Number.isFinite(s.price))
-    .map((s) => {
-      let sizeMinInches = Number(s.sizeMinInches);
-      let sizeMaxInches = Number(s.sizeMaxInches);
-      if (!Number.isFinite(sizeMinInches)) sizeMinInches = 0.125;
-      if (!Number.isFinite(sizeMaxInches)) sizeMaxInches = sizeMinInches;
-      sizeMinInches = nearestInchOption(sizeMinInches);
-      sizeMaxInches = nearestInchOption(sizeMaxInches);
-      if (sizeMaxInches < sizeMinInches) [sizeMinInches, sizeMaxInches] = [sizeMaxInches, sizeMinInches];
-      return { ...s, sizeMinInches, sizeMaxInches };
-    });
-  if (sizes.length === 0) return { error: "sizes_required" };
 
   let distributorStocks: ProductDistributorStockInput[] = [];
   try {
@@ -203,7 +181,6 @@ export async function saveProductAction(_prev: ActionState, formData: FormData):
     descriptionEn: str(formData, "descriptionEn"),
     descriptionFr: str(formData, "descriptionFr"),
     careGuide: str(formData, "careGuide") || null,
-    sizes,
     distributorStocks,
   };
 
@@ -332,33 +309,72 @@ export async function sendTestEmailAction(_prev: ActionState, formData: FormData
 
 // --- Inventory & specimens -------------------------------------------------
 
-export async function receiveSpecimensAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+interface ReceiveBatchRowForm {
+  productId: string;
+  sizeCm: number;
+  sex?: string;
+  unitCost?: number;
+  price?: number;
+  photoUrl?: string | null;
+  quantity: number;
+  purchasedAt?: string;
+  supplier?: string;
+  notes?: string;
+  locationType?: string;
+  locationId?: string;
+  tarantulAppIds?: string[];
+}
+
+export async function receiveBatchAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   if (!(await isAdminAuthed())) return { error: "unauthorized" };
   const locale = str(formData, "locale") || "en";
 
-  const quantity = Math.round(num(formData, "quantity", 1));
-  const tarantulAppIdsRaw = str(formData, "tarantulAppIds");
-  const tarantulAppIds = tarantulAppIdsRaw
-    ? tarantulAppIdsRaw
-        .split(/[\n,]+/)
-        .map((s) => s.trim())
-        .filter(Boolean)
-    : undefined;
+  let rawRows: ReceiveBatchRowForm[] = [];
+  try {
+    rawRows = JSON.parse(str(formData, "rows") || "[]");
+  } catch {
+    return { error: "rows_invalid" };
+  }
+  if (!Array.isArray(rawRows) || rawRows.length === 0) return { error: "rows_empty" };
+
+  const rows: ReceiveBatchRowInput[] = [];
+  for (let i = 0; i < rawRows.length; i++) {
+    const r = rawRows[i];
+    const sizeCm = Number(r.sizeCm);
+    const quantity = Math.round(Number(r.quantity));
+    if (!r.productId || !Number.isFinite(sizeCm) || sizeCm <= 0) return { error: "rows_invalid" };
+    if (!Number.isFinite(quantity) || quantity < 1) return { error: "rows_invalid" };
+
+    let photoUrl: string | null = r.photoUrl ?? null;
+    const file = formData.get(`photoFile-${i}`);
+    if (file instanceof File && file.size > 0) {
+      if (!hasStorage) return { error: "storage_unconfigured" };
+      try {
+        photoUrl = await uploadProductImage(await file.arrayBuffer());
+      } catch {
+        return { error: "upload_failed" };
+      }
+    }
+
+    rows.push({
+      productId: r.productId,
+      sizeCm,
+      sex: (r.sex === "male" || r.sex === "female" ? r.sex : "unsexed") as SpecimenSex,
+      unitCost: Number(r.unitCost) || 0,
+      price: Number(r.price) || 0,
+      photoUrl,
+      quantity,
+      purchasedAt: r.purchasedAt ? new Date(r.purchasedAt) : new Date(),
+      supplier: r.supplier || undefined,
+      notes: r.notes || undefined,
+      locationType: r.locationType === "consignment" ? "consignment" : "warehouse",
+      locationId: r.locationId || undefined,
+      tarantulAppIds: Array.isArray(r.tarantulAppIds) ? r.tarantulAppIds.filter(Boolean) : undefined,
+    });
+  }
 
   try {
-    await receiveSpecimens({
-      productId: str(formData, "productId"),
-      sizeKey: str(formData, "sizeKey"),
-      quantity,
-      unitCost: num(formData, "unitCost", 0),
-      purchasedAt: new Date(str(formData, "purchasedAt") || new Date().toISOString().slice(0, 10)),
-      supplier: str(formData, "supplier"),
-      notes: str(formData, "notes"),
-      tarantulAppId: str(formData, "tarantulAppId") || undefined,
-      tarantulAppIds,
-      locationType: str(formData, "locationType") === "consignment" ? "consignment" : "warehouse",
-      locationId: str(formData, "locationId") || undefined,
-    });
+    await receiveSpecimenBatch(rows);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "receive_failed" };
   }

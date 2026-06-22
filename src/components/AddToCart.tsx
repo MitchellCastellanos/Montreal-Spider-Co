@@ -3,26 +3,26 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useCart, snapshotFromProduct } from "@/context/CartContext";
-import { useI18n, useT } from "@/i18n/I18nProvider";
+import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
-import { formatInchRange } from "@/lib/size-inches";
 import type { Product } from "@/lib/types";
+
+const SEX_LABEL_KEY = { unsexed: "sexUnsexed", male: "sexMale", female: "sexFemale" } as const;
 
 export default function AddToCart({ product }: { product: Product }) {
   const { dict, locale } = useI18n();
-  const tr = useT();
   const { add } = useCart();
-  const available = product.sizes.filter((s) => s.stock > 0);
-  const [sizeId, setSizeId] = useState<string>(available[0]?.id ?? product.sizes[0].id);
+  const available = product.availability.filter((s) => s.stock > 0);
+  const [unitKey, setUnitKey] = useState<string>(available[0]?.key ?? product.availability[0]?.key ?? "");
   const [qty, setQty] = useState(1);
   const [pulse, setPulse] = useState(false);
 
-  const selected = product.sizes.find((s) => s.id === sizeId)!;
-  const soldOut = available.length === 0;
+  const selected = product.availability.find((s) => s.key === unitKey);
+  const soldOut = available.length === 0 || !selected;
 
   const handleAdd = () => {
-    if (soldOut) return;
-    add(product.id, sizeId, qty, snapshotFromProduct(product, selected));
+    if (soldOut || !selected) return;
+    add(product.id, unitKey, qty, snapshotFromProduct(product, selected));
     setPulse(true);
     setTimeout(() => setPulse(false), 700);
   };
@@ -32,20 +32,20 @@ export default function AddToCart({ product }: { product: Product }) {
       <div className="mb-4">
         <p className="mb-2 text-xs font-bold uppercase tracking-wider text-gold-deep">{dict.product.selectSize}</p>
         <div className="flex flex-wrap gap-2">
-          {product.sizes.map((s) => {
+          {product.availability.map((s) => {
             const disabled = s.stock === 0;
-            const active = s.id === sizeId;
+            const active = s.key === unitKey;
             return (
               <button
-                key={s.id}
+                key={s.key}
                 disabled={disabled}
-                onClick={() => setSizeId(s.id)}
+                onClick={() => setUnitKey(s.key)}
                 className={`rounded-xl border px-4 py-2.5 text-left transition ${
                   active ? "border-gold bg-gold/10" : "border-line hover:border-gold/50"
                 } ${disabled ? "cursor-not-allowed opacity-40" : ""}`}
               >
-                <span className="block text-sm font-semibold text-cream">{tr(s.label)}</span>
-                <span className="block text-xs text-muted">{formatInchRange(s.sizeMinInches, s.sizeMaxInches)}</span>
+                <span className="block text-sm font-semibold text-cream">{s.sizeLabel}</span>
+                <span className="block text-xs text-muted">{dict.product[SEX_LABEL_KEY[s.sex]]}</span>
                 <span className="block text-xs text-gold-bright">{formatPrice(s.price, locale)}</span>
               </button>
             );
@@ -56,12 +56,12 @@ export default function AddToCart({ product }: { product: Product }) {
       <div className="mb-5 flex items-end justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-wide text-muted">{dict.common.total}</p>
-          <p className="font-display text-3xl font-bold text-cream">{formatPrice(selected.price * qty, locale)}</p>
+          <p className="font-display text-3xl font-bold text-cream">{formatPrice((selected?.price ?? 0) * qty, locale)}</p>
         </div>
         <div className="flex items-center gap-2 rounded-xl border border-line p-1">
           <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="h-8 w-8 rounded-lg text-bone hover:bg-ink hover:text-gold-bright" aria-label="-">−</button>
           <span className="w-6 text-center text-cream">{qty}</span>
-          <button onClick={() => setQty((q) => Math.min(selected.stock, q + 1))} className="h-8 w-8 rounded-lg text-bone hover:bg-ink hover:text-gold-bright" aria-label="+">+</button>
+          <button onClick={() => setQty((q) => Math.min(selected?.stock ?? 1, q + 1))} className="h-8 w-8 rounded-lg text-bone hover:bg-ink hover:text-gold-bright" aria-label="+">+</button>
         </div>
       </div>
 
@@ -74,7 +74,7 @@ export default function AddToCart({ product }: { product: Product }) {
         {soldOut ? dict.common.soldOut : pulse ? `✓ ${dict.common.added}` : dict.product.addToCart}
       </motion.button>
 
-      {!soldOut && selected.stock <= 5 && (
+      {!soldOut && selected && selected.stock <= 5 && (
         <p className="mt-2 text-center text-xs text-gold-deep">
           {dict.common.lowStock} · {selected.stock}
         </p>

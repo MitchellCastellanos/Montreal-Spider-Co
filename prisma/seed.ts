@@ -6,11 +6,12 @@ import { DEFAULT_SETTINGS } from "../src/lib/data/setting-defaults";
 const prisma = new PrismaClient();
 
 async function main() {
-  const [productCount, locationCount, settingCount, speciesCount] = await Promise.all([
+  const [productCount, locationCount, settingCount, speciesCount, specimenCount] = await Promise.all([
     prisma.product.count(),
     prisma.storeLocation.count(),
     prisma.setting.count(),
     prisma.species.count(),
+    prisma.specimen.count(),
   ]);
 
   if (productCount > 0) {
@@ -54,21 +55,35 @@ async function main() {
         descriptionFr: p.description.fr,
         careGuide: p.careGuide ?? null,
         arrived: new Date(p.arrived),
-        sizes: {
-          create: p.sizes.map((s, i) => ({
-            key: s.id,
-            labelEn: s.label.en,
-            labelFr: s.label.fr,
-            sizeMinInches: s.sizeMinInches,
-            sizeMaxInches: s.sizeMaxInches,
-            price: s.price,
-            stock: s.stock,
-            position: i,
-          })),
-        },
       },
     });
   }
+  }
+
+  if (specimenCount > 0) {
+    console.log(`Specimens already seeded (${specimenCount}) — skipping.`);
+  } else {
+    console.log("Seeding demo specimens from product availability…");
+    for (const p of PRODUCTS) {
+      const product = await prisma.product.findUnique({ where: { slug: p.slug } });
+      if (!product) continue;
+      for (const unit of p.availability) {
+        for (let i = 0; i < unit.stock; i++) {
+          await prisma.specimen.create({
+            data: {
+              productId: product.id,
+              sizeCm: unit.sizeCm,
+              sex: unit.sex,
+              price: unit.price,
+              photoUrl: unit.photo ?? null,
+              status: "available",
+              locationType: "warehouse",
+              purchasedAt: new Date(p.arrived),
+            },
+          });
+        }
+      }
+    }
   }
 
   if (locationCount > 0) {

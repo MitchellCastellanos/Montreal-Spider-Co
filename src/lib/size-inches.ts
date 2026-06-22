@@ -3,8 +3,24 @@
 export const INCH_STEP = 0.125;
 export const MIN_INCHES = 0.125; // 1/8″
 export const MAX_INCHES = 12;
+export const CM_PER_INCH = 2.54;
 
 const FRAC_LABELS = ["", "1/8", "1/4", "3/8", "1/2", "5/8", "3/4", "7/8"] as const;
+
+/** Convert a leg span in centimeters (admin intake unit) to decimal inches. */
+export function cmToInches(cm: number): number {
+  return cm / CM_PER_INCH;
+}
+
+/** Convert decimal inches back to centimeters. */
+export function inchesToCm(inches: number): number {
+  return inches * CM_PER_INCH;
+}
+
+/** Format a cm value straight to the nearest-eighth inch label (e.g. 5.5cm → `2 1/8″`). */
+export function formatCmAsInches(cm: number): string {
+  return formatInches(cmToInches(cm));
+}
 
 /** Format a decimal inch value as a readable label (e.g. 1.125 → `1 1/8″`). */
 export function formatInches(inches: number): string {
@@ -16,13 +32,6 @@ export function formatInches(inches: number): string {
   if (whole === 0) return `${frac}″`;
   if (!frac) return `${whole}″`;
   return `${whole} ${frac}″`;
-}
-
-/** Compact range for product cards and size buttons. */
-export function formatInchRange(min: number, max: number): string {
-  if (min <= 0 && max <= 0) return "";
-  if (Math.abs(min - max) < INCH_STEP / 2) return formatInches(min);
-  return `${formatInches(min)}–${formatInches(max)}`;
 }
 
 export interface InchOption {
@@ -39,39 +48,20 @@ export const INCH_OPTIONS: InchOption[] = Array.from(
   },
 );
 
-export function nearestInchOption(value: number): number {
-  const clamped = Math.min(MAX_INCHES, Math.max(MIN_INCHES, value));
-  const eighths = Math.round(clamped / INCH_STEP);
-  return eighths * INCH_STEP;
-}
-
-/** True when a size band overlaps the filter range (inclusive). */
-export function sizeOverlapsFilter(
-  sizeMin: number,
-  sizeMax: number,
-  filterMin: number,
-  filterMax: number,
-): boolean {
-  return sizeMin <= filterMax && sizeMax >= filterMin;
-}
-
-/** Product matches if any listed size overlaps the filter. */
+/** Product matches if any available unit's size falls within the filter range (inclusive). */
 export function productMatchesSizeFilter(
-  sizes: { sizeMinInches: number; sizeMaxInches: number }[],
+  units: { sizeInches: number }[],
   filterMin: number,
   filterMax: number,
 ): boolean {
-  return sizes.some((s) => sizeOverlapsFilter(s.sizeMinInches, s.sizeMaxInches, filterMin, filterMax));
+  return units.some((u) => u.sizeInches >= filterMin && u.sizeInches <= filterMax);
 }
 
-/** Smallest / largest inch span across all size rows on a product. */
-export function productInchSpan(sizes: { sizeMinInches: number; sizeMaxInches: number }[]): {
-  min: number;
-  max: number;
-} {
-  if (sizes.length === 0) return { min: 0, max: 0 };
+/** Smallest / largest available size (inches) across all units on a product. */
+export function productInchSpan(units: { sizeInches: number }[]): { min: number; max: number } {
+  if (units.length === 0) return { min: 0, max: 0 };
   return {
-    min: Math.min(...sizes.map((s) => s.sizeMinInches)),
-    max: Math.max(...sizes.map((s) => s.sizeMaxInches)),
+    min: Math.min(...units.map((u) => u.sizeInches)),
+    max: Math.max(...units.map((u) => u.sizeInches)),
   };
 }

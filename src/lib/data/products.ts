@@ -1,22 +1,21 @@
 import "server-only";
-import type { Product as DbProduct, ProductSize as DbSize, ProductDistributorStock as DbDistStock, StoreLocation as DbLocation } from "@prisma/client";
+import type { Product as DbProduct, ProductDistributorStock as DbDistStock, StoreLocation as DbLocation } from "@prisma/client";
 import { prisma, hasDatabase } from "@/lib/db";
 import { getDefaultProductImage } from "@/lib/data/site-settings";
 import { logDbFallback } from "@/lib/data/db-safe";
 import { getDistributors } from "@/lib/data/distributors";
+import { listAvailabilityGroups } from "@/lib/data/specimens";
 import { PRODUCTS as SEED, GENERA as SEED_GENERA } from "@/lib/products";
 import { parseWeeklyHours, EMPTY_WEEKLY_HOURS } from "@/lib/opening-hours";
-import type { DistributorSnippet, Product, ProductDistributorStock } from "@/lib/types";
+import type { AvailableUnit, DistributorSnippet, Product, ProductDistributorStock } from "@/lib/types";
 
 export type { Product };
 
 type DbProductFull = DbProduct & {
-  sizes: DbSize[];
   distributorStocks?: (DbDistStock & { location?: DbLocation })[];
 };
 
 const productInclude = {
-  sizes: true,
   distributorStocks: { include: { location: true } },
 } as const;
 
@@ -51,16 +50,7 @@ function mapProduct(p: DbProductFull, defaultImage?: string | null): Product {
     experience: p.experience,
     type: p.type,
     temperament: p.temperament,
-    sizes: [...p.sizes]
-      .sort((a, b) => a.position - b.position)
-      .map((s) => ({
-        id: s.key,
-        label: { en: s.labelEn, fr: s.labelFr },
-        sizeMinInches: s.sizeMinInches,
-        sizeMaxInches: s.sizeMaxInches,
-        price: s.price,
-        stock: s.stock,
-      })),
+    availability: [],
     featured: p.featured,
     newArrival: p.newArrival,
     availableAtPickup: p.availableAtPickup,
@@ -107,6 +97,36 @@ async function attachDistributorDetails(products: Product[]): Promise<Product[]>
   });
 }
 
+/** Attach live specimen-based availability (size/sex/price buckets) to each product. */
+async function attachAvailability(products: Product[]): Promise<Product[]> {
+  if (!prisma || products.length === 0) return products;
+  try {
+    const groups = await listAvailabilityGroups(products.map((p) => p.id));
+    const byProduct = new Map<string, AvailableUnit[]>();
+    for (const g of groups) {
+      const list = byProduct.get(g.productId) ?? [];
+      list.push({
+        key: `${g.sizeCm}:${g.sex}:${g.price}`,
+        sizeCm: g.sizeCm,
+        sizeInches: g.sizeInches,
+        sizeLabel: g.sizeLabel,
+        sex: g.sex,
+        price: g.price,
+        stock: g.stock,
+        photo: g.photoUrl ?? undefined,
+      });
+      byProduct.set(g.productId, list);
+    }
+    return products.map((p) => ({
+      ...p,
+      availability: (byProduct.get(p.id) ?? []).sort((a, b) => a.price - b.price || a.sizeCm - b.sizeCm),
+    }));
+  } catch (e) {
+    logDbFallback("attachAvailability", e);
+    return products;
+  }
+}
+
 /** True when reading live data from the database (vs the static seed). */
 export const isLive = hasDatabase;
 
@@ -117,7 +137,8 @@ export async function getAllProducts(): Promise<Product[]> {
         prisma.product.findMany({ include: productInclude, orderBy: { arrived: "desc" } }),
         getDefaultProductImage(),
       ]);
-      return attachDistributorDetails(rows.map((p) => mapProduct(p, defaultImage)));
+      const withDistributors = await attachDistributorDetails(rows.map((p) => mapProduct(p, defaultImage)));
+      return attachAvailability(withDistributors);
     } catch (e) {
       logDbFallback("getAllProducts", e);
     }
@@ -134,7 +155,8 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
       ]);
       if (!row) return null;
       const mapped = mapProduct(row, defaultImage);
-      return (await attachDistributorDetails([mapped]))[0];
+      const [withDistributors] = await attachDistributorDetails([mapped]);
+      return (await attachAvailability([withDistributors]))[0];
     } catch (e) {
       logDbFallback("getProductBySlug", e);
     }
@@ -153,7 +175,8 @@ export async function getProductById(id: string): Promise<Product | null> {
       ]);
       if (!row) return null;
       const mapped = mapProduct(row, defaultImage);
-      return (await attachDistributorDetails([mapped]))[0];
+      const [withDistributors] = await attachDistributorDetails([mapped]);
+      return (await attachAvailability([withDistributors]))[0];
     } catch (e) {
       logDbFallback("getProductById", e);
     }
@@ -168,7 +191,8 @@ export async function getProductByIdForAdmin(id: string): Promise<Product | null
   if (prisma) {
     try {
       const row = await prisma.product.findUnique({ where: { id }, include: productInclude });
-      return row ? mapProduct(row, null) : null;
+      if (!row) return null;
+      return (await attachAvailability([mapProduct(row, null)]))[0];
     } catch (e) {
       logDbFallback("getProductByIdForAdmin", e);
     }
@@ -201,16 +225,6 @@ export async function getGenera(): Promise<string[]> {
 // ---------------------------------------------------------------------------
 // Admin mutations (require a configured database)
 // ---------------------------------------------------------------------------
-
-export interface ProductSizeInput {
-  key: string;
-  labelEn: string;
-  labelFr: string;
-  sizeMinInches: number;
-  sizeMaxInches: number;
-  price: number;
-  stock: number;
-}
 
 export interface ProductDistributorStockInput {
   distributorId: string;
@@ -250,7 +264,6 @@ export interface ProductInput {
   descriptionEn: string;
   descriptionFr: string;
   careGuide: string | null;
-  sizes: ProductSizeInput[];
   distributorStocks: ProductDistributorStockInput[];
 }
 
@@ -267,11 +280,10 @@ function requireDb() {
 
 export async function createProduct(input: ProductInput): Promise<string> {
   const db = requireDb();
-  const { sizes, distributorStocks, ...fields } = input;
+  const { distributorStocks, ...fields } = input;
   const created = await db.product.create({
     data: {
       ...fields,
-      sizes: { create: sizes.map((s, i) => ({ ...s, position: i })) },
       distributorStocks: { create: distributorStockCreates(distributorStocks) },
     },
   });
@@ -280,15 +292,13 @@ export async function createProduct(input: ProductInput): Promise<string> {
 
 export async function updateProduct(id: string, input: ProductInput): Promise<void> {
   const db = requireDb();
-  const { sizes, distributorStocks, ...fields } = input;
+  const { distributorStocks, ...fields } = input;
   await db.$transaction([
-    db.productSize.deleteMany({ where: { productId: id } }),
     db.productDistributorStock.deleteMany({ where: { productId: id } }),
     db.product.update({
       where: { id },
       data: {
         ...fields,
-        sizes: { create: sizes.map((s, i) => ({ ...s, position: i })) },
         distributorStocks: { create: distributorStockCreates(distributorStocks) },
       },
     }),

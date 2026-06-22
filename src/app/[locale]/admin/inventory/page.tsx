@@ -2,6 +2,7 @@ import { isLocale, type Locale } from "@/i18n/config";
 import { getAllProducts } from "@/lib/data/products";
 import { getDistributorLocations } from "@/lib/data/locations";
 import { listSpecimens } from "@/lib/data/specimens";
+import { listLibraryImages } from "@/lib/data/species-library";
 import { hasDatabase } from "@/lib/db";
 import InventoryHub from "@/components/admin/InventoryHub";
 
@@ -18,10 +19,11 @@ export default async function AdminInventoryPage({ params }: { params: Promise<{
     );
   }
 
-  const [specimens, products, distributors] = await Promise.all([
+  const [specimens, products, distributors, libraryImages] = await Promise.all([
     listSpecimens(),
     getAllProducts(),
     getDistributorLocations(),
+    listLibraryImages(),
   ]);
 
   return (
@@ -29,6 +31,7 @@ export default async function AdminInventoryPage({ params }: { params: Promise<{
       specimens={specimens}
       products={products}
       distributors={distributors}
+      libraryImages={libraryImages}
       locale={loc}
     />
   );

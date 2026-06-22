@@ -1,30 +1,9 @@
 import "server-only";
 import type Stripe from "stripe";
-import type { FulfillmentMethod, OrderStatus } from "@prisma/client";
+import type { FulfillmentMethod, OrderStatus, SpecimenSex } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { sendOrderConfirmationEmail } from "@/lib/email";
 import { assignSpecimensFifo, syncAggregateStock } from "@/lib/data/specimens";
-
-interface CartItemRef {
-  productId: string;
-  sizeKey: string;
-  qty: number;
-}
-
-function parseCartItems(raw: string | undefined): CartItemRef[] {
-  if (!raw) return [];
-  return raw
-    .split("|")
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .map((part) => {
-      const [productId, sizeKey, qtyStr] = part.split(":");
-      const qty = Number(qtyStr);
-      if (!productId || !sizeKey || !Number.isFinite(qty) || qty < 1) return null;
-      return { productId, sizeKey, qty };
-    })
-    .filter((x): x is CartItemRef => x !== null);
-}
 
 function generateOrderNumber(): string {
   return `MSC-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -40,16 +19,14 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
   if (existing) return existing;
 
   const md = session.metadata ?? {};
-  const cartItems = parseCartItems(md.cartItems);
-  if (!cartItems.length) throw new Error("Missing cart items in session metadata.");
-
   const method = (md.method === "pickup" ? "pickup" : "delivery") as FulfillmentMethod;
   const email = (session.customer_details?.email ?? session.customer_email ?? md.customerEmail ?? "").trim().toLowerCase();
   if (!email) throw new Error("Missing customer email on checkout session.");
 
   const orderItems = JSON.parse(md.orderItems || "[]") as {
     productId: string;
-    sizeKey: string;
+    sizeCm: number;
+    sex: SpecimenSex;
     nameEn: string;
     nameFr: string;
     sizeLabelEn: string;
@@ -73,17 +50,19 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
   const status: OrderStatus = method === "pickup" ? "ready" : "processing";
 
   const order = await prisma.$transaction(async (tx) => {
-    for (const item of cartItems) {
+    for (const item of orderItems) {
       const available = await tx.specimen.count({
         where: {
           productId: item.productId,
-          sizeKey: item.sizeKey,
+          sizeCm: item.sizeCm,
+          sex: item.sex,
+          price: item.price,
           status: "available",
           locationType: "warehouse",
         },
       });
       if (available < item.qty) {
-        throw new Error(`Insufficient stock for ${item.productId}/${item.sizeKey}`);
+        throw new Error(`Insufficient stock for ${item.productId}/${item.sizeCm}cm/${item.sex}`);
       }
     }
 
@@ -113,7 +92,8 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
         lines: {
           create: orderItems.map((item) => ({
             productId: item.productId,
-            sizeKey: item.sizeKey,
+            sizeCm: item.sizeCm,
+            sex: item.sex,
             nameEn: item.nameEn,
             nameFr: item.nameFr,
             sizeLabelEn: item.sizeLabelEn,
@@ -129,7 +109,9 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
     for (const line of created.lines) {
       await assignSpecimensFifo(tx, {
         productId: line.productId,
-        sizeKey: line.sizeKey,
+        sizeCm: line.sizeCm!,
+        sex: line.sex!,
+        price: line.unitPrice,
         qty: line.qty,
         salePriceEach: line.unitPrice,
         orderId: created.id,
@@ -137,18 +119,6 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
         salesChannel: "web",
         paymentMethod: "stripe",
       });
-    }
-
-    for (const item of cartItems) {
-      const size = await tx.productSize.findFirst({
-        where: { productId: item.productId, key: item.sizeKey },
-      });
-      if (size) {
-        await tx.productSize.update({
-          where: { id: size.id },
-          data: { stock: { decrement: item.qty } },
-        });
-      }
     }
 
     return created;

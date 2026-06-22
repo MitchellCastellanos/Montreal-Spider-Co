@@ -1,26 +1,22 @@
-import type { L, Product, SizeOption } from "./types";
+import type { AvailableUnit, Product } from "./types";
+import { cmToInches, formatCmAsInches } from "./size-inches";
 
-const SIZE_TIERS = {
-  s: {
-    label: { en: "Sling", fr: "Jeune" } satisfies L,
-    sizeMinInches: 0.125,
-    sizeMaxInches: 0.75,
-  },
-  j: {
-    label: { en: "Juvenile", fr: "Juvénile" } satisfies L,
-    sizeMinInches: 0.875,
-    sizeMaxInches: 1.75,
-  },
-  u: {
-    label: { en: "Sub-adult", fr: "Sub-adulte" } satisfies L,
-    sizeMinInches: 2,
-    sizeMaxInches: 3.5,
-  },
-} as const;
+// Representative leg-span sizes (cm) for the three rough demo life stages.
+const SLING_CM = 1.1;
+const JUVENILE_CM = 3.3;
+const SUBADULT_CM = 7;
 
-function sz(key: keyof typeof SIZE_TIERS, price: number, stock: number): SizeOption {
-  const tier = SIZE_TIERS[key];
-  return { id: key, ...tier, price, stock };
+function unit(sizeCm: number, price: number, stock: number): AvailableUnit {
+  const sex = "unsexed" as const;
+  return {
+    key: `${sizeCm}:${sex}:${price}`,
+    sizeCm,
+    sizeInches: cmToInches(sizeCm),
+    sizeLabel: formatCmAsInches(sizeCm),
+    sex,
+    price,
+    stock,
+  };
 }
 
 export const PRODUCTS: Product[] = [
@@ -36,10 +32,10 @@ export const PRODUCTS: Product[] = [
     featured: true,
     hue: 220,
     accent: "#3a3a44",
-    sizes: [
-      sz("s", 65, 8),
-      sz("j", 120, 5),
-      sz("u", 240, 2),
+    availability: [
+      unit(SLING_CM, 65, 8),
+      unit(JUVENILE_CM, 120, 5),
+      unit(SUBADULT_CM, 240, 2),
     ],
     adultSize: { en: "15–18 cm", fr: "15–18 cm" },
     growth: { en: "Slow", fr: "Lente" },
@@ -68,10 +64,10 @@ export const PRODUCTS: Product[] = [
     featured: true,
     hue: 42,
     accent: "#b8893a",
-    sizes: [
-      sz("s", 30, 14),
-      sz("j", 60, 9),
-      sz("u", 130, 3),
+    availability: [
+      unit(SLING_CM, 30, 14),
+      unit(JUVENILE_CM, 60, 9),
+      unit(SUBADULT_CM, 130, 3),
     ],
     adultSize: { en: "18–21 cm", fr: "18–21 cm" },
     growth: { en: "Medium", fr: "Moyenne" },
@@ -100,10 +96,10 @@ export const PRODUCTS: Product[] = [
     featured: true,
     hue: 12,
     accent: "#c0492f",
-    sizes: [
-      sz("s", 45, 10),
-      sz("j", 95, 6),
-      sz("u", 200, 2),
+    availability: [
+      unit(SLING_CM, 45, 10),
+      unit(JUVENILE_CM, 95, 6),
+      unit(SUBADULT_CM, 200, 2),
     ],
     adultSize: { en: "13–15 cm", fr: "13–15 cm" },
     growth: { en: "Slow", fr: "Lente" },
@@ -131,9 +127,9 @@ export const PRODUCTS: Product[] = [
     temperament: "docile",
     hue: 30,
     accent: "#7a5a3a",
-    sizes: [
-      sz("s", 25, 20),
-      sz("j", 50, 11),
+    availability: [
+      unit(SLING_CM, 25, 20),
+      unit(JUVENILE_CM, 50, 11),
     ],
     adultSize: { en: "13–15 cm", fr: "13–15 cm" },
     growth: { en: "Medium-fast", fr: "Moyenne-rapide" },
@@ -161,9 +157,9 @@ export const PRODUCTS: Product[] = [
     temperament: "docile",
     hue: 38,
     accent: "#c9a86a",
-    sizes: [
-      sz("s", 40, 7),
-      sz("j", 80, 4),
+    availability: [
+      unit(SLING_CM, 40, 7),
+      unit(JUVENILE_CM, 80, 4),
     ],
     adultSize: { en: "12–14 cm", fr: "12–14 cm" },
     growth: { en: "Very slow", fr: "Très lente" },
@@ -193,9 +189,9 @@ export const PRODUCTS: Product[] = [
     newArrival: true,
     hue: 265,
     accent: "#6c5bbf",
-    sizes: [
-      sz("s", 45, 12),
-      sz("j", 90, 5),
+    availability: [
+      unit(SLING_CM, 45, 12),
+      unit(JUVENILE_CM, 90, 5),
     ],
     adultSize: { en: "12–15 cm", fr: "12–15 cm" },
     growth: { en: "Medium-fast", fr: "Moyenne-rapide" },
@@ -223,9 +219,9 @@ export const PRODUCTS: Product[] = [
     temperament: "docile",
     hue: 330,
     accent: "#a85b7a",
-    sizes: [
-      sz("s", 35, 9),
-      sz("j", 70, 6),
+    availability: [
+      unit(SLING_CM, 35, 9),
+      unit(JUVENILE_CM, 70, 6),
     ],
     adultSize: { en: "11–13 cm", fr: "11–13 cm" },
     growth: { en: "Medium", fr: "Moyenne" },
@@ -254,10 +250,10 @@ export const PRODUCTS: Product[] = [
     featured: true,
     hue: 175,
     accent: "#2bb39a",
-    sizes: [
-      sz("s", 35, 16),
-      sz("j", 70, 8),
-      sz("u", 140, 3),
+    availability: [
+      unit(SLING_CM, 35, 16),
+      unit(JUVENILE_CM, 70, 8),
+      unit(SUBADULT_CM, 140, 3),
     ],
     adultSize: { en: "13–15 cm", fr: "13–15 cm" },
     growth: { en: "Medium-fast", fr: "Moyenne-rapide" },
@@ -285,9 +281,9 @@ export const PRODUCTS: Product[] = [
     temperament: "skittish",
     hue: 0,
     accent: "#8c2f2f",
-    sizes: [
-      sz("s", 25, 13),
-      sz("j", 55, 7),
+    availability: [
+      unit(SLING_CM, 25, 13),
+      unit(JUVENILE_CM, 55, 7),
     ],
     adultSize: { en: "13–15 cm", fr: "13–15 cm" },
     growth: { en: "Medium", fr: "Moyenne" },
@@ -315,10 +311,10 @@ export const PRODUCTS: Product[] = [
     temperament: "defensive",
     hue: 350,
     accent: "#9a4a55",
-    sizes: [
-      sz("s", 25, 18),
-      sz("j", 55, 9),
-      sz("u", 110, 4),
+    availability: [
+      unit(SLING_CM, 25, 18),
+      unit(JUVENILE_CM, 55, 9),
+      unit(SUBADULT_CM, 110, 4),
     ],
     adultSize: { en: "20–25 cm", fr: "20–25 cm" },
     growth: { en: "Fast", fr: "Rapide" },
@@ -346,9 +342,9 @@ export const PRODUCTS: Product[] = [
     temperament: "defensive",
     hue: 18,
     accent: "#7a3526",
-    sizes: [
-      sz("s", 120, 4),
-      sz("j", 220, 2),
+    availability: [
+      unit(SLING_CM, 120, 4),
+      unit(JUVENILE_CM, 220, 2),
     ],
     adultSize: { en: "25–28 cm", fr: "25–28 cm" },
     growth: { en: "Fast", fr: "Rapide" },
@@ -376,9 +372,9 @@ export const PRODUCTS: Product[] = [
     temperament: "defensive",
     hue: 28,
     accent: "#d2761f",
-    sizes: [
-      sz("s", 20, 22),
-      sz("j", 45, 10),
+    availability: [
+      unit(SLING_CM, 20, 22),
+      unit(JUVENILE_CM, 45, 10),
     ],
     adultSize: { en: "12–15 cm", fr: "12–15 cm" },
     growth: { en: "Fast", fr: "Rapide" },
@@ -407,9 +403,9 @@ export const PRODUCTS: Product[] = [
     newArrival: true,
     hue: 205,
     accent: "#5a7fa8",
-    sizes: [
-      sz("s", 60, 9),
-      sz("j", 120, 4),
+    availability: [
+      unit(SLING_CM, 60, 9),
+      unit(JUVENILE_CM, 120, 4),
     ],
     adultSize: { en: "11–13 cm", fr: "11–13 cm" },
     growth: { en: "Medium", fr: "Moyenne" },
@@ -438,9 +434,9 @@ export const PRODUCTS: Product[] = [
     featured: true,
     hue: 210,
     accent: "#3f6fd1",
-    sizes: [
-      sz("s", 90, 6),
-      sz("j", 180, 3),
+    availability: [
+      unit(SLING_CM, 90, 6),
+      unit(JUVENILE_CM, 180, 3),
     ],
     adultSize: { en: "15–18 cm", fr: "15–18 cm" },
     growth: { en: "Medium-fast", fr: "Moyenne-rapide" },
@@ -468,9 +464,9 @@ export const PRODUCTS: Product[] = [
     temperament: "skittish",
     hue: 32,
     accent: "#c47a1e",
-    sizes: [
-      sz("s", 30, 11),
-      sz("j", 65, 6),
+    availability: [
+      unit(SLING_CM, 30, 11),
+      unit(JUVENILE_CM, 65, 6),
     ],
     adultSize: { en: "13–15 cm", fr: "13–15 cm" },
     growth: { en: "Fast", fr: "Rapide" },
@@ -498,9 +494,9 @@ export const PRODUCTS: Product[] = [
     temperament: "skittish",
     hue: 45,
     accent: "#b89030",
-    sizes: [
-      sz("s", 25, 15),
-      sz("j", 45, 8),
+    availability: [
+      unit(SLING_CM, 25, 15),
+      unit(JUVENILE_CM, 45, 8),
     ],
     adultSize: { en: "4–6 cm", fr: "4–6 cm" },
     growth: { en: "Medium", fr: "Moyenne" },
@@ -528,9 +524,9 @@ export const PRODUCTS: Product[] = [
     temperament: "skittish",
     hue: 8,
     accent: "#a23f2c",
-    sizes: [
-      sz("s", 25, 12),
-      sz("j", 50, 6),
+    availability: [
+      unit(SLING_CM, 25, 12),
+      unit(JUVENILE_CM, 50, 6),
     ],
     adultSize: { en: "9–11 cm", fr: "9–11 cm" },
     growth: { en: "Medium", fr: "Moyenne" },
@@ -559,9 +555,9 @@ export const PRODUCTS: Product[] = [
     newArrival: true,
     hue: 26,
     accent: "#cf7a23",
-    sizes: [
-      sz("s", 30, 14),
-      sz("j", 55, 7),
+    availability: [
+      unit(SLING_CM, 30, 14),
+      unit(JUVENILE_CM, 55, 7),
     ],
     adultSize: { en: "5–7 cm", fr: "5–7 cm" },
     growth: { en: "Fast", fr: "Rapide" },
