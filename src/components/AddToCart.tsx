@@ -56,7 +56,10 @@ export default function AddToCart({ product }: { product: Product }) {
       <div className="mb-5 flex items-end justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-wide text-muted">{dict.common.total}</p>
-          <p className="font-display text-3xl font-bold text-cream">{formatPrice((selected?.price ?? 0) * qty, locale)}</p>
+          <p className="font-display text-3xl font-bold text-cream">
+            {formatPrice((selected?.price ?? 0) * qty, locale)}{" "}
+            <span className="text-sm font-normal text-muted">{dict.common.plusTaxes}</span>
+          </p>
         </div>
         <div className="flex items-center gap-2 rounded-xl border border-line p-1">
           <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="h-8 w-8 rounded-lg text-bone hover:bg-ink hover:text-gold-bright" aria-label="-">−</button>

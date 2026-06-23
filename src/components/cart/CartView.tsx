@@ -74,9 +74,12 @@ export default function CartView() {
               </div>
             </div>
             <div className="my-4 h-px bg-line" />
-            <div className="flex items-center justify-between">
+            <div className="flex items-end justify-between">
               <span className="text-bone">{dict.common.total}</span>
-              <span className="font-display text-2xl font-bold text-cream">{formatPrice(subtotal, locale)}</span>
+              <span className="text-right">
+                <span className="font-display text-2xl font-bold text-cream">{formatPrice(subtotal, locale)}</span>{" "}
+                <span className="text-xs font-normal text-muted">{dict.common.plusTaxes}</span>
+              </span>
             </div>
             <LocaleLink href="/checkout" className="btn btn-gold mt-5 w-full">{c.checkout} →</LocaleLink>
             <LocaleLink href="/shop" className="btn btn-ghost mt-2 w-full">{c.continue}</LocaleLink>

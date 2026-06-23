@@ -107,6 +107,8 @@ model Product {
   availableAtPickup      Boolean      @default(true)
   /** Also offered through authorized distributors (separate stock). */
   availableAtDistributor Boolean      @default(false)
+  /** When true, the storefront hides this listing once it has zero stock everywhere (vs. showing a "Sold out" badge). */
+  hideWhenSoldOut        Boolean      @default(false)
   /** @deprecated unused — availability/price now comes from Specimen rows. */
   sizes                  ProductSize[]
   distributorStocks      ProductDistributorStock[]

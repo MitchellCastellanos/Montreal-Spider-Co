@@ -1,14 +1,14 @@
 import type { MetadataRoute } from "next";
 import { SITE } from "@/lib/site";
 import { locales } from "@/i18n/config";
-import { getAllProducts } from "@/lib/data/products";
+import { getStorefrontProducts } from "@/lib/data/products";
 import { CARE_GUIDES } from "@/lib/care";
 
 const STATIC_PATHS = ["", "/shop", "/care", "/verified-origin", "/delivery", "/about", "/faq", "/contact"];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries: MetadataRoute.Sitemap = [];
-  const products = await getAllProducts();
+  const products = await getStorefrontProducts();
 
   const add = (path: string, priority: number, changeFrequency: "weekly" | "monthly" | "daily") => {
     for (const locale of locales) {

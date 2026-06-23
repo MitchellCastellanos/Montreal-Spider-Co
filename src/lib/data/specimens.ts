@@ -523,6 +523,65 @@ export async function writeOffSpecimens(input: WriteOffInput): Promise<void> {
   await syncAggregateStock();
 }
 
+export interface UpdateSpecimenInput {
+  sizeCm: number;
+  sex: SpecimenSex;
+  unitCost: number;
+  price: number;
+  locationType: SpecimenLocationType;
+  locationId?: string | null;
+  notes: string;
+}
+
+/** Inline quick-edit from the inventory list — size/sex/cost/price/location/notes for a specimen still in hand. */
+export async function updateSpecimen(specimenId: string, input: UpdateSpecimenInput): Promise<void> {
+  const db = requireDb();
+  if (!(input.sizeCm > 0)) throw new Error("Size (cm) must be greater than 0.");
+
+  const locationId = input.locationType === "consignment" ? input.locationId || null : null;
+  if (input.locationType === "consignment" && !locationId) {
+    throw new Error("Distributor location is required.");
+  }
+
+  await db.$transaction(async (tx) => {
+    const s = await tx.specimen.findUnique({ where: { id: specimenId } });
+    if (!s) throw new Error("Specimen not found.");
+    if (s.status === "sold" || s.status === "written_off") {
+      throw new Error("Cannot edit a sold or written-off specimen.");
+    }
+
+    const locationChanged = input.locationType !== s.locationType || locationId !== s.locationId;
+
+    await tx.specimen.update({
+      where: { id: specimenId },
+      data: {
+        sizeCm: input.sizeCm,
+        sex: input.sex,
+        unitCost: Math.max(0, input.unitCost),
+        price: Math.max(0, input.price),
+        notes: input.notes,
+        locationType: input.locationType,
+        locationId,
+        status: input.locationType === "consignment" ? "consignment" : "available",
+      },
+    });
+
+    if (locationChanged) {
+      await recordMovement(tx, {
+        specimenId,
+        type: "transfer",
+        fromLocationType: s.locationType,
+        fromLocationId: s.locationId,
+        toLocationType: input.locationType,
+        toLocationId: locationId,
+        notes: "Edited via inventory quick-edit",
+      });
+    }
+  });
+
+  await syncAggregateStock();
+}
+
 export async function updateTarantulAppId(specimenId: string, tarantulAppId: string | null): Promise<void> {
   const db = requireDb();
   const trimmed = tarantulAppId?.trim() || null;

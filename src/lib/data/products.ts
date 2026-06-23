@@ -7,7 +7,7 @@ import { getDistributors } from "@/lib/data/distributors";
 import { listAvailabilityGroups } from "@/lib/data/specimens";
 import { PRODUCTS as SEED, GENERA as SEED_GENERA } from "@/lib/products";
 import { parseWeeklyHours, EMPTY_WEEKLY_HOURS } from "@/lib/opening-hours";
-import type { AvailableUnit, DistributorSnippet, Product, ProductDistributorStock } from "@/lib/types";
+import { isStorefrontVisible, type AvailableUnit, type DistributorSnippet, type Product, type ProductDistributorStock } from "@/lib/types";
 
 export type { Product };
 
@@ -55,6 +55,7 @@ function mapProduct(p: DbProductFull, defaultImage?: string | null): Product {
     newArrival: p.newArrival,
     availableAtPickup: p.availableAtPickup,
     availableAtDistributor: p.availableAtDistributor,
+    hideWhenSoldOut: p.hideWhenSoldOut,
     distributorStocks,
     distributors: p.availableAtDistributor ? distributors : undefined,
     hue: p.hue,
@@ -202,13 +203,19 @@ export async function getProductByIdForAdmin(id: string): Promise<Product | null
   return (await attachDistributorDetails([found]))[0];
 }
 
-export async function getFeatured(count = 4): Promise<Product[]> {
+/** Public-facing products only — excludes listings the admin hid once sold out. Admin pages use getAllProducts() directly. */
+export async function getStorefrontProducts(): Promise<Product[]> {
   const all = await getAllProducts();
+  return all.filter(isStorefrontVisible);
+}
+
+export async function getFeatured(count = 4): Promise<Product[]> {
+  const all = await getStorefrontProducts();
   return all.filter((p) => p.featured).slice(0, count);
 }
 
 export async function getRelated(product: Product, count = 3): Promise<Product[]> {
-  const all = await getAllProducts();
+  const all = await getStorefrontProducts();
   return all
     .filter((o) => o.id !== product.id && (o.genus === product.genus || o.experience === product.experience))
     .slice(0, count);
@@ -244,6 +251,7 @@ export interface ProductInput {
   newArrival: boolean;
   availableAtPickup: boolean;
   availableAtDistributor: boolean;
+  hideWhenSoldOut: boolean;
   hue: number;
   accent: string;
   image: string | null;

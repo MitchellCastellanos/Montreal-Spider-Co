@@ -86,7 +86,10 @@ export default function ProductCard({ product }: { product: Product }) {
         <div className="mt-auto flex items-end justify-between gap-2 pt-2">
           <div>
             <p className="text-[11px] uppercase tracking-wide text-muted">{dict.common.from}</p>
-            <p className="font-display text-xl font-bold text-cream">{formatPrice(basePrice(product), locale)}</p>
+            <p className="font-display text-xl font-bold text-cream">
+              {formatPrice(basePrice(product), locale)}{" "}
+              <span className="text-xs font-normal text-muted">{dict.common.plusTaxes}</span>
+            </p>
             {low && <p className="text-[11px] text-gold-deep">{dict.common.lowStock}</p>}
           </div>
           <button

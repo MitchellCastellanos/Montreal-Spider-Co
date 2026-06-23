@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { isLocale, locales, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
-import { getProductBySlug, getRelated, getAllProducts } from "@/lib/data/products";
+import { getProductBySlug, getRelated, getStorefrontProducts } from "@/lib/data/products";
 import { t } from "@/lib/types";
 import { localeHref } from "@/lib/href";
 import { formatPrice } from "@/lib/format";
@@ -21,7 +21,7 @@ export const revalidate = 60;
 export const dynamicParams = true;
 
 export async function generateStaticParams() {
-  const products = await getAllProducts();
+  const products = await getStorefrontProducts();
   return locales.flatMap((locale) => products.map((p) => ({ locale, slug: p.slug })));
 }
 
@@ -146,7 +146,8 @@ export default async function ProductPage({
 
             <p className="mt-3 text-2xl font-bold text-cream">
               <span className="text-sm font-normal text-muted">{dict.common.from} </span>
-              {formatPrice(basePrice(product), loc)}
+              {formatPrice(basePrice(product), loc)}{" "}
+              <span className="text-sm font-normal text-muted">{dict.common.plusTaxes}</span>
             </p>
 
             <div className="my-6 h-px bg-line" />

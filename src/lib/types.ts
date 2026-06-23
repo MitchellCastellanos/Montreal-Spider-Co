@@ -61,6 +61,8 @@ export interface Product {
   availableAtPickup?: boolean;
   /** Also available through authorized distributors (separate stock). */
   availableAtDistributor?: boolean;
+  /** When true, hide this listing from storefront pages once it has zero stock everywhere. */
+  hideWhenSoldOut?: boolean;
   /** Per-distributor stock counts (admin + storefront tooltips). */
   distributorStocks?: ProductDistributorStock[];
   /** Distributors carrying this product (populated when availableAtDistributor). */
@@ -108,4 +110,14 @@ export function isPurchasableOnline(p: Product): boolean {
 
 export function isAvailableAtDistributor(p: Product): boolean {
   return !!(p.availableAtDistributor && (p.distributors?.length ?? 0) > 0);
+}
+
+/** No stock left through any channel (online warehouse or distributor). */
+export function isSoldOut(p: Product): boolean {
+  return !isPurchasableOnline(p) && !isAvailableAtDistributor(p);
+}
+
+/** False when the admin chose to hide this listing once it sells out everywhere. */
+export function isStorefrontVisible(p: Product): boolean {
+  return !(p.hideWhenSoldOut && isSoldOut(p));
 }

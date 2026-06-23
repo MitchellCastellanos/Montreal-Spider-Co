@@ -8,6 +8,7 @@ import {
   transferSpecimensAction,
   deleteSpecimensAction,
   updateTarantulAppIdAction,
+  updateSpecimenAction,
   writeOffSpecimensAction,
   type ActionState,
 } from "@/app/[locale]/admin/actions";
@@ -157,7 +158,9 @@ export default function InventoryHub({
                   <th className="px-3 py-3">Status</th>
                   <th className="px-3 py-3">Location</th>
                   <th className="px-3 py-3">Cost</th>
+                  <th className="px-3 py-3">Price</th>
                   <th className="px-3 py-3">Purchased</th>
+                  <th className="px-3 py-3" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -168,11 +171,12 @@ export default function InventoryHub({
                     locale={locale}
                     checked={selected.has(s.id)}
                     onToggle={() => toggle(s.id)}
+                    distributors={distributors}
                   />
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-muted">
+                    <td colSpan={10} className="px-4 py-8 text-center text-muted">
                       No specimens match. Use &quot;Receive stock&quot; to add inventory.
                     </td>
                   </tr>
@@ -248,67 +252,199 @@ function SpecimenRow({
   locale,
   checked,
   onToggle,
+  distributors,
 }: {
   s: SpecimenView;
   locale: Locale;
   checked: boolean;
   onToggle: () => void;
+  distributors: DistributorView[];
 }) {
-  const [state, action, pending] = useActionState<ActionState, FormData>(updateTarantulAppIdAction, {});
-  const [editing, setEditing] = useState(false);
+  const [taState, taAction, taPending] = useActionState<ActionState, FormData>(updateTarantulAppIdAction, {});
+  const [taEditing, setTaEditing] = useState(false);
   const [taId, setTaId] = useState(s.tarantulAppId ?? "");
 
+  const [editState, editAction, editPending] = useActionState<ActionState, FormData>(updateSpecimenAction, {});
+  const [editing, setEditing] = useState(false);
+  const [sizeCm, setSizeCm] = useState(s.sizeCm);
+  const [sex, setSex] = useState(s.sex);
+  const [unitCost, setUnitCost] = useState(s.unitCost);
+  const [price, setPrice] = useState(s.price);
+  const [locationType, setLocationType] = useState(s.locationType);
+  const [locationId, setLocationId] = useState(s.locationId ?? "");
+  const [notes, setNotes] = useState(s.notes ?? "");
+
+  const locked = s.status === "sold" || s.status === "written_off";
   const location =
     s.locationType === "warehouse" ? "Warehouse" : (s.locationName ?? "Distributor");
 
   return (
-    <tr className="text-bone">
-      <td className="px-3 py-2">
-        <input type="checkbox" checked={checked} onChange={onToggle} className="accent-[var(--gold)]" />
-      </td>
-      <td className="px-3 py-2">
-        {editing ? (
-          <form action={action} className="flex gap-1">
-            <input type="hidden" name="specimenId" value={s.id} />
-            <input
-              name="tarantulAppId"
-              value={taId}
-              onChange={(e) => setTaId(e.target.value)}
-              className="input py-1 text-xs"
-              placeholder="TarantulApp ID"
-            />
-            <button type="submit" disabled={pending} className="rounded border border-line px-2 text-xs text-cream">
-              Save
+    <>
+      <tr className="text-bone">
+        <td className="px-3 py-2">
+          <input type="checkbox" checked={checked} onChange={onToggle} className="accent-[var(--gold)]" />
+        </td>
+        <td className="px-3 py-2">
+          {taEditing ? (
+            <form action={taAction} className="flex gap-1">
+              <input type="hidden" name="specimenId" value={s.id} />
+              <input
+                name="tarantulAppId"
+                value={taId}
+                onChange={(e) => setTaId(e.target.value)}
+                className="input py-1 text-xs"
+                placeholder="TarantulApp ID"
+              />
+              <button type="submit" disabled={taPending} className="rounded border border-line px-2 text-xs text-cream">
+                Save
+              </button>
+              <button type="button" onClick={() => setTaEditing(false)} className="text-xs text-muted">×</button>
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setTaEditing(true)}
+              className="text-left text-cream hover:text-gold-bright"
+              title="Click to set TarantulApp ID"
+            >
+              {s.tarantulAppId || <span className="text-muted italic">— add ID —</span>}
             </button>
-            <button type="button" onClick={() => setEditing(false)} className="text-xs text-muted">×</button>
-          </form>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="text-left text-cream hover:text-gold-bright"
-            title="Click to set TarantulApp ID"
-          >
-            {s.tarantulAppId || <span className="text-muted italic">— add ID —</span>}
-          </button>
-        )}
-        {state.error && <p className="text-xs text-danger">{state.error}</p>}
-        {state.ok && editing && <p className="text-xs text-ok">Saved</p>}
-      </td>
-      <td className="px-3 py-2">
-        <p className="font-medium text-cream">{s.productName}</p>
-        <p className="text-xs italic text-muted">{s.scientific}</p>
-      </td>
-      <td className="px-3 py-2">{s.sizeLabel}</td>
-      <td className="px-3 py-2">
-        <span className="rounded-full border border-line px-2 py-0.5 text-[10px] uppercase">
-          {STATUS_LABELS[s.status] ?? s.status}
-        </span>
-      </td>
-      <td className="px-3 py-2 text-xs">{location}</td>
-      <td className="px-3 py-2">{formatPrice(s.unitCost, locale)}</td>
-      <td className="px-3 py-2 text-xs text-muted">{s.purchasedAt}</td>
-    </tr>
+          )}
+          {taState.error && <p className="text-xs text-danger">{taState.error}</p>}
+          {taState.ok && taEditing && <p className="text-xs text-ok">Saved</p>}
+        </td>
+        <td className="px-3 py-2">
+          <p className="font-medium text-cream">{s.productName}</p>
+          <p className="text-xs italic text-muted">{s.scientific}</p>
+        </td>
+        <td className="px-3 py-2">{s.sizeLabel}</td>
+        <td className="px-3 py-2">
+          <span className="rounded-full border border-line px-2 py-0.5 text-[10px] uppercase">
+            {STATUS_LABELS[s.status] ?? s.status}
+          </span>
+        </td>
+        <td className="px-3 py-2 text-xs">{location}</td>
+        <td className="px-3 py-2">{formatPrice(s.unitCost, locale)}</td>
+        <td className="px-3 py-2">{formatPrice(s.price, locale)}</td>
+        <td className="px-3 py-2 text-xs text-muted">{s.purchasedAt}</td>
+        <td className="px-3 py-2">
+          {!locked && (
+            <button
+              type="button"
+              onClick={() => setEditing((v) => !v)}
+              className="rounded border border-line px-2 py-1 text-xs text-cream hover:bg-ink-soft"
+            >
+              {editing ? "Close" : "Edit"}
+            </button>
+          )}
+        </td>
+      </tr>
+      {editing && !locked && (
+        <tr className="bg-ink-soft/30">
+          <td colSpan={10} className="px-4 py-4">
+            <form action={editAction} className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              <input type="hidden" name="specimenId" value={s.id} />
+              <label className="field">
+                <span>Size (cm)</span>
+                <input
+                  name="sizeCm"
+                  type="number"
+                  step="0.1"
+                  min={0}
+                  value={sizeCm}
+                  onChange={(e) => setSizeCm(Number(e.target.value))}
+                  className="input"
+                  required
+                />
+              </label>
+              <label className="field">
+                <span>Sex</span>
+                <select name="sex" value={sex} onChange={(e) => setSex(e.target.value as typeof sex)} className="input">
+                  <option value="unsexed">Unsexed</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </select>
+              </label>
+              <label className="field">
+                <span>Cost ($)</span>
+                <input
+                  name="unitCost"
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  value={unitCost}
+                  onChange={(e) => setUnitCost(Number(e.target.value))}
+                  className="input"
+                />
+              </label>
+              <label className="field">
+                <span>Price ($)</span>
+                <input
+                  name="price"
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  value={price}
+                  onChange={(e) => setPrice(Number(e.target.value))}
+                  className="input"
+                />
+              </label>
+              <label className="field">
+                <span>Location</span>
+                <select
+                  name="locationType"
+                  value={locationType}
+                  onChange={(e) => {
+                    setLocationType(e.target.value as typeof locationType);
+                    setLocationId("");
+                  }}
+                  className="input"
+                >
+                  <option value="warehouse">Warehouse</option>
+                  <option value="consignment">Distributor</option>
+                </select>
+              </label>
+              {locationType === "consignment" && (
+                <label className="field">
+                  <span>Distributor</span>
+                  <select
+                    name="locationId"
+                    value={locationId}
+                    onChange={(e) => setLocationId(e.target.value)}
+                    className="input"
+                    required
+                  >
+                    <option value="">Select…</option>
+                    {distributors.map((d) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <label className="field sm:col-span-3 lg:col-span-6">
+                <span>Notes</span>
+                <input
+                  name="notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="input"
+                />
+              </label>
+              <div className="flex items-center gap-3 sm:col-span-3 lg:col-span-6">
+                <button type="submit" disabled={editPending} className="btn btn-gold">
+                  {editPending ? "Saving…" : "Save"}
+                </button>
+                <button type="button" onClick={() => setEditing(false)} className="text-sm text-muted">
+                  Cancel
+                </button>
+                {editState.error && <p className="text-sm text-danger">{editState.error}</p>}
+                {editState.ok && <p className="text-sm text-ok">Saved</p>}
+              </div>
+            </form>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 

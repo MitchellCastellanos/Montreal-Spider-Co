@@ -28,6 +28,7 @@ import {
   transferToWarehouse,
   writeOffSpecimens,
   updateTarantulAppId,
+  updateSpecimen,
   exportSoldSpecimensCsv,
   syncAggregateStock,
   deleteSpecimens,
@@ -161,6 +162,7 @@ export async function saveProductAction(_prev: ActionState, formData: FormData):
     newArrival: bool(formData, "newArrival"),
     availableAtPickup: bool(formData, "availableAtPickup"),
     availableAtDistributor: bool(formData, "availableAtDistributor"),
+    hideWhenSoldOut: bool(formData, "hideWhenSoldOut"),
     hue: Math.round(num(formData, "hue", 36)),
     accent: str(formData, "accent") || "#c9a24b",
     image,
@@ -466,6 +468,30 @@ export async function updateTarantulAppIdAction(_prev: ActionState, formData: Fo
 
   try {
     await updateTarantulAppId(str(formData, "specimenId"), str(formData, "tarantulAppId") || null);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "update_failed" };
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function updateSpecimenAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  if (!(await isAdminAuthed())) return { error: "unauthorized" };
+
+  const sizeCm = Number(formData.get("sizeCm"));
+  if (!Number.isFinite(sizeCm) || sizeCm <= 0) return { error: "Size (cm) must be greater than 0." };
+
+  try {
+    await updateSpecimen(str(formData, "specimenId"), {
+      sizeCm,
+      sex: (str(formData, "sex") === "male" || str(formData, "sex") === "female" ? str(formData, "sex") : "unsexed") as SpecimenSex,
+      unitCost: num(formData, "unitCost", 0),
+      price: num(formData, "price", 0),
+      locationType: str(formData, "locationType") === "consignment" ? "consignment" : "warehouse",
+      locationId: str(formData, "locationId") || null,
+      notes: str(formData, "notes"),
+    });
   } catch (e) {
     return { error: e instanceof Error ? e.message : "update_failed" };
   }
