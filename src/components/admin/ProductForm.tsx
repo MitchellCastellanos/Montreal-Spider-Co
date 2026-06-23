@@ -127,6 +127,7 @@ export default function ProductForm({
 
   const [availableAtPickup, setAvailableAtPickup] = useState(product?.availableAtPickup ?? true);
   const [availableAtDistributor, setAvailableAtDistributor] = useState(product?.availableAtDistributor ?? false);
+  const [hideWhenSoldOut, setHideWhenSoldOut] = useState(product?.hideWhenSoldOut ?? false);
   const [distributorStocks, setDistributorStocks] = useState<DistributorStockRow[]>(() =>
     distributors.map((d) => ({
       distributorId: d.id,
@@ -315,6 +316,16 @@ export default function ProductForm({
               {totalStock(product) > 0 ? ` from $${basePrice(product).toFixed(2)}` : ""}.
             </p>
           )}
+          <label className="mt-4 flex items-center gap-2 text-sm text-bone">
+            <input
+              type="checkbox"
+              name="hideWhenSoldOut"
+              checked={hideWhenSoldOut}
+              onChange={(e) => setHideWhenSoldOut(e.target.checked)}
+              className="accent-[var(--gold)]"
+            />
+            Hide this listing once it&apos;s sold out everywhere (instead of showing a &quot;Sold out&quot; badge)
+          </label>
         </Section>
 
         <Section title="Availability channels">

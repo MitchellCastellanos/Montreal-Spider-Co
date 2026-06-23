@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllProducts } from '@/lib/data/products';
+import { getStorefrontProducts } from '@/lib/data/products';
 import crypto from 'node:crypto';
 
 /**
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const products = await getAllProducts();
+    const products = await getStorefrontProducts();
     return NextResponse.json(products);
   } catch (error) {
     console.error('Error fetching products:', error);

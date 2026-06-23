@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
-import { getAllProducts, getGenera } from "@/lib/data/products";
+import { getStorefrontProducts, getGenera } from "@/lib/data/products";
 import { localeHref } from "@/lib/href";
 import ShopClient from "@/components/shop/ShopClient";
 
@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 }
 
 export default async function ShopPage() {
-  const [products, genera] = await Promise.all([getAllProducts(), getGenera()]);
+  const [products, genera] = await Promise.all([getStorefrontProducts(), getGenera()]);
   return (
     <Suspense fallback={<div className="container-x py-20 text-muted">Loading…</div>}>
       <ShopClient products={products} genera={genera} />

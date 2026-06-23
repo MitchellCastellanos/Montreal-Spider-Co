@@ -5,7 +5,7 @@ import Image from "next/image";
 import { isLocale, locales, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { CARE_GUIDES, getCareGuide } from "@/lib/care";
-import { getAllProducts } from "@/lib/data/products";
+import { getStorefrontProducts } from "@/lib/data/products";
 import { t } from "@/lib/types";
 import { localeHref } from "@/lib/href";
 import { breadcrumbSchema } from "@/lib/seo";
@@ -43,7 +43,7 @@ export default async function CareGuidePage({ params }: { params: Promise<{ loca
   if (!guide) notFound();
   const dict = await getDictionary(loc);
 
-  const allProducts = await getAllProducts();
+  const allProducts = await getStorefrontProducts();
   const beginnerSpecies = allProducts.filter((p) => p.experience === "beginner").slice(0, 3);
 
   return (

@@ -112,7 +112,10 @@ export default function CartDrawer() {
               <footer className="border-t border-line px-5 py-4">
                 <div className="mb-3 flex items-center justify-between text-sm">
                   <span className="text-bone">{c.subtotal}</span>
-                  <span className="text-lg font-bold text-cream">{formatPrice(subtotal, locale)}</span>
+                  <span className="text-lg font-bold text-cream">
+                    {formatPrice(subtotal, locale)}{" "}
+                    <span className="text-xs font-normal text-muted">{dict.common.plusTaxes}</span>
+                  </span>
                 </div>
                 <p className="mb-3 text-xs text-muted">{c.shippingAtCheckout}</p>
                 <LocaleLink href="/checkout" onClick={closeCart} className="btn btn-gold w-full">

@@ -21,6 +21,7 @@
   },
   "common": {
     "from": "From",
+    "plusTaxes": "+ taxes",
     "addToCart": "Add to cart",
     "added": "Added",
     "soldOut": "Sold out",
