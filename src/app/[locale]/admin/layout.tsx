@@ -32,7 +32,7 @@ export default async function AdminLayout({
   }
 
   const nav = [
-    { href: "/admin", label: "Products" },
+    { href: "/admin", label: "Listings" },
     { href: "/admin/inventory", label: "Inventory" },
     { href: "/admin/finance", label: "Finance" },
     { href: "/admin/pickup", label: "Locations" },

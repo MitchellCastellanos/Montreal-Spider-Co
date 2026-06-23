@@ -3,7 +3,7 @@ import type { Species as DbSpecies } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { logDbFallback } from "@/lib/data/db-safe";
 import { PRODUCTS as SEED } from "@/lib/products";
-import { deriveGenus } from "@/lib/species-utils";
+import { deriveGenus, deriveHue, deriveAccent } from "@/lib/species-utils";
 
 export type SpeciesProfile = {
   id: string;
@@ -161,6 +161,47 @@ export async function upsertSpecies(input: SpeciesInput): Promise<string> {
     update: data,
   });
   return row.id;
+}
+
+/** Create or update a minimal species profile (e.g. when receiving stock for a new species). */
+export async function upsertSpeciesMinimal(
+  scientific: string,
+  commonEn: string,
+  commonFr?: string,
+): Promise<string> {
+  const sci = scientific.trim();
+  const en = commonEn.trim();
+  if (!sci || !en) throw new Error("Scientific and common name (EN) are required.");
+
+  return upsertSpecies({
+    scientific: sci,
+    commonEn: en,
+    commonFr: (commonFr ?? en).trim() || en,
+    genus: deriveGenus(sci),
+    experience: "beginner",
+    type: "terrestrial",
+    temperament: "docile",
+    hue: deriveHue(sci),
+    accent: deriveAccent(sci),
+    image: null,
+    adultSizeEn: "",
+    adultSizeFr: "",
+    growthEn: "",
+    growthFr: "",
+    originEn: "",
+    originFr: "",
+    lifespanEn: "",
+    lifespanFr: "",
+    humidity: "",
+    temperature: "",
+    enclosureEn: "",
+    enclosureFr: "",
+    dietEn: "",
+    dietFr: "",
+    descriptionEn: "",
+    descriptionFr: "",
+    careGuide: null,
+  });
 }
 
 /** Link a product to its species row (creates species if missing). */

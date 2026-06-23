@@ -7,6 +7,7 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
+  ensureProductListingForSpecies,
   type ProductInput,
   type ProductDistributorStockInput,
 } from "@/lib/data/products";
@@ -20,7 +21,7 @@ import {
 import { updateSettings } from "@/lib/data/settings";
 import { sendTemplateTestEmail } from "@/lib/email";
 import { addLibraryImage } from "@/lib/data/species-library";
-import { linkProductToSpecies, type SpeciesInput } from "@/lib/data/species";
+import { linkProductToSpecies, upsertSpeciesMinimal, type SpeciesInput } from "@/lib/data/species";
 import {
   receiveSpecimenBatch,
   sellSpecimensManual,
@@ -312,7 +313,10 @@ export async function sendTestEmailAction(_prev: ActionState, formData: FormData
 // --- Inventory & specimens -------------------------------------------------
 
 interface ReceiveBatchRowForm {
-  productId: string;
+  speciesId?: string;
+  newSpecies?: { scientific: string; commonEn: string; commonFr?: string };
+  /** @deprecated legacy — resolved from speciesId when receiving */
+  productId?: string;
   sizeCm: number;
   sex?: string;
   unitCost?: number;
@@ -327,6 +331,35 @@ interface ReceiveBatchRowForm {
   tarantulAppIds?: string[];
 }
 
+async function resolveReceiveListing(
+  r: ReceiveBatchRowForm,
+  cache: Map<string, string>,
+): Promise<string> {
+  if (r.speciesId?.startsWith("legacy:")) {
+    return r.speciesId.slice("legacy:".length);
+  }
+  if (r.speciesId) {
+    const key = `species:${r.speciesId}`;
+    if (!cache.has(key)) cache.set(key, await ensureProductListingForSpecies(r.speciesId));
+    return cache.get(key)!;
+  }
+  if (r.newSpecies?.scientific?.trim() && r.newSpecies?.commonEn?.trim()) {
+    const sci = r.newSpecies.scientific.trim().toLowerCase();
+    const key = `new:${sci}`;
+    if (!cache.has(key)) {
+      const speciesId = await upsertSpeciesMinimal(
+        r.newSpecies.scientific.trim(),
+        r.newSpecies.commonEn.trim(),
+        r.newSpecies.commonFr,
+      );
+      cache.set(key, await ensureProductListingForSpecies(speciesId));
+    }
+    return cache.get(key)!;
+  }
+  if (r.productId) return r.productId;
+  throw new Error("Select a species or enter a new one.");
+}
+
 export async function receiveBatchAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   if (!(await isAdminAuthed())) return { error: "unauthorized" };
   const locale = str(formData, "locale") || "en";
@@ -339,13 +372,21 @@ export async function receiveBatchAction(_prev: ActionState, formData: FormData)
   }
   if (!Array.isArray(rawRows) || rawRows.length === 0) return { error: "rows_empty" };
 
+  const listingCache = new Map<string, string>();
   const rows: ReceiveBatchRowInput[] = [];
   for (let i = 0; i < rawRows.length; i++) {
     const r = rawRows[i];
     const sizeCm = Number(r.sizeCm);
     const quantity = Math.round(Number(r.quantity));
-    if (!r.productId || !Number.isFinite(sizeCm) || sizeCm <= 0) return { error: "rows_invalid" };
+    if (!Number.isFinite(sizeCm) || sizeCm <= 0) return { error: "rows_invalid" };
     if (!Number.isFinite(quantity) || quantity < 1) return { error: "rows_invalid" };
+
+    let productId: string;
+    try {
+      productId = await resolveReceiveListing(r, listingCache);
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "species_required" };
+    }
 
     let photoUrl: string | null = r.photoUrl ?? null;
     const file = formData.get(`photoFile-${i}`);
@@ -359,7 +400,7 @@ export async function receiveBatchAction(_prev: ActionState, formData: FormData)
     }
 
     rows.push({
-      productId: r.productId,
+      productId,
       sizeCm,
       sex: (r.sex === "male" || r.sex === "female" ? r.sex : "unsexed") as SpecimenSex,
       unitCost: Number(r.unitCost) || 0,

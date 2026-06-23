@@ -43,7 +43,10 @@ export default function FinanceDashboard({
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-bold text-cream">Finance</h1>
-          <p className="text-sm text-muted">Inventory value, sales, and margins (all time for sold specimens).</p>
+          <p className="text-sm text-muted">
+            Inventory value uses specimen cost; sales and margins use sold specimens — receive stock and register
+            sales in Inventory.
+          </p>
         </div>
         <Link href={localeHref(locale, "/admin/inventory")} className="btn btn-ghost text-sm">
           ← Inventory
@@ -51,8 +54,8 @@ export default function FinanceDashboard({
       </div>
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Inventory value (warehouse)" value={formatPrice(summary.inventoryValue, locale)} sub={`${summary.inventoryCount} specimens`} />
-        <StatCard label="Consignment value" value={formatPrice(summary.consignmentValue, locale)} sub={`${summary.consignmentCount} at distributors`} />
+        <StatCard label="Inventory value (warehouse)" value={formatPrice(summary.inventoryValue, locale)} sub={`${summary.inventoryCount} specimens at cost`} />
+        <StatCard label="Consignment value" value={formatPrice(summary.consignmentValue, locale)} sub={`${summary.consignmentCount} at distributors (cost)`} />
         <StatCard label="Total sales" value={formatPrice(summary.salesTotal, locale)} sub={`${summary.soldCount} sold`} />
         <StatCard
           label="Gross margin"

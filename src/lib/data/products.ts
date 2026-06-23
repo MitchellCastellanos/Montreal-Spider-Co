@@ -4,7 +4,10 @@ import { prisma, hasDatabase } from "@/lib/db";
 import { getDefaultProductImage } from "@/lib/data/site-settings";
 import { logDbFallback } from "@/lib/data/db-safe";
 import { getDistributors } from "@/lib/data/distributors";
+import { getDistributorLocations } from "@/lib/data/locations";
 import { listAvailabilityGroups } from "@/lib/data/specimens";
+import { getSpeciesById, type SpeciesProfile } from "@/lib/data/species";
+import { deriveSlug } from "@/lib/species-utils";
 import { PRODUCTS as SEED, GENERA as SEED_GENERA } from "@/lib/products";
 import { parseWeeklyHours, EMPTY_WEEKLY_HOURS } from "@/lib/opening-hours";
 import { isStorefrontVisible, type AvailableUnit, type DistributorSnippet, type Product, type ProductDistributorStock } from "@/lib/types";
@@ -316,4 +319,96 @@ export async function updateProduct(id: string, input: ProductInput): Promise<vo
 export async function deleteProduct(id: string): Promise<void> {
   const db = requireDb();
   await db.product.delete({ where: { id } });
+}
+
+function speciesProfileToProductInput(
+  species: SpeciesProfile,
+  slug: string,
+  distributorStocks: ProductDistributorStockInput[],
+): ProductInput {
+  return {
+    slug,
+    scientific: species.scientific,
+    commonEn: species.commonEn,
+    commonFr: species.commonFr || species.commonEn,
+    genus: species.genus,
+    experience: species.experience,
+    type: species.type,
+    temperament: species.temperament,
+    featured: false,
+    newArrival: true,
+    availableAtPickup: true,
+    availableAtDistributor: false,
+    hideWhenSoldOut: false,
+    hue: species.hue,
+    accent: species.accent,
+    image: species.image,
+    adultSizeEn: species.adultSizeEn,
+    adultSizeFr: species.adultSizeFr,
+    growthEn: species.growthEn,
+    growthFr: species.growthFr,
+    originEn: species.originEn,
+    originFr: species.originFr,
+    lifespanEn: species.lifespanEn,
+    lifespanFr: species.lifespanFr,
+    humidity: species.humidity,
+    temperature: species.temperature,
+    enclosureEn: species.enclosureEn,
+    enclosureFr: species.enclosureFr,
+    dietEn: species.dietEn,
+    dietFr: species.dietFr,
+    descriptionEn: species.descriptionEn,
+    descriptionFr: species.descriptionFr,
+    careGuide: species.careGuide,
+    distributorStocks,
+  };
+}
+
+async function uniqueProductSlug(base: string): Promise<string> {
+  const db = requireDb();
+  let slug = base;
+  let n = 2;
+  while (await db.product.findUnique({ where: { slug } })) {
+    slug = `${base}-${n++}`;
+  }
+  return slug;
+}
+
+/**
+ * Return the storefront listing for a species, creating one from the species profile when missing.
+ * Received stock always gets a visible listing (hideWhenSoldOut stays false).
+ */
+export async function ensureProductListingForSpecies(speciesId: string): Promise<string> {
+  const species = await getSpeciesById(speciesId);
+  if (!species) throw new Error("Species not found in catalog.");
+
+  const db = requireDb();
+  const existing = await db.product.findFirst({
+    where: {
+      OR: [{ speciesId }, { scientific: { equals: species.scientific, mode: "insensitive" } }],
+    },
+  });
+
+  if (existing) {
+    await db.product.update({
+      where: { id: existing.id },
+      data: {
+        speciesId,
+        hideWhenSoldOut: false,
+        newArrival: true,
+      },
+    });
+    return existing.id;
+  }
+
+  const distributors = await getDistributorLocations();
+  const distributorStocks = distributors
+    .filter((d) => d.isDistributor)
+    .map((d) => ({ distributorId: d.id, stock: 0 }));
+
+  const slug = await uniqueProductSlug(deriveSlug(species.scientific, species.commonEn));
+  const productId = await createProduct(speciesProfileToProductInput(species, slug, distributorStocks));
+
+  await db.product.update({ where: { id: productId }, data: { speciesId } });
+  return productId;
 }

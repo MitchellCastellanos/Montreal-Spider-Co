@@ -35,18 +35,24 @@ export default async function AdminProductsPage({ params }: { params: Promise<{ 
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl font-bold text-cream">Products & inventory</h1>
+          <h1 className="font-display text-2xl font-bold text-cream">Store listings</h1>
           <p className="text-sm text-muted">
-            {products.length} in catalog —{" "}
+            {products.length} listings — stock and prices come from{" "}
             <Link href={localeHref(loc, "/admin/inventory")} className="text-gold-bright hover:underline">
-              manage specimens
+              Inventory
             </Link>
+            . Receive stock there to create listings automatically.
           </p>
         </div>
         {hasDatabase && (
-          <Link href={localeHref(loc, "/admin/products/new")} className="btn btn-gold">
-            + New product
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href={localeHref(loc, "/admin/inventory?tab=receive")} className="btn btn-gold">
+              + Receive stock
+            </Link>
+            <Link href={localeHref(loc, "/admin/products/new")} className="btn btn-ghost text-sm">
+              Edit listing details
+            </Link>
+          </div>
         )}
       </div>
 
@@ -56,9 +62,8 @@ export default async function AdminProductsPage({ params }: { params: Promise<{ 
             <tr>
               <th className="px-4 py-3">Species</th>
               <th className="px-4 py-3">Channels</th>
-              <th className="px-4 py-3">Warehouse</th>
+              <th className="px-4 py-3">Warehouse (live)</th>
               <th className="px-4 py-3">At distributors</th>
-              <th className="px-4 py-3">From</th>
               <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
@@ -92,8 +97,11 @@ export default async function AdminProductsPage({ params }: { params: Promise<{ 
                       ))}
                     </div>
                   </td>
-                  <td className={`px-4 py-3 font-medium ${wh === 0 ? "text-muted" : wh <= 5 ? "text-gold-deep" : "text-cream"}`}>
-                    {wh}
+                  <td className={`px-4 py-3 ${wh === 0 ? "text-muted" : "text-cream"}`}>
+                    <p className={`font-medium ${wh === 0 ? "" : wh <= 5 ? "text-gold-deep" : ""}`}>{wh}</p>
+                    {wh > 0 && (
+                      <p className="mt-0.5 text-xs text-muted">from {formatPrice(basePrice(p), loc)}</p>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     {!p.availableAtDistributor ? (
@@ -111,7 +119,6 @@ export default async function AdminProductsPage({ params }: { params: Promise<{ 
                       <span className="text-muted">0 — none in stock</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-gold-bright">{formatPrice(basePrice(p), loc)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
                       {hasDatabase ? (

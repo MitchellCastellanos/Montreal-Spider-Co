@@ -373,6 +373,18 @@ export async function receiveSpecimenBatch(rows: ReceiveBatchRowInput[]): Promis
     }
   });
 
+  const arrivedByProduct = new Map<string, Date>();
+  for (const row of rows) {
+    const prev = arrivedByProduct.get(row.productId);
+    if (!prev || row.purchasedAt > prev) arrivedByProduct.set(row.productId, row.purchasedAt);
+  }
+  for (const [productId, arrived] of arrivedByProduct) {
+    await db.product.update({
+      where: { id: productId },
+      data: { arrived, newArrival: true, hideWhenSoldOut: false },
+    });
+  }
+
   const productIds = [...new Set(rows.map((r) => r.productId))];
   await Promise.all(productIds.map((id) => syncAggregateStock(id)));
   return ids;

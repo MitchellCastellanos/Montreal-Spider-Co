@@ -12,14 +12,14 @@ import ProductImageField from "@/components/admin/ProductImageField";
 import SpeciesChatGptHelper from "@/components/admin/SpeciesChatGptHelper";
 import type { DistributorView } from "@/lib/data/locations";
 import ConceptInfo from "@/components/ConceptInfo";
-import {
-  deriveAccent,
+import { deriveAccent,
   deriveGenus,
   deriveHue,
   deriveSlug,
   emptySpeciesFields,
   type SpeciesFormFields,
 } from "@/lib/species-utils";
+import { formatPrice } from "@/lib/format";
 import { basePrice, totalStock } from "@/lib/types";
 
 const EXPERIENCES = ["beginner", "intermediate", "advanced"];
@@ -301,19 +301,22 @@ export default function ProductForm({
           </p>
         )}
 
-        {/* Stock & pricing summary */}
-        <Section title="Warehouse stock & pricing">
-          <p className="text-sm text-bone">
-            Every specimen carries its own exact size, sex, cost and sale price — set when you receive it in{" "}
-            <Link href={localeHref(locale, "/admin/inventory")} className="text-gold-bright hover:underline">
-              Inventory → Receive batch
-            </Link>
-            . There are no size tiers to configure here; a specimen shows up on the storefront automatically once it's received as available.
-          </p>
+        {/* Stock & pricing — read-only from inventory */}
+        <Section title="Stock & pricing">
+          <div className="rounded-xl border border-gold/25 bg-gold/5 px-4 py-3 text-sm text-bone">
+            <p className="font-medium text-cream">Prices are not set on this page.</p>
+            <p className="mt-1">
+              Set cost and store price when you receive specimens in{" "}
+              <Link href={localeHref(locale, "/admin/inventory")} className="text-gold-bright hover:underline">
+                Inventory → Receive batch
+              </Link>
+              . The storefront updates automatically — no second step here.
+            </p>
+          </div>
           {product && (
             <p className="mt-3 text-sm text-cream">
-              Currently {totalStock(product)} available
-              {totalStock(product) > 0 ? ` from $${basePrice(product).toFixed(2)}` : ""}.
+              Live on storefront: {totalStock(product)} available
+              {totalStock(product) > 0 ? ` from ${formatPrice(basePrice(product), locale)}` : ""}.
             </p>
           )}
           <label className="mt-4 flex items-center gap-2 text-sm text-bone">

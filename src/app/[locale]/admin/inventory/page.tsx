@@ -3,12 +3,21 @@ import { getAllProducts } from "@/lib/data/products";
 import { getDistributorLocations } from "@/lib/data/locations";
 import { listSpecimens } from "@/lib/data/specimens";
 import { listLibraryImages } from "@/lib/data/species-library";
+import { listSpecies } from "@/lib/data/species";
 import { hasDatabase } from "@/lib/db";
-import InventoryHub from "@/components/admin/InventoryHub";
+import InventoryHub, { parseInventoryTab } from "@/components/admin/InventoryHub";
 
-export default async function AdminInventoryPage({ params }: { params: Promise<{ locale: string }> }) {
+export default async function AdminInventoryPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const { locale } = await params;
+  const { tab } = await searchParams;
   const loc: Locale = isLocale(locale) ? locale : "en";
+  const initialTab = parseInventoryTab(tab);
 
   if (!hasDatabase) {
     return (
@@ -19,9 +28,10 @@ export default async function AdminInventoryPage({ params }: { params: Promise<{
     );
   }
 
-  const [specimens, products, distributors, libraryImages] = await Promise.all([
+  const [specimens, products, speciesList, distributors, libraryImages] = await Promise.all([
     listSpecimens(),
     getAllProducts(),
+    listSpecies(),
     getDistributorLocations(),
     listLibraryImages(),
   ]);
@@ -30,9 +40,11 @@ export default async function AdminInventoryPage({ params }: { params: Promise<{
     <InventoryHub
       specimens={specimens}
       products={products}
+      speciesList={speciesList}
       distributors={distributors}
       libraryImages={libraryImages}
       locale={loc}
+      initialTab={initialTab}
     />
   );
 }

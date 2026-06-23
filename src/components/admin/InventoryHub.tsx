@@ -16,6 +16,7 @@ import { localeHref } from "@/lib/href";
 import type { SpecimenView } from "@/lib/data/specimens";
 import type { DistributorView } from "@/lib/data/locations";
 import type { LibraryImage } from "@/lib/data/species-library";
+import type { SpeciesProfile } from "@/lib/data/species";
 import type { Product } from "@/lib/types";
 import { formatCmAsInches } from "@/lib/size-inches";
 import {
@@ -30,20 +31,135 @@ import { formatPrice } from "@/lib/format";
 
 type Tab = "list" | "receive" | "transfer" | "sell" | "writeoff";
 
+const INVENTORY_TABS: Tab[] = ["list", "receive", "transfer", "sell", "writeoff"];
+
+export function parseInventoryTab(tab?: string): Tab {
+  return INVENTORY_TABS.includes(tab as Tab) ? (tab as Tab) : "list";
+}
+
+type ReceiveHints = { price: string; unitCost: string };
+
+/** Last received cost/price per species — used to pre-fill Receive batch rows. */
+function receiveHintsBySpecies(
+  specimens: SpecimenView[],
+  products: Product[],
+  speciesList: SpeciesProfile[],
+): Map<string, ReceiveHints> {
+  const sciToSpeciesId = new Map(speciesList.map((s) => [s.scientific.toLowerCase(), s.id]));
+  const productToSpecies = new Map<string, string>();
+  for (const p of products) {
+    const sid =
+      sciToSpeciesId.get(p.scientific.toLowerCase()) ??
+      speciesList.find((s) => s.scientific.toLowerCase() === p.scientific.toLowerCase())?.id ??
+      `legacy:${p.id}`;
+    productToSpecies.set(p.id, sid);
+  }
+
+  const latest = new Map<string, ReceiveHints & { purchasedAt: string }>();
+  for (const s of specimens) {
+    const speciesId = productToSpecies.get(s.productId);
+    if (!speciesId) continue;
+    const cur = latest.get(speciesId);
+    if (!cur || s.purchasedAt > cur.purchasedAt) {
+      latest.set(speciesId, {
+        price: String(s.price),
+        unitCost: String(s.unitCost),
+        purchasedAt: s.purchasedAt,
+      });
+    }
+  }
+  const out = new Map<string, ReceiveHints>();
+  for (const [id, v] of latest) {
+    out.set(id, { price: v.price, unitCost: v.unitCost });
+  }
+  for (const sp of speciesList) {
+    if (out.has(sp.id)) continue;
+    const p = products.find((pr) => pr.scientific.toLowerCase() === sp.scientific.toLowerCase());
+    if (p?.availability.length) {
+      const cheapest = p.availability.reduce((a, b) => (a.price <= b.price ? a : b));
+      out.set(sp.id, { price: String(cheapest.price), unitCost: "" });
+    }
+  }
+  return out;
+}
+
+function receiveSpeciesOptions(speciesList: SpeciesProfile[], products: Product[]): SpeciesProfile[] {
+  const covered = new Set(speciesList.map((s) => s.scientific.toLowerCase()));
+  const legacyFromProducts: SpeciesProfile[] = products
+    .filter((p) => !covered.has(p.scientific.toLowerCase()))
+    .map((p) => ({
+      id: `legacy:${p.id}`,
+      scientific: p.scientific,
+      commonEn: p.common.en,
+      commonFr: p.common.fr,
+      genus: p.genus,
+      experience: p.experience,
+      type: p.type,
+      temperament: p.temperament,
+      hue: p.hue,
+      accent: p.accent,
+      image: p.image ?? null,
+      adultSizeEn: p.adultSize.en,
+      adultSizeFr: p.adultSize.fr,
+      growthEn: p.growth.en,
+      growthFr: p.growth.fr,
+      originEn: p.origin.en,
+      originFr: p.origin.fr,
+      lifespanEn: p.lifespan.en,
+      lifespanFr: p.lifespan.fr,
+      humidity: p.humidity,
+      temperature: p.temperature,
+      enclosureEn: p.enclosure.en,
+      enclosureFr: p.enclosure.fr,
+      dietEn: p.diet.en,
+      dietFr: p.diet.fr,
+      descriptionEn: p.description.en,
+      descriptionFr: p.description.fr,
+      careGuide: p.careGuide ?? null,
+    }));
+  return [...speciesList, ...legacyFromProducts];
+}
+
+function hasStoreListing(speciesId: string, speciesList: SpeciesProfile[], products: Product[]): boolean {
+  if (speciesId.startsWith("legacy:")) return true;
+  const species = speciesList.find((s) => s.id === speciesId);
+  if (!species) return false;
+  return products.some((p) => p.scientific.toLowerCase() === species.scientific.toLowerCase());
+}
+
+function speciesDefaultImage(
+  speciesId: string,
+  speciesList: SpeciesProfile[],
+  products: Product[],
+): string | null {
+  if (speciesId.startsWith("legacy:")) {
+    return products.find((p) => p.id === speciesId.slice("legacy:".length))?.image ?? null;
+  }
+  const species = speciesList.find((s) => s.id === speciesId);
+  if (!species) return null;
+  if (species.image) return species.image;
+  const product = products.find((p) => p.scientific.toLowerCase() === species.scientific.toLowerCase());
+  return product?.image ?? null;
+}
+
 export default function InventoryHub({
   specimens,
   products,
+  speciesList,
   distributors,
   libraryImages,
   locale,
+  initialTab = "list",
 }: {
   specimens: SpecimenView[];
   products: Product[];
+  speciesList: SpeciesProfile[];
   distributors: DistributorView[];
   libraryImages: LibraryImage[];
   locale: Locale;
+  initialTab?: Tab;
 }) {
-  const [tab, setTab] = useState<Tab>("list");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [filterQ, setFilterQ] = useState("");
@@ -93,7 +209,8 @@ export default function InventoryHub({
         <div>
           <h1 className="font-display text-2xl font-bold text-cream">Specimen inventory</h1>
           <p className="text-sm text-muted">
-            Each spider is tracked individually. TarantulApp ID optional until you register it.
+            Receive stock here — each spider gets a storefront listing automatically. Finance tracks cost and sales
+            from these specimens.
           </p>
         </div>
         <Link href={localeHref(locale, "/admin/finance")} className="btn btn-ghost text-sm">
@@ -189,7 +306,9 @@ export default function InventoryHub({
 
       {tab === "receive" && (
         <ReceiveBatchForm
+          specimens={specimens}
           products={products}
+          speciesList={speciesList}
           distributors={distributors}
           libraryImages={libraryImages}
           locale={locale}
@@ -488,7 +607,10 @@ interface RowState {
 
 interface SpeciesBlock {
   key: string;
-  productId: string;
+  speciesId: string;
+  isNewSpecies: boolean;
+  newScientific: string;
+  newCommonEn: string;
   batchCount: string;
   purchasedAt: string;
   supplier: string;
@@ -502,13 +624,13 @@ function batchUid(prefix: string): string {
   return `${prefix}-${batchUidCounter}`;
 }
 
-function blankRow(): RowState {
+function blankRow(hints?: ReceiveHints): RowState {
   return {
     key: batchUid("row"),
     sizeCm: "",
     sex: "",
-    unitCost: "",
-    price: "",
+    unitCost: hints?.unitCost ?? "",
+    price: hints?.price ?? "",
     quantity: "1",
     photoMode: "default",
     photoPreview: null,
@@ -520,15 +642,18 @@ function blankRow(): RowState {
   };
 }
 
-function blankBlock(productId: string): SpeciesBlock {
+function blankBlock(speciesId: string, hints?: ReceiveHints, isNewSpecies = false): SpeciesBlock {
   return {
     key: batchUid("block"),
-    productId,
+    speciesId,
+    isNewSpecies,
+    newScientific: "",
+    newCommonEn: "",
     batchCount: "1",
     purchasedAt: new Date().toISOString().slice(0, 10),
     supplier: "",
     notes: "",
-    rows: [blankRow()],
+    rows: [blankRow(hints)],
   };
 }
 
@@ -590,22 +715,70 @@ function LibraryPickerPanel({
 }
 
 function ReceiveBatchForm({
+  specimens,
   products,
+  speciesList,
   distributors,
   libraryImages,
   locale,
 }: {
+  specimens: SpecimenView[];
   products: Product[];
+  speciesList: SpeciesProfile[];
   distributors: DistributorView[];
   libraryImages: LibraryImage[];
   locale: Locale;
 }) {
+  const priceHints = useMemo(
+    () => receiveHintsBySpecies(specimens, products, receiveSpeciesOptions(speciesList, products)),
+    [specimens, products, speciesList],
+  );
+  const catalogSpecies = useMemo(
+    () => receiveSpeciesOptions(speciesList, products),
+    [speciesList, products],
+  );
   const [state, action, pending] = useActionState<ActionState, FormData>(receiveBatchAction, {});
-  const [blocks, setBlocks] = useState<SpeciesBlock[]>(() => [blankBlock(products[0]?.id ?? "")]);
+  const [blocks, setBlocks] = useState<SpeciesBlock[]>(() => {
+    const firstId = catalogSpecies[0]?.id ?? "";
+    const isNew = catalogSpecies.length === 0;
+    return [blankBlock(firstId, isNew ? undefined : priceHints.get(firstId), isNew)];
+  });
   const [libraryPickerRow, setLibraryPickerRow] = useState<string | null>(null);
 
   const updateBlock = (blockKey: string, patch: Partial<SpeciesBlock>) =>
     setBlocks((prev) => prev.map((b) => (b.key === blockKey ? { ...b, ...patch } : b)));
+
+  const onSpeciesSelect = (blockKey: string, value: string) => {
+    if (value === "__new__") {
+      setBlocks((prev) =>
+        prev.map((b) =>
+          b.key === blockKey ? { ...b, isNewSpecies: true, speciesId: "", newScientific: "", newCommonEn: "" } : b,
+        ),
+      );
+      return;
+    }
+    const hints = priceHints.get(value);
+    setBlocks((prev) =>
+      prev.map((b) => {
+        if (b.key !== blockKey) return b;
+        return {
+          ...b,
+          isNewSpecies: false,
+          speciesId: value,
+          newScientific: "",
+          newCommonEn: "",
+          rows: b.rows.map((r) => ({
+            ...r,
+            price: r.price.trim() === "" ? (hints?.price ?? "") : r.price,
+            unitCost: r.unitCost.trim() === "" ? (hints?.unitCost ?? "") : r.unitCost,
+          })),
+        };
+      }),
+    );
+  };
+
+  const hintKeyForBlock = (block: SpeciesBlock): string | undefined =>
+    block.isNewSpecies ? undefined : block.speciesId || undefined;
 
   const updateRow = (blockKey: string, rowKey: string, patch: Partial<RowState>) =>
     setBlocks((prev) =>
@@ -615,7 +788,13 @@ function ReceiveBatchForm({
     );
 
   const addRow = (blockKey: string) =>
-    setBlocks((prev) => prev.map((b) => (b.key === blockKey ? { ...b, rows: [...b.rows, blankRow()] } : b)));
+    setBlocks((prev) =>
+      prev.map((b) => {
+        if (b.key !== blockKey) return b;
+        const key = hintKeyForBlock(b);
+        return { ...b, rows: [...b.rows, blankRow(key ? priceHints.get(key) : undefined)] };
+      }),
+    );
 
   const removeRow = (blockKey: string, rowKey: string) =>
     setBlocks((prev) =>
@@ -627,11 +806,17 @@ function ReceiveBatchForm({
       prev.map((b) => {
         if (b.key !== blockKey) return b;
         const count = Math.max(1, Math.min(200, Math.round(Number(b.batchCount) || 1)));
-        return { ...b, rows: Array.from({ length: count }, () => blankRow()) };
+        const key = hintKeyForBlock(b);
+        const hints = key ? priceHints.get(key) : undefined;
+        return { ...b, rows: Array.from({ length: count }, () => blankRow(hints)) };
       }),
     );
 
-  const addBlock = () => setBlocks((prev) => [...prev, blankBlock(products[0]?.id ?? "")]);
+  const addBlock = () => {
+    const firstId = catalogSpecies[0]?.id ?? "";
+    const isNew = catalogSpecies.length === 0;
+    setBlocks((prev) => [...prev, blankBlock(firstId, isNew ? undefined : priceHints.get(firstId), isNew)]);
+  };
   const removeBlock = (blockKey: string) => setBlocks((prev) => prev.filter((b) => b.key !== blockKey));
 
   const resetPhoto = (blockKey: string, rowKey: string) =>
@@ -658,7 +843,14 @@ function ReceiveBatchForm({
       JSON.stringify(
         blocks.flatMap((b) =>
           b.rows.map((r) => ({
-            productId: b.productId,
+            ...(b.isNewSpecies
+              ? {
+                  newSpecies: {
+                    scientific: b.newScientific.trim(),
+                    commonEn: b.newCommonEn.trim(),
+                  },
+                }
+              : { speciesId: b.speciesId }),
             sizeCm: Number(r.sizeCm) || 0,
             sex: r.sex || "unsexed",
             unitCost: Number(r.unitCost) || 0,
@@ -694,16 +886,25 @@ function ReceiveBatchForm({
     <section className="card-glow max-w-5xl rounded-2xl p-5">
       <h2 className="mb-1 font-display text-lg font-semibold text-cream">Receive a batch</h2>
       <p className="mb-4 text-sm text-muted">
-        Add one species at a time. Set how many specimens arrived to generate a row per spider, then adjust size,
-        sex, cost and price per row — collapse identical specimens with the row quantity field.
+        Pick a species (or add a new one) — the storefront listing is created automatically on receive. Set size,
+        sex, cost and store price per row; identical spiders can share one row via quantity. Finance picks up cost
+        and margin from these specimens.
       </p>
       <form action={action} className="space-y-5">
         <input type="hidden" name="locale" value={locale} />
         <input type="hidden" name="rows" value={rowsJson} />
 
         {blocks.map((block) => {
-          const product = products.find((p) => p.id === block.productId);
           const blockStartIndex = blockStartIndices[block.key];
+          const hintKey = hintKeyForBlock(block);
+          const hints = hintKey ? priceHints.get(hintKey) : undefined;
+          const defaultPhoto = block.isNewSpecies
+            ? null
+            : speciesDefaultImage(block.speciesId, catalogSpecies, products);
+          const listingExists =
+            !block.isNewSpecies && block.speciesId
+              ? hasStoreListing(block.speciesId, catalogSpecies, products)
+              : false;
 
           return (
             <div key={block.key} className="space-y-4 rounded-2xl border border-line p-4">
@@ -711,18 +912,60 @@ function ReceiveBatchForm({
                 <label className="field min-w-[220px] flex-1">
                   <span>Species</span>
                   <select
-                    value={block.productId}
-                    onChange={(e) => updateBlock(block.key, { productId: e.target.value })}
+                    value={block.isNewSpecies ? "__new__" : block.speciesId}
+                    onChange={(e) => onSpeciesSelect(block.key, e.target.value)}
                     className="input"
-                    required
+                    required={!block.isNewSpecies}
                   >
-                    {products.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.common.en} — {p.scientific}
+                    <option value="__new__">+ New species (creates listing)</option>
+                    {catalogSpecies.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.commonEn} — {s.scientific}
                       </option>
                     ))}
                   </select>
+                  {block.isNewSpecies ? (
+                    <span className="mt-1 block text-[11px] text-gold-bright">
+                      New listing + species profile created when you save.
+                    </span>
+                  ) : listingExists ? (
+                    hints?.price && (
+                      <span className="mt-1 block text-[11px] text-muted">
+                        Suggested from last receive
+                        {hints.unitCost ? ` (cost ${formatPrice(Number(hints.unitCost), locale)}, ` : " ("}
+                        price {formatPrice(Number(hints.price), locale)})
+                      </span>
+                    )
+                  ) : (
+                    <span className="mt-1 block text-[11px] text-gold-bright">
+                      No listing yet — one will be created on receive.
+                    </span>
+                  )}
                 </label>
+                {block.isNewSpecies && (
+                  <>
+                    <label className="field min-w-[180px] flex-1">
+                      <span>Scientific name *</span>
+                      <input
+                        value={block.newScientific}
+                        onChange={(e) => updateBlock(block.key, { newScientific: e.target.value })}
+                        className="input"
+                        placeholder="Brachypelma hamorii"
+                        required
+                      />
+                    </label>
+                    <label className="field min-w-[160px] flex-1">
+                      <span>Common name (EN) *</span>
+                      <input
+                        value={block.newCommonEn}
+                        onChange={(e) => updateBlock(block.key, { newCommonEn: e.target.value })}
+                        className="input"
+                        placeholder="Mexican Red Knee"
+                        required
+                      />
+                    </label>
+                  </>
+                )}
                 <label className="field w-40">
                   <span>Purchase date</span>
                   <input
@@ -781,13 +1024,13 @@ function ReceiveBatchForm({
                       ? row.photoPreview
                       : row.photoMode === "library" && row.libraryUrl
                         ? row.libraryUrl
-                        : product?.image ?? null;
+                        : defaultPhoto;
                   const photoCaption =
                     row.photoMode === "upload"
                       ? "New upload for this row."
                       : row.photoMode === "library"
                         ? "Library photo for this row."
-                        : product?.image
+                        : defaultPhoto
                           ? "Using the species' default photo."
                           : "No species photo yet.";
 
@@ -893,7 +1136,7 @@ function ReceiveBatchForm({
                         </label>
 
                         <label className="field w-24">
-                          <span>Price ($)</span>
+                          <span>Store price ($)</span>
                           <input
                             type="number"
                             step="0.01"
@@ -1101,7 +1344,12 @@ function SellForm({
     <section className="card-glow max-w-2xl rounded-2xl p-5">
       <h2 className="mb-4 font-display text-lg font-semibold text-cream">Register sale (manual)</h2>
       <p className="mb-4 text-sm text-bone">
-        For Kijiji, ferias, ventas en distribuidor, etc. Select specimens in the list tab ({selectedIds.length} selected).
+        For Kijiji, ferias, ventas en distribuidor, etc. Select specimens in the list tab ({selectedIds.length}{" "}
+        selected). Revenue and margin show up in{" "}
+        <Link href={localeHref(locale, "/admin/finance")} className="text-gold-bright hover:underline">
+          Finance
+        </Link>
+        .
       </p>
       {preview.length > 0 && (
         <ul className="mb-4 max-h-32 overflow-y-auto rounded-lg border border-line p-2 text-xs text-muted">
