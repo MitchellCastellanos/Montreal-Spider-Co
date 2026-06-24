@@ -1,24 +1,17 @@
 import "server-only";
+import { type Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getSessionCustomer } from "@/lib/customer-auth";
 
-export async function searchCustomersByPhone(query: string) {
-  if (!prisma) return [];
-  const digits = query.replace(/\D/g, "");
-  if (digits.length < 3) return [];
+const customerInclude = {
+  orders: { include: { lines: true }, orderBy: { createdAt: "desc" as const } },
+  addresses: true,
+} satisfies Prisma.CustomerInclude;
 
-  const customers = await prisma.customer.findMany({
-    where: {
-      phone: { contains: digits },
-    },
-    include: {
-      orders: { include: { lines: true }, orderBy: { createdAt: "desc" } },
-      addresses: true,
-    },
-    take: 20,
-  });
+type CustomerWithRelations = Prisma.CustomerGetPayload<{ include: typeof customerInclude }>;
 
-  return customers.map((c) => ({
+function mapCustomerForAdmin(c: CustomerWithRelations) {
+  return {
     id: c.id,
     name: c.name,
     email: c.email,
@@ -32,7 +25,32 @@ export async function searchCustomersByPhone(query: string) {
       status: o.status,
       items: o.lines.map((l) => `${l.nameEn} — ${l.sizeLabelEn}`),
     })),
-  }));
+  };
+}
+
+export async function listCustomers() {
+  if (!prisma) return [];
+  const customers = await prisma.customer.findMany({
+    include: customerInclude,
+    orderBy: { name: "asc" },
+  });
+  return customers.map(mapCustomerForAdmin);
+}
+
+export async function searchCustomersByPhone(query: string) {
+  if (!prisma) return [];
+  const digits = query.replace(/\D/g, "");
+  if (digits.length < 3) return [];
+
+  const customers = await prisma.customer.findMany({
+    where: {
+      phone: { contains: digits },
+    },
+    include: customerInclude,
+    take: 20,
+  });
+
+  return customers.map(mapCustomerForAdmin);
 }
 
 export async function getAccountSnapshot() {
