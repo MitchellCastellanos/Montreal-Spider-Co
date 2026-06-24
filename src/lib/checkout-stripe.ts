@@ -3,7 +3,6 @@ import type Stripe from "stripe";
 import { getProductById } from "@/lib/data/products";
 import { countPurchasableStock } from "@/lib/data/specimens";
 import { hasDatabase } from "@/lib/db";
-import { DELIVERY_ZONES, FREE_DELIVERY_THRESHOLD } from "@/lib/locations";
 import {
   type MeetupAvailability,
   type PickupSubtype,
@@ -27,16 +26,13 @@ export interface CheckoutCustomerInput {
   name: string;
   email: string;
   phone: string;
-  address?: string;
-  city?: string;
-  postal?: string;
   notes?: string;
 }
 
 export interface CheckoutPayload {
   locale: Locale;
-  method: "delivery" | "pickup";
-  zoneId?: string;
+  /** Always pickup — local door delivery is no longer offered. */
+  method?: "pickup";
   pickupId?: string;
   pickupSubtype?: PickupSubtype;
   metroStationId?: string;
@@ -63,8 +59,6 @@ function cadCents(amount: number): number {
 export async function validateAndBuildCheckout(payload: CheckoutPayload): Promise<ValidatedCheckout> {
   const {
     locale,
-    method,
-    zoneId,
     pickupId,
     pickupSubtype = "pickup_point",
     metroStationId,
@@ -75,19 +69,16 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
     customerId,
   } = payload;
 
+  if ((payload as { method?: string }).method === "delivery") {
+    throw new CheckoutError("Local delivery is no longer available. Please choose pickup / meetup.", 400);
+  }
+
   if (!items.length) throw new CheckoutError("Cart is empty.", 400);
   if (!customer.name?.trim() || !customer.email?.trim() || !customer.phone?.trim()) {
     throw new CheckoutError("Missing contact details.", 400);
   }
 
-  if (method === "delivery") {
-    if (!customer.address?.trim() || !customer.city?.trim() || !customer.postal?.trim()) {
-      throw new CheckoutError("Missing delivery address.", 400);
-    }
-    if (!zoneId || !DELIVERY_ZONES.some((z) => z.id === zoneId)) {
-      throw new CheckoutError("Invalid delivery zone.", 400);
-    }
-  } else if (pickupSubtype === "pickup_point") {
+  if (pickupSubtype === "pickup_point") {
     if (!pickupId) throw new CheckoutError("Pickup point is required.", 400);
   } else if (pickupSubtype === "metro_meetup") {
     if (!metroStationId || !getMetroStation(metroStationId)) {
@@ -169,33 +160,21 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
     });
   }
 
-  const zone = DELIVERY_ZONES.find((z) => z.id === zoneId);
   let deliveryFee = 0;
-
-  if (method === "delivery") {
-    deliveryFee = subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : (zone?.fee ?? 0);
-  } else if (pickupSubtype === "metro_meetup") {
+  if (pickupSubtype === "metro_meetup") {
     const station = getMetroStation(metroStationId!)!;
     const meetupZone = getMeetupZone(station.zoneId)!;
     deliveryFee = calcMeetupFee(subtotal, meetupZone);
   }
 
   if (deliveryFee > 0) {
-    const feeLabel =
-      method === "pickup"
-        ? locale === "fr"
-          ? "Frais de cueillette / rencontre"
-          : "Pickup / Meetup fee"
-        : locale === "fr"
-          ? "Frais de livraison"
-          : "Delivery fee";
     lineItems.push({
       quantity: 1,
       price_data: {
         currency: "cad",
         unit_amount: cadCents(deliveryFee),
         product_data: {
-          name: feeLabel,
+          name: locale === "fr" ? "Frais de cueillette / rencontre" : "Pickup / Meetup fee",
         },
       },
     });
@@ -219,7 +198,7 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
 
   const metadata: Record<string, string> = {
     locale,
-    method,
+    method: "pickup",
     customerEmail: customer.email.trim().toLowerCase(),
     customerName: customer.name.trim(),
     customerPhone: customer.phone.trim(),
@@ -229,34 +208,27 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
     deliveryFee: deliveryFee.toFixed(2),
     tax: tax.toFixed(2),
     total: total.toFixed(2),
+    pickupSubtype,
   };
 
-  if (method === "delivery") {
-    metadata.zoneId = zoneId!;
-    metadata.address = customer.address!.trim();
-    metadata.city = customer.city!.trim();
-    metadata.postal = customer.postal!.trim();
+  if (pickupSubtype === "pickup_point") {
+    metadata.pickupId = pickupId!;
+  } else if (pickupSubtype === "metro_meetup") {
+    const station = getMetroStation(metroStationId!)!;
+    const meetupZone = getMeetupZone(station.zoneId)!;
+    const line = getMetroLine(station.lineId)!;
+    metadata.metroStationId = station.id;
+    metadata.metroStationName = station.name;
+    metadata.metroLine = line.id;
+    metadata.metroLineName = line.name.en;
+    metadata.metroLineNameFr = line.name.fr;
+    metadata.meetupZoneId = meetupZone.id;
+    metadata.meetupZoneName = meetupZone.name.en;
+    metadata.meetupZoneNameFr = meetupZone.name.fr;
+    metadata.freeMeetupThreshold = String(meetupZone.freeMeetupThreshold);
+    metadata.meetupAvailability = meetupAvailability!;
   } else {
-    metadata.pickupSubtype = pickupSubtype;
-    if (pickupSubtype === "pickup_point") {
-      metadata.pickupId = pickupId!;
-    } else if (pickupSubtype === "metro_meetup") {
-      const station = getMetroStation(metroStationId!)!;
-      const meetupZone = getMeetupZone(station.zoneId)!;
-      const line = getMetroLine(station.lineId)!;
-      metadata.metroStationId = station.id;
-      metadata.metroStationName = station.name;
-      metadata.metroLine = line.id;
-      metadata.metroLineName = line.name.en;
-      metadata.metroLineNameFr = line.name.fr;
-      metadata.meetupZoneId = meetupZone.id;
-      metadata.meetupZoneName = meetupZone.name.en;
-      metadata.meetupZoneNameFr = meetupZone.name.fr;
-      metadata.freeMeetupThreshold = String(meetupZone.freeMeetupThreshold);
-      metadata.meetupAvailability = meetupAvailability!;
-    } else {
-      metadata.customMeetupRequest = customMeetupRequest!.trim();
-    }
+    metadata.customMeetupRequest = customMeetupRequest!.trim();
   }
 
   if (customerId) {

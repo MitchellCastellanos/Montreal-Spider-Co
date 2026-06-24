@@ -3,7 +3,6 @@ import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { pageMeta } from "@/lib/pageMeta";
 import { localeHref } from "@/lib/href";
-import { DELIVERY_ZONES, FREE_DELIVERY_THRESHOLD } from "@/lib/locations";
 import { MEETUP_ZONES } from "@/lib/metro-meetup";
 import { getPickupPoints } from "@/lib/data/locations";
 import { getDistributors } from "@/lib/data/distributors";
@@ -43,7 +42,7 @@ export default async function DeliveryPage({ params }: { params: Promise<{ local
           <div className="relative aspect-[16/8] w-full overflow-hidden rounded-3xl border border-line">
             <Image
               src="/images/delivery.png"
-              alt={d.localTitle}
+              alt={d.pickupMeetupTitle}
               fill
               priority
               sizes="100vw"
@@ -54,44 +53,10 @@ export default async function DeliveryPage({ params }: { params: Promise<{ local
         </Reveal>
       </section>
 
-      <section className="container-x py-16">
-        <div className="grid gap-8 lg:grid-cols-3">
-          <Reveal className="lg:col-span-2">
-            <div className="card-glow rounded-2xl p-7">
-              <h2 className="font-display text-2xl font-bold text-cream">{d.localTitle}</h2>
-              <p className="mt-3 leading-relaxed text-bone">{d.localBody}</p>
-
-              <h3 className="mt-8 mb-3 font-display text-lg font-semibold text-cream">{d.zonesTitle}</h3>
-              <div className="overflow-hidden rounded-xl border border-line">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-ink-soft text-xs uppercase tracking-wide text-gold-deep">
-                    <tr>
-                      <th className="px-4 py-3">{d.zoneCol}</th>
-                      <th className="px-4 py-3">{d.feeCol}</th>
-                      <th className="px-4 py-3">{d.etaCol}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line">
-                    {DELIVERY_ZONES.map((z) => (
-                      <tr key={z.id} className="text-bone">
-                        <td className="px-4 py-3 font-medium text-cream">{t(z.name, loc)}</td>
-                        <td className="px-4 py-3 text-gold-bright">{formatPrice(z.fee, loc)}</td>
-                        <td className="px-4 py-3">{t(z.eta, loc)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <p className="mt-3 text-sm text-gold-deep">
-                ✦ {loc === "fr"
-                  ? `Livraison gratuite pour les commandes de ${formatPrice(FREE_DELIVERY_THRESHOLD, loc)} et plus.`
-                  : `Free delivery on orders over ${formatPrice(FREE_DELIVERY_THRESHOLD, loc)}.`}
-              </p>
-            </div>
-          </Reveal>
-
-          <Reveal delay={0.1}>
-            <div className="card-glow h-full rounded-2xl border-gold/25 bg-gradient-to-br from-gold/10 to-transparent p-7">
+      <section className="border-t border-line bg-ink-soft/40">
+        <div className="container-x py-16">
+          <Reveal className="mb-10">
+            <div className="card-glow rounded-2xl border-gold/25 bg-gradient-to-br from-gold/10 to-transparent p-7">
               <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl border border-gold/30 bg-gold/10 text-gold-bright text-xl">
                 ✓
               </div>
@@ -99,11 +64,7 @@ export default async function DeliveryPage({ params }: { params: Promise<{ local
               <p className="mt-3 text-sm leading-relaxed text-bone">{d.liveArrivalBody}</p>
             </div>
           </Reveal>
-        </div>
-      </section>
 
-      <section className="border-t border-line bg-ink-soft/40">
-        <div className="container-x py-16">
           <Reveal className="mb-8">
             <h2 className="font-display text-3xl font-bold text-cream">
               {d.pickupMeetupTitle} <ConceptInfo concept="pickup" className="ml-2" />

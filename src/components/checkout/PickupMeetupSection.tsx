@@ -281,7 +281,6 @@ export default function PickupMeetupSection({
 }
 
 export function PickupMeetupSummary({
-  method,
   pickupSubtype,
   pickups,
   pickupId,
@@ -292,7 +291,6 @@ export function PickupMeetupSummary({
   customMeetupRequest,
   fulfillmentFee,
 }: {
-  method: "delivery" | "pickup";
   pickupSubtype: PickupSubtype;
   pickups: PickupOption[];
   pickupId: string;
@@ -305,8 +303,6 @@ export function PickupMeetupSummary({
 }) {
   const { dict, locale } = useI18n();
   const co = dict.checkout;
-
-  if (method !== "pickup") return null;
 
   const meetupZone = getMeetupZone(meetupZoneId);
   const station = metroStationId ? getMetroStation(metroStationId) : undefined;
