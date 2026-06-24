@@ -5,7 +5,8 @@ import { listSpecimens } from "@/lib/data/specimens";
 import { listLibraryImages } from "@/lib/data/species-library";
 import { listSpecies } from "@/lib/data/species";
 import { hasDatabase } from "@/lib/db";
-import InventoryHub, { parseInventoryTab } from "@/components/admin/InventoryHub";
+import InventoryHub from "@/components/admin/InventoryHub";
+import { parseInventoryTab } from "@/lib/inventory-tab";
 
 export default async function AdminInventoryPage({
   params,

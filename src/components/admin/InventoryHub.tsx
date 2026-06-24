@@ -28,14 +28,9 @@ import {
 } from "@/lib/inventory-labels";
 import type { Locale } from "@/i18n/config";
 import { formatPrice } from "@/lib/format";
+import { type InventoryTab } from "@/lib/inventory-tab";
 
-type Tab = "list" | "receive" | "transfer" | "sell" | "writeoff";
-
-const INVENTORY_TABS: Tab[] = ["list", "receive", "transfer", "sell", "writeoff"];
-
-export function parseInventoryTab(tab?: string): Tab {
-  return INVENTORY_TABS.includes(tab as Tab) ? (tab as Tab) : "list";
-}
+type Tab = InventoryTab;
 
 type ReceiveHints = { price: string; unitCost: string };
 
