@@ -1,10 +1,8 @@
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { formatPrice } from "@/lib/format";
-import {
-  MEETUP_AREAS,
-  getStationsForArea,
-} from "@/lib/metro-meetup";
+import MetroMeetupPublicMap from "@/components/MetroMeetupPublicMap";
+import { MEETUP_AREAS, getStationsForArea } from "@/lib/metro-meetup";
 import { t } from "@/lib/types";
 
 /** Read-only meetup areas, fees, and stations for public marketing pages. */
@@ -17,6 +15,10 @@ export default async function MetroMeetupPublicSection({ locale }: { locale: str
     <div className="card-glow rounded-2xl p-7">
       <h3 className="font-display text-xl font-bold text-cream">{d.metroTitle}</h3>
       <p className="mt-2 text-sm leading-relaxed text-bone">{d.metroBody}</p>
+
+      <div className="mt-5">
+        <MetroMeetupPublicMap />
+      </div>
 
       <div className="mt-5 overflow-hidden rounded-xl border border-line">
         <table className="w-full text-left text-sm">

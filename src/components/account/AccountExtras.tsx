@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import LocaleLink from "@/components/LocaleLink";
 import SpeciesImage from "@/components/SpeciesImage";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
+import FulfillmentPreferences, {
+  type FulfillmentPrefsPayload,
+} from "@/components/account/FulfillmentPreferences";
 
 type WishlistRow = {
   id: string;
@@ -140,17 +143,28 @@ export function PreferencesTab() {
   const [notifyPromos, setNotifyPromos] = useState(prefs?.notifyPromos ?? true);
   const [notifyCare, setNotifyCare] = useState(prefs?.notifyCare ?? false);
   const [saved, setSaved] = useState(false);
+  const fulfillmentRef = useRef<FulfillmentPrefsPayload | null>(null);
+
+  const handleFulfillmentChange = useCallback((payload: FulfillmentPrefsPayload) => {
+    fulfillmentRef.current = payload;
+    setSaved(false);
+  }, []);
 
   const save = async () => {
     await updateProfile({
       experience: experience || null,
-      preferences: { notifyStock, notifyPromos, notifyCare },
+      preferences: {
+        notifyStock,
+        notifyPromos,
+        notifyCare,
+        ...(fulfillmentRef.current ?? {}),
+      },
     });
     setSaved(true);
   };
 
   return (
-    <div className="card-glow max-w-lg space-y-5 rounded-2xl p-6">
+    <div className="card-glow max-w-3xl space-y-5 rounded-2xl p-6">
       <div>
         <p className="mb-2 text-sm font-medium text-cream">{a.experienceLabel}</p>
         <select className="input" value={experience} onChange={(e) => { setExperience(e.target.value); setSaved(false); }}>
@@ -161,6 +175,9 @@ export function PreferencesTab() {
         </select>
         <p className="mt-1 text-xs text-muted">{a.experienceHint}</p>
       </div>
+
+      <FulfillmentPreferences onChange={handleFulfillmentChange} />
+
       <div className="space-y-2">
         <p className="text-sm font-medium text-cream">{a.newsletterTitle}</p>
         <label className="flex items-center gap-2 text-sm text-bone">

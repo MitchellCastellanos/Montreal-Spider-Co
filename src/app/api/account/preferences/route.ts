@@ -50,6 +50,7 @@ export async function PATCH(req: Request) {
     where: { id: customerId },
     data: {
       ...(experience !== undefined ? { experience } : {}),
+      ...(body.prefMethod !== undefined ? { prefMethod: body.prefMethod as "pickup" | "delivery" | null } : {}),
       ...(body.prefPickupId !== undefined ? { prefPickupId: body.prefPickupId as string | null } : {}),
       ...(body.prefPickupSubtype !== undefined ? { prefPickupSubtype: body.prefPickupSubtype as string | null } : {}),
       ...(body.prefMetroStationId !== undefined ? { prefMetroStationId: body.prefMetroStationId as string | null } : {}),

@@ -1,17 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
+import MetroMeetupMap from "@/components/MetroMeetupMap";
 import {
   MEETUP_AREAS,
-  METRO_LINE_PATHS,
-  METRO_MAP_VIEWBOX,
   type MetroLineId,
   type MetroStation,
   calcStationMeetupFee,
   getLinesForArea,
-  getMapStationGroups,
   getMeetupArea,
   getMetroLine,
   getMetroStation,
@@ -49,13 +47,10 @@ export default function MetroMeetupSelector({
   const [listAreaId, setListAreaId] = useState(areaId);
   const [lineFilter, setLineFilter] = useState<MetroLineId | "all">("all");
   const [search, setSearch] = useState("");
-  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
   const selectedStation = stationId ? getMetroStation(stationId) : undefined;
   const selectedArea = getMeetupArea(areaId);
   const meetupFee = selectedStation ? calcStationMeetupFee(subtotal, selectedStation) : 0;
-
-  const mapGroups = useMemo(() => getMapStationGroups(), []);
 
   const listStations = useMemo(() => {
     let stations = getStationsForArea(listAreaId);
@@ -71,20 +66,12 @@ export default function MetroMeetupSelector({
 
   const listLines = useMemo(() => getLinesForArea(listAreaId), [listAreaId]);
 
-  const selectStation = (station: MetroStation) => {
+  const selectStation = useCallback((station: MetroStation) => {
     onAreaChange(station.area);
     onLineChange(station.line);
     onStationChange(station.id);
     setListAreaId(station.area);
-  };
-
-  const selectFromMapGroup = (stations: MetroStation[]) => {
-    const preferred =
-      stations.find((s) => s.id === stationId) ??
-      stations.find((s) => s.line === lineId) ??
-      stations[0];
-    if (preferred) selectStation(preferred);
-  };
+  }, [onAreaChange, onLineChange, onStationChange]);
 
   const handleListAreaSelect = (id: string) => {
     setListAreaId(id);
@@ -97,8 +84,6 @@ export default function MetroMeetupSelector({
     if (first) selectStation(first);
   };
 
-  const hoveredGroup = hoveredKey ? mapGroups.find((g) => g.key === hoveredKey) : undefined;
-
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
@@ -107,84 +92,12 @@ export default function MetroMeetupSelector({
       </div>
 
       {view === "map" ? (
-        <div className="overflow-hidden rounded-xl border border-line bg-ink-soft/30">
-          <svg
-            viewBox={`0 0 ${METRO_MAP_VIEWBOX.width} ${METRO_MAP_VIEWBOX.height}`}
-            className="h-auto w-full"
-            role="img"
-            aria-label={co.meetupStepStation}
-          >
-            {METRO_LINE_PATHS.map((track) => {
-              const line = getMetroLine(track.line);
-              return (
-                <path
-                  key={track.line}
-                  d={track.d}
-                  fill="none"
-                  stroke={line?.color ?? "#666"}
-                  strokeWidth={5}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  opacity={0.55}
-                />
-              );
-            })}
-
-            {mapGroups.map((group) => {
-              const isSelected = group.stations.some((s) => s.id === stationId);
-              const isHovered = hoveredKey === group.key;
-              const primary = group.stations[0]!;
-
-              return (
-                <g
-                  key={group.key}
-                  className="cursor-pointer"
-                  onMouseEnter={() => setHoveredKey(group.key)}
-                  onMouseLeave={() => setHoveredKey(null)}
-                  onClick={() => selectFromMapGroup(group.stations)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      selectFromMapGroup(group.stations);
-                    }
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={group.name}
-                >
-                  <circle
-                    cx={group.x}
-                    cy={group.y}
-                    r={isSelected ? 11 : isHovered ? 10 : 7}
-                    fill={isSelected ? "var(--gold-bright)" : isHovered ? "var(--cream)" : "var(--bone)"}
-                    stroke={isSelected ? "var(--gold)" : "var(--line)"}
-                    strokeWidth={isSelected ? 2.5 : 1.5}
-                    className="transition-all duration-150"
-                  />
-                  {(isSelected || isHovered) && (
-                    <text
-                      x={group.x}
-                      y={group.y - 14}
-                      textAnchor="middle"
-                      className="fill-cream"
-                      style={{ fontSize: 10 }}
-                    >
-                      {group.name}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
-          </svg>
-
-          {(hoveredGroup || selectedStation) && (
-            <MapTooltip
-              station={hoveredGroup?.stations[0] ?? selectedStation!}
-              subtotal={subtotal}
-              locale={locale}
-            />
-          )}
-        </div>
+        <MetroMeetupMap
+          selectedStationId={stationId}
+          preferredLineId={lineId}
+          onSelectStation={selectStation}
+          subtotal={subtotal}
+        />
       ) : (
         <div className="space-y-4">
           <div className="grid gap-2 sm:grid-cols-2">
@@ -313,35 +226,5 @@ function LineChip({
       )}
       {label}
     </button>
-  );
-}
-
-function MapTooltip({
-  station,
-  subtotal,
-  locale,
-}: {
-  station: MetroStation;
-  subtotal: number;
-  locale: "en" | "fr";
-}) {
-  const { dict } = useI18n();
-  const co = dict.checkout;
-  const area = getMeetupArea(station.area);
-  const line = getMetroLine(station.line);
-  const fee = calcStationMeetupFee(subtotal, station);
-
-  return (
-    <div className="border-t border-line bg-ink-soft/50 px-4 py-3 text-sm">
-      <p className="font-semibold text-cream">{station.name}</p>
-      {area && <p className="text-xs text-muted">{t(area.name, locale)}</p>}
-      {line && <p className="text-xs text-muted">{t(line.name, locale)}</p>}
-      <p className="mt-1 text-bone">
-        {co.meetupFeeLabel}: {fee === 0 ? dict.common.free : formatPrice(fee, locale)}
-      </p>
-      <p className="text-xs text-muted">
-        {co.meetupFreeOver} {formatPrice(station.freeMeetupThreshold, locale)}
-      </p>
-    </div>
   );
 }
