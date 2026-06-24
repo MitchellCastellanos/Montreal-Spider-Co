@@ -11,10 +11,9 @@ import { formatPrice } from "@/lib/format";
 import { breadcrumbSchema, productSchema } from "@/lib/seo";
 import SpeciesImage from "@/components/SpeciesImage";
 import AddToCart from "@/components/AddToCart";
-import DistributorAvailabilityCta from "@/components/DistributorAvailabilityCta";
 import { SITE } from "@/lib/site";
 import { withVerifiedOriginLinks } from "@/lib/verified-origin-links";
-import { basePrice, isAvailableAtDistributor } from "@/lib/types";
+import { basePrice } from "@/lib/types";
 import ProductCard from "@/components/ProductCard";
 import JsonLd from "@/components/JsonLd";
 import Reveal from "@/components/Reveal";
@@ -154,12 +153,6 @@ export default async function ProductPage({
             <div className="my-6 h-px bg-line" />
 
             <AddToCart product={product} />
-
-            {isAvailableAtDistributor(product) && product.distributors && (
-              <div className="mt-4">
-                <DistributorAvailabilityCta distributors={product.distributors} variant="detail" />
-              </div>
-            )}
 
             <p className="mt-4 rounded-xl border border-gold/20 bg-gold/5 p-3 text-center text-sm text-bone">
               ✦ {p.shippingNote}

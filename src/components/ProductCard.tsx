@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import LocaleLink from "./LocaleLink";
 import SpeciesImage from "./SpeciesImage";
 import DistributorAvailabilityCta from "./DistributorAvailabilityCta";
+import UnitFulfillmentBadge from "./UnitFulfillmentBadge";
 import { useCart, snapshotFromProduct } from "@/context/CartContext";
 import { useProductDisplay } from "@/hooks/useProductDisplay";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -16,6 +17,7 @@ import {
   cardUnitShowsSex,
 } from "@/lib/product-display";
 import { basePrice, isAvailableAtDistributor, isPurchasableOnline, totalStock, type Product } from "@/lib/types";
+import { unitHasDistributorStock } from "@/lib/unit-fulfillment";
 
 const expColor: Record<string, string> = {
   beginner: "text-ok",
@@ -38,6 +40,12 @@ export default function ProductCard({ product }: { product: Product }) {
   const [unitKey, setUnitKey] = useState(defaultUnit?.key ?? "");
   const selected =
     inStockUnits.find((u) => u.key === unitKey) ?? defaultUnit;
+  const distributorName = product.distributors?.[0]?.name;
+  const showDistributorCta =
+    atDistributor &&
+    product.distributors &&
+    selected &&
+    unitHasDistributorStock(selected);
   const low = stock > 0 && stock <= 5;
 
   return (
@@ -106,17 +114,22 @@ export default function ProductCard({ product }: { product: Product }) {
                     role="option"
                     aria-selected={active}
                     onClick={() => setUnitKey(unit.key)}
-                    className={`flex w-full items-baseline justify-between gap-3 rounded-lg px-2 py-1.5 text-left transition ${
+                    className={`flex w-full items-start justify-between gap-3 rounded-lg px-2 py-1.5 text-left transition ${
                       active ? "bg-gold/15 ring-1 ring-gold/40" : "hover:bg-ink-soft/60"
                     }`}
                   >
-                    <span className="text-sm font-medium tabular-nums text-cream">
+                    <span className="min-w-0 text-sm font-medium tabular-nums text-cream">
                       {unit.sizeLabel}
                       {cardUnitShowsSex(inStockUnits, unit) && (
                         <span className="ml-1 text-xs text-muted" aria-hidden>
                           {cardUnitSexSymbol(unit)}
                         </span>
                       )}
+                      <UnitFulfillmentBadge
+                        unit={unit}
+                        distributorName={distributorName}
+                        className="mt-0.5 font-normal normal-case tracking-normal"
+                      />
                     </span>
                     <span className="shrink-0 text-sm font-semibold tabular-nums text-gold-bright">
                       {formatPrice(unit.price, locale)}
@@ -138,9 +151,9 @@ export default function ProductCard({ product }: { product: Product }) {
           </ul>
         )}
 
-        {atDistributor && product.distributors && (
+        {showDistributorCta && (
           <div className="mb-3">
-            <DistributorAvailabilityCta distributors={product.distributors} variant="card" />
+            <DistributorAvailabilityCta distributors={product.distributors!} variant="card" />
           </div>
         )}
 

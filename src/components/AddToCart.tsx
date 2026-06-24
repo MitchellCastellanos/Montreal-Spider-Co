@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
+import DistributorAvailabilityCta from "@/components/DistributorAvailabilityCta";
+import UnitFulfillmentBadge from "@/components/UnitFulfillmentBadge";
 import { useCart, snapshotFromProduct } from "@/context/CartContext";
 import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
-import type { Product } from "@/lib/types";
+import { isAvailableAtDistributor, type Product } from "@/lib/types";
+import { unitHasDistributorStock } from "@/lib/unit-fulfillment";
 
 const SEX_LABEL_KEY = { unsexed: "sexUnsexed", male: "sexMale", female: "sexFemale" } as const;
 
@@ -19,6 +22,12 @@ export default function AddToCart({ product }: { product: Product }) {
 
   const selected = product.availability.find((s) => s.key === unitKey);
   const soldOut = available.length === 0 || !selected;
+  const distributorName = product.distributors?.[0]?.name;
+  const showDistributorCta =
+    isAvailableAtDistributor(product) &&
+    product.distributors &&
+    selected &&
+    unitHasDistributorStock(selected);
 
   const handleAdd = () => {
     if (soldOut || !selected) return;
@@ -46,7 +55,8 @@ export default function AddToCart({ product }: { product: Product }) {
               >
                 <span className="block text-sm font-semibold text-cream">{s.sizeLabel}</span>
                 <span className="block text-xs text-muted">{dict.product[SEX_LABEL_KEY[s.sex]]}</span>
-                <span className="block text-xs text-gold-bright">{formatPrice(s.price, locale)}</span>
+                <UnitFulfillmentBadge unit={s} distributorName={distributorName} className="mt-0.5" />
+                <span className="mt-0.5 block text-xs text-gold-bright">{formatPrice(s.price, locale)}</span>
               </button>
             );
           })}
@@ -81,6 +91,12 @@ export default function AddToCart({ product }: { product: Product }) {
         <p className="mt-2 text-center text-xs text-gold-deep">
           {dict.common.lowStock} · {selected.stock}
         </p>
+      )}
+
+      {showDistributorCta && (
+        <div className="mt-4">
+          <DistributorAvailabilityCta distributors={product.distributors!} variant="detail" />
+        </div>
       )}
     </div>
   );
