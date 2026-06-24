@@ -6,7 +6,13 @@ import { listLibraryImages } from "@/lib/data/species-library";
 import { listSpecies } from "@/lib/data/species";
 import { hasDatabase } from "@/lib/db";
 import InventoryHub from "@/components/admin/InventoryHub";
-import { parseInventoryTab } from "@/lib/inventory-tab";
+import { type InventoryTab } from "@/lib/inventory-tab";
+
+const INVENTORY_TABS: InventoryTab[] = ["list", "receive", "transfer", "sell", "writeoff"];
+
+function parseInventoryTab(tab?: string): InventoryTab {
+  return INVENTORY_TABS.includes(tab as InventoryTab) ? (tab as InventoryTab) : "list";
+}
 
 export default async function AdminInventoryPage({
   params,
