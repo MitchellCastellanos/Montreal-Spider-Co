@@ -2,8 +2,8 @@ import "server-only";
 import type Stripe from "stripe";
 import type { FulfillmentMethod, OrderStatus, SpecimenSex } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { sendOrderConfirmationEmail } from "@/lib/email";
-import { assignSpecimensFifo, syncAggregateStock } from "@/lib/data/specimens";
+import { sendOrderConfirmationEmail, sendDistributorSaleAlertEmail } from "@/lib/email";
+import { assignSpecimensFifo, syncAggregateStock, type DistributorPickupLine } from "@/lib/data/specimens";
 
 function generateOrderNumber(): string {
   return `MSC-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -49,7 +49,9 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
     null;
   const status: OrderStatus = method === "pickup" ? "ready" : "processing";
 
-  const order = await prisma.$transaction(async (tx) => {
+  let distributorAlerts: DistributorPickupLine[] = [];
+
+  const { order } = await prisma.$transaction(async (tx) => {
     for (const item of orderItems) {
       const available = await tx.specimen.count({
         where: {
@@ -57,8 +59,7 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
           sizeCm: item.sizeCm,
           sex: item.sex,
           price: item.price,
-          status: "available",
-          locationType: "warehouse",
+          status: { in: ["available", "consignment"] },
         },
       });
       if (available < item.qty) {
@@ -107,7 +108,7 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
     });
 
     for (const line of created.lines) {
-      await assignSpecimensFifo(tx, {
+      const { distributorPickups } = await assignSpecimensFifo(tx, {
         productId: line.productId,
         sizeCm: line.sizeCm!,
         sex: line.sex!,
@@ -119,9 +120,10 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
         salesChannel: "web",
         paymentMethod: "stripe",
       });
+      distributorAlerts.push(...distributorPickups);
     }
 
-    return created;
+    return { order: created };
   });
 
   await syncAggregateStock();
@@ -136,6 +138,21 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
     });
   } catch (e) {
     console.error("[fulfill-checkout] email failed:", e);
+  }
+
+  if (distributorAlerts.length > 0) {
+    try {
+      await sendDistributorSaleAlertEmail({
+        orderNumber: order.orderNumber,
+        customerName: order.name,
+        customerEmail: order.email,
+        customerPhone: order.phone,
+        total: order.total,
+        lines: distributorAlerts,
+      });
+    } catch (e) {
+      console.error("[fulfill-checkout] distributor alert failed:", e);
+    }
   }
 
   return order;

@@ -29,8 +29,19 @@ import {
 import type { Locale } from "@/i18n/config";
 import { formatPrice } from "@/lib/format";
 import { type InventoryTab } from "@/lib/inventory-tab";
+import SortableTh, { cmpNum, cmpStr, toggleSortKey, type SortDir } from "./SortableTh";
 
 type Tab = InventoryTab;
+
+type SpecimenSortKey =
+  | "tarantulAppId"
+  | "species"
+  | "size"
+  | "status"
+  | "location"
+  | "cost"
+  | "price"
+  | "purchased";
 
 type ReceiveHints = { price: string; unitCost: string };
 
@@ -137,6 +148,10 @@ function speciesDefaultImage(
   return product?.image ?? null;
 }
 
+function specimenLocationLabel(s: SpecimenView): string {
+  return s.locationType === "warehouse" ? "Warehouse" : (s.locationName ?? "Distributor");
+}
+
 export default function InventoryHub({
   specimens,
   products,
@@ -158,10 +173,26 @@ export default function InventoryHub({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [filterQ, setFilterQ] = useState("");
+  const [filterLocation, setFilterLocation] = useState("");
+  const [sortKey, setSortKey] = useState<SpecimenSortKey>("purchased");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const onSort = (key: string) => {
+    const [k, d] = toggleSortKey(key, sortKey, sortDir);
+    setSortKey(k as SpecimenSortKey);
+    setSortDir(d);
+  };
 
   const filtered = useMemo(() => {
-    return specimens.filter((s) => {
+    const matched = specimens.filter((s) => {
       if (filterStatus && s.status !== filterStatus) return false;
+      if (filterLocation) {
+        if (filterLocation === "warehouse" && s.locationType !== "warehouse") return false;
+        if (filterLocation === "consignment" && s.locationType !== "consignment") return false;
+        if (filterLocation !== "warehouse" && filterLocation !== "consignment" && s.locationId !== filterLocation) {
+          return false;
+        }
+      }
       if (filterQ) {
         const q = filterQ.toLowerCase();
         const hay = `${s.tarantulAppId ?? ""} ${s.productName} ${s.scientific} ${s.notes}`.toLowerCase();
@@ -169,7 +200,30 @@ export default function InventoryHub({
       }
       return true;
     });
-  }, [specimens, filterStatus, filterQ]);
+
+    return [...matched].sort((a, b) => {
+      switch (sortKey) {
+        case "tarantulAppId":
+          return cmpStr(a.tarantulAppId ?? "", b.tarantulAppId ?? "", sortDir);
+        case "species":
+          return cmpStr(a.productName, b.productName, sortDir);
+        case "size":
+          return cmpNum(a.sizeCm, b.sizeCm, sortDir);
+        case "status":
+          return cmpStr(a.status, b.status, sortDir);
+        case "location":
+          return cmpStr(specimenLocationLabel(a), specimenLocationLabel(b), sortDir);
+        case "cost":
+          return cmpNum(a.unitCost, b.unitCost, sortDir);
+        case "price":
+          return cmpNum(a.price, b.price, sortDir);
+        case "purchased":
+          return cmpStr(a.purchasedAt, b.purchasedAt, sortDir);
+        default:
+          return 0;
+      }
+    });
+  }, [specimens, filterStatus, filterQ, filterLocation, sortKey, sortDir]);
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -243,6 +297,17 @@ export default function InventoryHub({
                 <option key={k} value={k}>{v}</option>
               ))}
             </select>
+            <select value={filterLocation} onChange={(e) => setFilterLocation(e.target.value)} className="input w-auto">
+              <option value="">All locations</option>
+              <option value="warehouse">Warehouse</option>
+              <option value="consignment">Any distributor</option>
+              {distributors.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+            <span className="self-center text-sm text-muted">
+              {filtered.length} of {specimens.length}
+            </span>
             {selected.size > 0 && (
               <>
                 <span className="self-center text-sm text-gold-bright">{selected.size} selected</span>
@@ -264,14 +329,70 @@ export default function InventoryHub({
                       aria-label="Select all visible"
                     />
                   </th>
-                  <th className="px-3 py-3">TarantulApp ID</th>
-                  <th className="px-3 py-3">Species</th>
-                  <th className="px-3 py-3">Size</th>
-                  <th className="px-3 py-3">Status</th>
-                  <th className="px-3 py-3">Location</th>
-                  <th className="px-3 py-3">Cost</th>
-                  <th className="px-3 py-3">Price</th>
-                  <th className="px-3 py-3">Purchased</th>
+                  <SortableTh
+                    label="TarantulApp ID"
+                    sortKey="tarantulAppId"
+                    activeKey={sortKey}
+                    dir={sortDir}
+                    onSort={onSort}
+                    className="px-3 py-3"
+                  />
+                  <SortableTh
+                    label="Species"
+                    sortKey="species"
+                    activeKey={sortKey}
+                    dir={sortDir}
+                    onSort={onSort}
+                    className="px-3 py-3"
+                  />
+                  <SortableTh
+                    label="Size"
+                    sortKey="size"
+                    activeKey={sortKey}
+                    dir={sortDir}
+                    onSort={onSort}
+                    className="px-3 py-3"
+                  />
+                  <SortableTh
+                    label="Status"
+                    sortKey="status"
+                    activeKey={sortKey}
+                    dir={sortDir}
+                    onSort={onSort}
+                    className="px-3 py-3"
+                  />
+                  <SortableTh
+                    label="Location"
+                    sortKey="location"
+                    activeKey={sortKey}
+                    dir={sortDir}
+                    onSort={onSort}
+                    className="px-3 py-3"
+                  />
+                  <SortableTh
+                    label="Cost"
+                    sortKey="cost"
+                    activeKey={sortKey}
+                    dir={sortDir}
+                    onSort={onSort}
+                    className="px-3 py-3"
+                  />
+                  <SortableTh
+                    label="Price"
+                    sortKey="price"
+                    activeKey={sortKey}
+                    dir={sortDir}
+                    onSort={onSort}
+                    className="px-3 py-3"
+                  />
+                  <SortableTh
+                    label="Purchased"
+                    sortKey="purchased"
+                    activeKey={sortKey}
+                    dir={sortDir}
+                    onSort={onSort}
+                    className="px-3 py-3"
+                  />
                   <th className="px-3 py-3" />
                 </tr>
               </thead>
@@ -597,6 +718,7 @@ interface RowState {
   fileResetKey: number;
   locationType: "warehouse" | "consignment";
   locationId: string;
+  distributorPrice: string;
   tarantulAppIds: string;
 }
 
@@ -633,6 +755,7 @@ function blankRow(hints?: ReceiveHints): RowState {
     fileResetKey: 0,
     locationType: "warehouse",
     locationId: "",
+    distributorPrice: "",
     tarantulAppIds: "",
   };
 }
@@ -857,6 +980,10 @@ function ReceiveBatchForm({
             notes: b.notes,
             locationType: r.locationType,
             locationId: r.locationType === "consignment" ? r.locationId : undefined,
+            distributorPrice:
+              r.locationType === "consignment" && r.distributorPrice.trim() !== ""
+                ? Number(r.distributorPrice) || null
+                : undefined,
             tarantulAppIds: r.tarantulAppIds
               .split("\n")
               .map((s) => s.trim())
@@ -1192,6 +1319,24 @@ function ReceiveBatchForm({
                           </label>
                         )}
 
+                        {row.locationType === "consignment" && (
+                          <label className="field w-32">
+                            <span className="inline-flex items-center gap-1.5">
+                              Dist. price ($)
+                              <InfoHint text="Internal only — your wholesale or reminder price at this distributor. Never shown on the website." />
+                            </span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min={0}
+                              value={row.distributorPrice}
+                              onChange={(e) => updateRow(block.key, row.key, { distributorPrice: e.target.value })}
+                              className="input"
+                              placeholder="Optional"
+                            />
+                          </label>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => removeRow(block.key, row.key)}
@@ -1305,6 +1450,23 @@ function TransferForm({
                 <option key={d.id} value={d.id}>{d.name}</option>
               ))}
             </select>
+          </label>
+        )}
+
+        {direction === "consignment" && (
+          <label className="field">
+            <span className="inline-flex items-center gap-1.5">
+              Dist. price ($) — internal
+              <InfoHint text="Optional reminder/wholesale price for these listings at the distributor. Admin only — not shown on the storefront." />
+            </span>
+            <input
+              name="distributorPrice"
+              type="number"
+              step="0.01"
+              min={0}
+              className="input"
+              placeholder="Leave blank to keep current"
+            />
           </label>
         )}
 

@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { isLocale } from "@/i18n/config";
 import { isAdminAuthed, adminConfigured } from "@/lib/auth";
 import { hasDatabase } from "@/lib/db";
 import { hasStorage } from "@/lib/storage";
-import { localeHref } from "@/lib/href";
 import AdminLogin from "@/components/admin/AdminLogin";
-import { logoutAction } from "./actions";
+import AdminNav from "@/components/admin/AdminNav";
 
 export const metadata: Metadata = {
   title: "Admin",
@@ -31,17 +29,6 @@ export default async function AdminLayout({
     return <AdminLogin configured={adminConfigured} />;
   }
 
-  const nav = [
-    { href: "/admin", label: "Listings" },
-    { href: "/admin/inventory", label: "Inventory" },
-    { href: "/admin/finance", label: "Finance" },
-    { href: "/admin/pickup", label: "Locations" },
-    { href: "/admin/media", label: "Media & photos" },
-    { href: "/admin/settings", label: "Settings" },
-    { href: "/admin/customers", label: "Customers" },
-    { href: "/admin/templates", label: "Email templates" },
-  ];
-
   return (
     <div className="container-x py-8">
       {(!hasDatabase || !hasStorage) && (
@@ -56,28 +43,7 @@ export default async function AdminLayout({
       )}
 
       <div className="grid gap-8 lg:grid-cols-[210px_1fr]">
-        <aside className="lg:sticky lg:top-24 lg:self-start">
-          <div className="rounded-2xl border border-line bg-ink-soft/40 p-3">
-            <p className="px-2 pb-2 font-display text-sm font-bold text-cream">Admin panel</p>
-            <nav className="flex flex-col gap-1">
-              {nav.map((n) => (
-                <Link
-                  key={n.href}
-                  href={localeHref(loc, n.href)}
-                  className="rounded-lg px-3 py-2 text-sm text-bone transition hover:bg-ink hover:text-gold-bright"
-                >
-                  {n.label}
-                </Link>
-              ))}
-            </nav>
-            <form action={logoutAction} className="mt-2 border-t border-line pt-2">
-              <input type="hidden" name="locale" value={loc} />
-              <button className="w-full rounded-lg px-3 py-2 text-left text-sm text-muted transition hover:text-danger">
-                Sign out
-              </button>
-            </form>
-          </div>
-        </aside>
+        <AdminNav locale={loc} />
 
         <div className="min-w-0">{children}</div>
       </div>

@@ -39,6 +39,7 @@ function mapProduct(p: DbProductFull, defaultImage?: string | null): Product {
   const distributorStocks: ProductDistributorStock[] = (p.distributorStocks ?? []).map((ds) => ({
     distributorId: ds.locationId,
     stock: ds.stock,
+    distributorPrice: ds.distributorPrice ?? undefined,
   }));
   const distributors: DistributorSnippet[] = (p.distributorStocks ?? [])
     .filter((ds) => ds.stock > 0 && ds.location?.active && ds.location.isDistributor)
@@ -117,6 +118,8 @@ async function attachAvailability(products: Product[]): Promise<Product[]> {
         sex: g.sex,
         price: g.price,
         stock: g.stock,
+        warehouseStock: g.warehouseStock,
+        distributorStock: g.distributorStock,
         photo: g.photoUrl ?? undefined,
       });
       byProduct.set(g.productId, list);
@@ -239,6 +242,7 @@ export async function getGenera(): Promise<string[]> {
 export interface ProductDistributorStockInput {
   distributorId: string;
   stock: number;
+  distributorPrice?: number | null;
 }
 
 export interface ProductInput {
@@ -281,7 +285,11 @@ export interface ProductInput {
 function distributorStockCreates(stocks: ProductDistributorStockInput[]) {
   return stocks
     .filter((s) => s.distributorId && Number.isFinite(s.stock))
-    .map((s) => ({ locationId: s.distributorId, stock: Math.max(0, Math.round(s.stock)) }));
+    .map((s) => ({
+      locationId: s.distributorId,
+      stock: Math.max(0, Math.round(s.stock)),
+      distributorPrice: s.distributorPrice ?? null,
+    }));
 }
 
 function requireDb() {
@@ -304,16 +312,40 @@ export async function createProduct(input: ProductInput): Promise<string> {
 export async function updateProduct(id: string, input: ProductInput): Promise<void> {
   const db = requireDb();
   const { distributorStocks, ...fields } = input;
+  const existingPrices = await db.productDistributorStock.findMany({
+    where: { productId: id },
+    select: { locationId: true, distributorPrice: true },
+  });
+  const priceByLoc = new Map(existingPrices.map((e) => [e.locationId, e.distributorPrice]));
+  const stocksWithPrices = distributorStocks.map((s) => ({
+    ...s,
+    distributorPrice: s.distributorPrice ?? priceByLoc.get(s.distributorId) ?? null,
+  }));
   await db.$transaction([
     db.productDistributorStock.deleteMany({ where: { productId: id } }),
     db.product.update({
       where: { id },
       data: {
         ...fields,
-        distributorStocks: { create: distributorStockCreates(distributorStocks) },
+        distributorStocks: { create: distributorStockCreates(stocksWithPrices) },
       },
     }),
   ]);
+}
+
+/** Set the internal distributor price for a product at a location (admin only). */
+export async function setDistributorPrice(
+  productId: string,
+  locationId: string,
+  distributorPrice: number | null,
+): Promise<void> {
+  const db = requireDb();
+  const price = distributorPrice != null && distributorPrice > 0 ? distributorPrice : null;
+  await db.productDistributorStock.upsert({
+    where: { productId_locationId: { productId, locationId } },
+    create: { productId, locationId, stock: 0, distributorPrice: price },
+    update: { distributorPrice: price },
+  });
 }
 
 export async function deleteProduct(id: string): Promise<void> {

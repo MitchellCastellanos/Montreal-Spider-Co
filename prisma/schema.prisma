@@ -167,6 +167,8 @@ model ProductDistributorStock {
   locationId String
   location   StoreLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
   stock      Int           @default(0)
+  /** Admin-only reminder / wholesale price at this distributor — never shown on the storefront. */
+  distributorPrice Float?
 
   @@unique([productId, locationId])
   @@index([productId])

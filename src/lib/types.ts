@@ -23,7 +23,12 @@ export interface AvailableUnit {
   sizeLabel: string;
   sex: SpecimenSex;
   price: number;
+  /** Total purchasable units (warehouse + at distributors). */
   stock: number;
+  /** Units at our warehouse (pickup / delivery). */
+  warehouseStock?: number;
+  /** Units at authorized distributors (consignment). */
+  distributorStock?: number;
   /** Per-group photo override; falls back to the product photo when absent. */
   photo?: string;
 }
@@ -31,6 +36,8 @@ export interface AvailableUnit {
 export interface ProductDistributorStock {
   distributorId: string;
   stock: number;
+  /** Internal wholesale/reminder price at this distributor — admin only. */
+  distributorPrice?: number;
 }
 
 /** Distributor info for product cards and availability CTAs. */
@@ -94,18 +101,22 @@ export function totalStock(p: Product): number {
   return p.availability.reduce((sum, a) => sum + a.stock, 0);
 }
 
-/** Stock held at our warehouse (same as totalStock on sizes). */
+/** Stock held at our warehouse (excludes distributor consignment). */
 export function warehouseStock(p: Product): number {
-  return totalStock(p);
+  return p.availability.reduce((sum, a) => sum + (a.warehouseStock ?? a.stock), 0);
+}
+
+export function distributorAvailabilityStock(p: Product): number {
+  return p.availability.reduce((sum, a) => sum + (a.distributorStock ?? 0), 0);
 }
 
 export function distributorStockTotal(p: Product): number {
   return (p.distributorStocks ?? []).reduce((sum, d) => sum + d.stock, 0);
 }
 
-/** Online cart uses warehouse stock only. */
+/** Online cart — any in-stock unit (warehouse or at a distributor). */
 export function isPurchasableOnline(p: Product): boolean {
-  return warehouseStock(p) > 0;
+  return totalStock(p) > 0;
 }
 
 export function isAvailableAtDistributor(p: Product): boolean {

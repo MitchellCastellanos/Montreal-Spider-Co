@@ -8,6 +8,7 @@ import {
   updateProduct,
   deleteProduct,
   ensureProductListingForSpecies,
+  setDistributorPrice,
   type ProductInput,
   type ProductDistributorStockInput,
 } from "@/lib/data/products";
@@ -328,6 +329,7 @@ interface ReceiveBatchRowForm {
   notes?: string;
   locationType?: string;
   locationId?: string;
+  distributorPrice?: number | null;
   tarantulAppIds?: string[];
 }
 
@@ -412,6 +414,7 @@ export async function receiveBatchAction(_prev: ActionState, formData: FormData)
       notes: r.notes || undefined,
       locationType: r.locationType === "consignment" ? "consignment" : "warehouse",
       locationId: r.locationId || undefined,
+      distributorPrice: r.distributorPrice != null ? Number(r.distributorPrice) : undefined,
       tarantulAppIds: Array.isArray(r.tarantulAppIds) ? r.tarantulAppIds.filter(Boolean) : undefined,
     });
   }
@@ -442,10 +445,13 @@ export async function transferSpecimensAction(_prev: ActionState, formData: Form
     if (direction === "warehouse") {
       await transferToWarehouse(specimenIds, str(formData, "notes"));
     } else {
+      const distributorPriceRaw = str(formData, "distributorPrice");
+      const distributorPrice = distributorPriceRaw ? Number(distributorPriceRaw) : null;
       await transferToConsignment({
         specimenIds,
         locationId: str(formData, "locationId"),
         notes: str(formData, "notes"),
+        distributorPrice: Number.isFinite(distributorPrice) && distributorPrice! > 0 ? distributorPrice : null,
       });
     }
   } catch (e) {
@@ -509,6 +515,29 @@ export async function updateTarantulAppIdAction(_prev: ActionState, formData: Fo
 
   try {
     await updateTarantulAppId(str(formData, "specimenId"), str(formData, "tarantulAppId") || null);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "update_failed" };
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function updateDistributorPriceAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  if (!(await isAdminAuthed())) return { error: "unauthorized" };
+
+  const productId = str(formData, "productId");
+  const locationId = str(formData, "locationId");
+  if (!productId || !locationId) return { error: "missing_fields" };
+
+  const raw = str(formData, "distributorPrice");
+  const distributorPrice = raw.trim() === "" ? null : Number(raw);
+  if (distributorPrice != null && (!Number.isFinite(distributorPrice) || distributorPrice < 0)) {
+    return { error: "invalid_price" };
+  }
+
+  try {
+    await setDistributorPrice(productId, locationId, distributorPrice);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "update_failed" };
   }

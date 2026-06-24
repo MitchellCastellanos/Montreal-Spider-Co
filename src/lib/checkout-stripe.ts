@@ -1,7 +1,7 @@
 import "server-only";
 import type Stripe from "stripe";
 import { getProductById } from "@/lib/data/products";
-import { countAvailableWarehouse } from "@/lib/data/specimens";
+import { countPurchasableStock } from "@/lib/data/specimens";
 import { hasDatabase } from "@/lib/db";
 import { DELIVERY_ZONES, FREE_DELIVERY_THRESHOLD } from "@/lib/locations";
 import { SITE } from "@/lib/site";
@@ -92,7 +92,7 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
     let availableStock = unit.stock;
     if (hasDatabase) {
       try {
-        availableStock = await countAvailableWarehouse(product.id, unit.sizeCm, unit.sex, unit.price);
+        availableStock = await countPurchasableStock(product.id, unit.sizeCm, unit.sex, unit.price);
       } catch {
         availableStock = unit.stock;
       }

@@ -212,6 +212,43 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       return { subject, html, text };
     },
   },
+  {
+    id: "distributor-sale-alert",
+    label: "Distributor stock sold (staff)",
+    description:
+      "Internal alert when a web order uses stock at an authorized distributor — call them to mark the spider sold.",
+    sample: {
+      orderNumber: "MSC-1042",
+      customerName: "Alex",
+      customerEmail: "alex@example.com",
+      customerPhone: "514-555-0100",
+      total: "$129.00 CAD",
+      itemLines:
+        "• Mexican Red Knee (2 3/8″, unsexed) @ Reptile Concept — $129.00 · 514-555-9999\nCALL Reptile Concept to mark this spider sold.",
+    },
+    render(_locale, data) {
+      const orderNumber = get(data, "orderNumber", "MSC-0000");
+      const customerName = get(data, "customerName", "Customer");
+      const customerEmail = get(data, "customerEmail", "");
+      const customerPhone = get(data, "customerPhone", "");
+      const total = get(data, "total", "$0.00 CAD");
+      const itemLines = get(data, "itemLines", "").replace(/\n/g, "<br />");
+      const subject = `📞 Distributor stock sold — ${orderNumber}`;
+      const body =
+        `${p(`A web order just sold stock held at a distributor. <strong>Call them now</strong> so they mark the spider sold.`)}` +
+        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 16px;border:1px solid #e7ddc6;border-radius:12px;">
+          <tr><td style="padding:14px 18px;border-bottom:1px solid #efe7d4;"><strong>Order:</strong> ${orderNumber}</td></tr>
+          <tr><td style="padding:14px 18px;border-bottom:1px solid #efe7d4;"><strong>Customer:</strong> ${customerName}${customerPhone ? `<br />${customerPhone}` : ""}${customerEmail ? `<br />${customerEmail}` : ""}</td></tr>
+          <tr><td style="padding:14px 18px;border-bottom:1px solid #efe7d4;"><strong>Stripe total:</strong> ${total}</td></tr>
+          <tr><td style="padding:14px 18px;"><strong>At distributor:</strong><br />${itemLines}</td></tr>
+        </table>` +
+        `${p("Payment is in your <a href=\"https://dashboard.stripe.com/balance\">Stripe balance</a>. Finance also shows this sale under Admin → Finance.")}` +
+        `${p("— Montreal Spider Co. (automated)")}`;
+      const html = layout({ locale: "en", preview: subject, bodyHtml: body });
+      const text = `Distributor stock sold — ${orderNumber}\n\nCustomer: ${customerName}\n${customerPhone}\n${customerEmail}\nTotal: ${total}\n\n${get(data, "itemLines", "")}\n\nPayment: Stripe dashboard → Balance\n\n— Montreal Spider Co.`;
+      return { subject, html, text };
+    },
+  },
 ];
 
 export type EmailTemplateMeta = {

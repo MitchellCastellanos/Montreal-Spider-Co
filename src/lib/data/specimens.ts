@@ -9,6 +9,7 @@ import type {
   SpecimenStatus,
 } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { setDistributorPrice } from "@/lib/data/products";
 import { cmToInches, formatCmAsInches } from "@/lib/size-inches";
 
 export type {
@@ -69,6 +70,8 @@ export interface ReceiveBatchRowInput {
   notes?: string;
   locationType?: SpecimenLocationType;
   locationId?: string;
+  /** Admin-only wholesale/reminder price at the distributor (not storefront). */
+  distributorPrice?: number | null;
   /** Single ID when quantity is 1 */
   tarantulAppId?: string;
   /** Optional IDs when receiving multiple (length must match quantity if provided) */
@@ -88,6 +91,8 @@ export interface TransferInput {
   specimenIds: string[];
   locationId: string;
   notes?: string;
+  /** Admin-only price reminder for this product at the distributor. */
+  distributorPrice?: number | null;
 }
 
 export interface WriteOffInput {
@@ -117,7 +122,10 @@ export interface AvailabilityGroup {
   sizeLabel: string;
   sex: SpecimenSex;
   price: number;
+  /** Total purchasable units (warehouse + at distributors). */
   stock: number;
+  warehouseStock: number;
+  distributorStock: number;
   photoUrl: string | null;
 }
 
@@ -216,25 +224,35 @@ export async function getSpecimenById(id: string): Promise<SpecimenView | null> 
   return row ? mapSpecimen(row) : null;
 }
 
-/** Group available warehouse specimens into storefront buy-boxes by (size, sex, price). */
+/** Group in-stock specimens (warehouse + distributor) into storefront buy-boxes by (size, sex, price). */
 export async function listAvailabilityGroups(productIds?: string[]): Promise<AvailabilityGroup[]> {
   const db = requireDb();
   const rows = await db.specimen.findMany({
     where: {
-      status: "available",
-      locationType: "warehouse",
+      status: { in: ["available", "consignment"] },
       ...(productIds && productIds.length > 0 ? { productId: { in: productIds } } : {}),
     },
-    select: { productId: true, sizeCm: true, sex: true, price: true, photoUrl: true },
+    select: {
+      productId: true,
+      sizeCm: true,
+      sex: true,
+      price: true,
+      photoUrl: true,
+      status: true,
+      locationType: true,
+    },
     orderBy: { purchasedAt: "asc" },
   });
 
   const groups = new Map<string, AvailabilityGroup>();
   for (const r of rows) {
     const key = `${r.productId}:${r.sizeCm}:${r.sex}:${r.price}`;
+    const isWarehouse = r.status === "available" && r.locationType === "warehouse";
     const existing = groups.get(key);
     if (existing) {
       existing.stock += 1;
+      if (isWarehouse) existing.warehouseStock += 1;
+      else existing.distributorStock += 1;
       if (!existing.photoUrl && r.photoUrl) existing.photoUrl = r.photoUrl;
     } else {
       groups.set(key, {
@@ -245,6 +263,8 @@ export async function listAvailabilityGroups(productIds?: string[]): Promise<Ava
         sex: r.sex,
         price: r.price,
         stock: 1,
+        warehouseStock: isWarehouse ? 1 : 0,
+        distributorStock: isWarehouse ? 0 : 1,
         photoUrl: r.photoUrl ?? null,
       });
     }
@@ -305,6 +325,14 @@ export async function syncAggregateStock(productId?: string) {
       await tx.productDistributorStock.update({
         where: { id: row.id },
         data: { stock: match?._count._all ?? 0 },
+      });
+    }
+
+    const productsWithConsignment = [...new Set(consignmentCounts.map((c) => c.productId))];
+    if (productsWithConsignment.length > 0) {
+      await tx.product.updateMany({
+        where: { id: { in: productsWithConsignment } },
+        data: { availableAtDistributor: true },
       });
     }
   });
@@ -386,7 +414,26 @@ export async function receiveSpecimenBatch(rows: ReceiveBatchRowInput[]): Promis
   }
 
   const productIds = [...new Set(rows.map((r) => r.productId))];
+  const consignmentProductIds = [...new Set(rows.filter((r) => r.locationType === "consignment").map((r) => r.productId))];
+  if (consignmentProductIds.length > 0) {
+    await db.product.updateMany({
+      where: { id: { in: consignmentProductIds } },
+      data: { availableAtDistributor: true },
+    });
+  }
   await Promise.all(productIds.map((id) => syncAggregateStock(id)));
+
+  for (const row of rows) {
+    if (
+      row.locationType === "consignment" &&
+      row.locationId &&
+      row.distributorPrice != null &&
+      row.distributorPrice > 0
+    ) {
+      await setDistributorPrice(row.productId, row.locationId, row.distributorPrice);
+    }
+  }
+
   return ids;
 }
 
@@ -426,7 +473,26 @@ export async function transferToConsignment(input: TransferInput): Promise<void>
     }
   });
 
+  const productIds = [...new Set(
+    (await db.specimen.findMany({
+      where: { id: { in: input.specimenIds } },
+      select: { productId: true },
+    })).map((s) => s.productId),
+  )];
+  if (productIds.length > 0) {
+    await db.product.updateMany({
+      where: { id: { in: productIds } },
+      data: { availableAtDistributor: true },
+    });
+  }
+
   await syncAggregateStock();
+
+  if (input.distributorPrice != null && input.distributorPrice > 0) {
+    await Promise.all(
+      productIds.map((productId) => setDistributorPrice(productId, input.locationId, input.distributorPrice!)),
+    );
+  }
 }
 
 export async function transferToWarehouse(specimenIds: string[], notes?: string): Promise<void> {
@@ -591,6 +657,16 @@ export async function updateSpecimen(specimenId: string, input: UpdateSpecimenIn
     }
   });
 
+  if (input.locationType === "consignment") {
+    const specimen = await db.specimen.findUnique({ where: { id: specimenId }, select: { productId: true } });
+    if (specimen) {
+      await db.product.update({
+        where: { id: specimen.productId },
+        data: { availableAtDistributor: true },
+      });
+    }
+  }
+
   await syncAggregateStock();
 }
 
@@ -609,7 +685,21 @@ export async function updateTarantulAppId(specimenId: string, tarantulAppId: str
   });
 }
 
-/** FIFO assignment from warehouse for web orders — matches the (size, sex, price) buy-box the customer ordered. */
+/** FIFO assignment for web orders — warehouse first, then distributor consignment. */
+export interface DistributorPickupLine {
+  productName: string;
+  sizeLabel: string;
+  sex: SpecimenSex;
+  distributorName: string;
+  distributorPhone: string;
+  price: number;
+}
+
+export interface AssignSpecimensResult {
+  ids: string[];
+  distributorPickups: DistributorPickupLine[];
+}
+
 export async function assignSpecimensFifo(
   tx: Prisma.TransactionClient,
   opts: {
@@ -624,19 +714,36 @@ export async function assignSpecimensFifo(
     salesChannel?: SalesChannel;
     paymentMethod?: PaymentMethod;
   },
-): Promise<string[]> {
-  const specimens = await tx.specimen.findMany({
-    where: {
-      productId: opts.productId,
-      sizeCm: opts.sizeCm,
-      sex: opts.sex,
-      price: opts.price,
-      status: "available",
-      locationType: "warehouse",
-    },
+): Promise<AssignSpecimensResult> {
+  const match = {
+    productId: opts.productId,
+    sizeCm: opts.sizeCm,
+    sex: opts.sex,
+    price: opts.price,
+  };
+
+  const specimenInclude = {
+    location: { select: { name: true, phone: true } },
+    product: { select: { commonEn: true } },
+  } as const;
+
+  const warehouseSpecimens = await tx.specimen.findMany({
+    where: { ...match, status: "available", locationType: "warehouse" },
+    include: specimenInclude,
     orderBy: { purchasedAt: "asc" },
     take: opts.qty,
   });
+
+  let specimens = warehouseSpecimens;
+  if (specimens.length < opts.qty) {
+    const consignmentSpecimens = await tx.specimen.findMany({
+      where: { ...match, status: "consignment" },
+      include: specimenInclude,
+      orderBy: { purchasedAt: "asc" },
+      take: opts.qty - specimens.length,
+    });
+    specimens = [...specimens, ...consignmentSpecimens];
+  }
 
   if (specimens.length < opts.qty) {
     throw new Error(`Insufficient specimens for ${opts.productId}/${opts.sizeCm}cm/${opts.sex}`);
@@ -644,8 +751,11 @@ export async function assignSpecimensFifo(
 
   const soldAt = new Date();
   const ids: string[] = [];
+  const distributorPickups: DistributorPickupLine[] = [];
 
   for (const s of specimens) {
+    const wasConsignment = s.status === "consignment";
+
     await tx.specimen.update({
       where: { id: s.id },
       data: {
@@ -665,8 +775,8 @@ export async function assignSpecimensFifo(
     await recordMovement(tx, {
       specimenId: s.id,
       type: "sale",
-      fromLocationType: "warehouse",
-      fromLocationId: null,
+      fromLocationType: s.locationType,
+      fromLocationId: s.locationId,
       amount: opts.salePriceEach,
       salesChannel: opts.salesChannel ?? "web",
       paymentMethod: opts.paymentMethod ?? "stripe",
@@ -674,9 +784,20 @@ export async function assignSpecimensFifo(
     });
 
     ids.push(s.id);
+
+    if (wasConsignment && s.location) {
+      distributorPickups.push({
+        productName: s.product.commonEn,
+        sizeLabel: formatCmAsInches(s.sizeCm),
+        sex: s.sex,
+        distributorName: s.location.name,
+        distributorPhone: s.location.phone,
+        price: opts.salePriceEach,
+      });
+    }
   }
 
-  return ids;
+  return { ids, distributorPickups };
 }
 
 export async function countAvailableWarehouse(
@@ -688,6 +809,19 @@ export async function countAvailableWarehouse(
   const db = requireDb();
   return db.specimen.count({
     where: { productId, sizeCm, sex, price, status: "available", locationType: "warehouse" },
+  });
+}
+
+/** Warehouse + distributor consignment stock for a buy-box (storefront checkout). */
+export async function countPurchasableStock(
+  productId: string,
+  sizeCm: number,
+  sex: SpecimenSex,
+  price: number,
+): Promise<number> {
+  const db = requireDb();
+  return db.specimen.count({
+    where: { productId, sizeCm, sex, price, status: { in: ["available", "consignment"] } },
   });
 }
 

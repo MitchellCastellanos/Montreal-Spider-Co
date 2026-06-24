@@ -6,6 +6,7 @@ import {
   type EmailLocale,
   type RenderedEmail,
 } from "@/lib/email-templates";
+import type { DistributorPickupLine } from "@/lib/data/specimens";
 
 const resendConfigured = Boolean(process.env.RESEND_API_KEY);
 const fromEmail = process.env.RESEND_FROM_EMAIL ?? `orders@${new URL(SITE.url).hostname}`;
@@ -49,6 +50,47 @@ export async function sendOrderConfirmationEmail(input: {
     total: `$${input.total.toFixed(2)} CAD`,
   });
   await deliver(input.to, email);
+}
+
+function formatDistributorAlertLines(lines: DistributorPickupLine[]): string {
+  return lines
+    .map((line) => {
+      const sex = line.sex === "male" ? "male" : line.sex === "female" ? "female" : "unsexed";
+      const phone = line.distributorPhone ? ` · ${line.distributorPhone}` : "";
+      return `• ${line.productName} (${line.sizeLabel}, ${sex}) @ ${line.distributorName} — $${line.price.toFixed(2)}${phone}\n  CALL ${line.distributorName} to mark this spider sold.`;
+    })
+    .join("\n");
+}
+
+/** Staff alert when web checkout sells consignment stock at a distributor. */
+export async function sendDistributorSaleAlertEmail(input: {
+  orderNumber: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  total: number;
+  lines: DistributorPickupLine[];
+}) {
+  if (!resendConfigured) {
+    console.info("[email] RESEND_API_KEY not set — skipping distributor sale alert for", input.orderNumber);
+    return;
+  }
+  if (input.lines.length === 0) return;
+
+  const template = getEmailTemplate("distributor-sale-alert");
+  if (!template) return;
+
+  const adminTo = process.env.ORDERS_ADMIN_EMAIL ?? SITE.email;
+  const itemLines = formatDistributorAlertLines(input.lines);
+  const email = template.render("en", {
+    orderNumber: input.orderNumber,
+    customerName: input.customerName,
+    customerEmail: input.customerEmail,
+    customerPhone: input.customerPhone,
+    total: `$${input.total.toFixed(2)} CAD`,
+    itemLines,
+  });
+  await deliver(adminTo, email);
 }
 
 export type SendTestResult = { ok: true } | { ok: false; error: string };

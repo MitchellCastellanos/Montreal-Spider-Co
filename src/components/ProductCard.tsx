@@ -7,7 +7,7 @@ import DistributorAvailabilityCta from "./DistributorAvailabilityCta";
 import { useCart, snapshotFromProduct } from "@/context/CartContext";
 import { useI18n, useT } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
-import { basePrice, isAvailableAtDistributor, isPurchasableOnline, warehouseStock, type Product } from "@/lib/types";
+import { basePrice, isAvailableAtDistributor, isPurchasableOnline, totalStock, type Product } from "@/lib/types";
 
 const expColor: Record<string, string> = {
   beginner: "text-ok",
@@ -20,7 +20,7 @@ export default function ProductCard({ product }: { product: Product }) {
   const { add } = useCart();
   const tr = useT();
 
-  const stock = warehouseStock(product);
+  const stock = totalStock(product);
   const online = isPurchasableOnline(product);
   const atDistributor = isAvailableAtDistributor(product);
   const inStockUnits = product.availability.filter((u) => u.stock > 0);
