@@ -4,12 +4,15 @@ import { useMemo, useState } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
 import {
-  MEETUP_AREAS,
+  METRO_LINE_COLORS,
   METRO_LINE_PATHS,
   METRO_MAP_LANDMASS,
   METRO_MAP_VIEWBOX,
-  METRO_MAP_ZONE_LABELS,
+  METRO_MAP_ZONE_TEXT,
+  METRO_SCHEMATIC_DECOR,
+  METRO_ZONE_A_BOUNDARY,
   type MetroStation,
+  type StationMapLabel,
   calcStationMeetupFee,
   getMapStationGroups,
   getMeetupArea,
@@ -59,41 +62,47 @@ export default function MetroMeetupMap({
     <div className={`overflow-hidden rounded-xl border border-line ${className}`}>
       <svg
         viewBox={`0 0 ${METRO_MAP_VIEWBOX.width} ${METRO_MAP_VIEWBOX.height}`}
-        className="h-auto w-full bg-[#dce4ec]"
+        className="h-auto w-full bg-[#cdd6df]"
         role="img"
         aria-label={co.meetupStepStation}
       >
-        {/* Geographic backdrop */}
         {METRO_MAP_LANDMASS.map((shape) => (
-          <path key={shape.id} d={shape.d} fill={shape.fill} />
+          <path
+            key={shape.id}
+            d={shape.d}
+            fill={shape.fill}
+            stroke={shape.stroke}
+            strokeWidth={shape.stroke ? 1 : 0}
+          />
         ))}
 
-        {/* Meetup area hints */}
-        {METRO_MAP_ZONE_LABELS.map((label) => {
-          const area = MEETUP_AREAS.find((a) => a.id === label.area);
-          if (!area) return null;
-          return (
-            <text
-              key={label.area}
-              x={label.x}
-              y={label.y}
-              textAnchor={label.anchor}
-              className="select-none fill-[#9aa8b6] font-medium uppercase tracking-widest"
-              style={{ fontSize: 9 }}
-            >
-              {t(area.name, locale)}
-            </text>
-          );
-        })}
+        <path
+          d={METRO_ZONE_A_BOUNDARY}
+          fill="none"
+          stroke="#b0bcc8"
+          strokeWidth={1}
+          strokeDasharray="5 4"
+        />
+        {METRO_MAP_ZONE_TEXT.map((z) => (
+          <text
+            key={`${z.text}-${z.x}-${z.y}`}
+            x={z.x}
+            y={z.y}
+            textAnchor={z.anchor}
+            className="fill-[#9aa8b4] font-semibold"
+            style={{ fontSize: 11, letterSpacing: 2 }}
+          >
+            {z.text}
+          </text>
+        ))}
 
-        {/* Line casings (white) then coloured tracks — STM-style */}
         {METRO_LINE_PATHS.map((track, i) => (
           <path
             key={`casing-${track.line}-${i}`}
             d={track.d}
             fill="none"
             stroke="#ffffff"
-            strokeWidth={11}
+            strokeWidth={13}
             strokeLinecap="round"
             strokeLinejoin="round"
           />
@@ -106,19 +115,57 @@ export default function MetroMeetupMap({
               d={track.d}
               fill="none"
               stroke={line?.color ?? "#666"}
-              strokeWidth={6}
+              strokeWidth={7}
               strokeLinecap="round"
               strokeLinejoin="round"
             />
           );
         })}
 
-        {/* Stations */}
+        {/* Full network labels (decorative) */}
+        {METRO_SCHEMATIC_DECOR.map((decor) => (
+          <g key={`decor-${decor.name}`} className="pointer-events-none select-none">
+            <circle
+              cx={decor.x}
+              cy={decor.y}
+              r={decor.hub ? 4.5 : 3.5}
+              fill="#ffffff"
+              stroke="#6b7c8a"
+              strokeWidth={1.25}
+            />
+            <StationMapLabelText
+              x={decor.x}
+              y={decor.y}
+              text={decor.label.text ?? decor.name}
+              label={decor.label}
+              highlighted={false}
+              decor
+            />
+          </g>
+        ))}
+
+        {/* Meetup station labels */}
+        {mapGroups.map((group) => {
+          const isSelected = group.stations.some((s) => s.id === selectedStationId);
+          const isHovered = hoveredKey === group.key;
+          return (
+            <StationMapLabelText
+              key={`label-${group.key}`}
+              x={group.x}
+              y={group.y}
+              text={group.mapLabel}
+              label={group.label}
+              highlighted={isSelected || isHovered}
+            />
+          );
+        })}
+
+        {/* Meetup stations (interactive) */}
         {mapGroups.map((group) => {
           const isSelected = group.stations.some((s) => s.id === selectedStationId);
           const isHovered = hoveredKey === group.key;
           const hub = group.isTransferHub;
-          const r = isSelected ? 10 : isHovered ? 9 : hub ? 8 : 6;
+          const r = isSelected ? 9 : isHovered ? 8 : hub ? 7 : 5.5;
 
           return (
             <g
@@ -138,6 +185,9 @@ export default function MetroMeetupMap({
               tabIndex={interactive ? 0 : undefined}
               aria-label={group.name}
             >
+              {isSelected && (
+                <circle cx={group.x} cy={group.y} r={r + 4} fill="none" stroke="#e8c56a" strokeWidth={2} />
+              )}
               {hub ? (
                 <rect
                   x={group.x - r}
@@ -146,7 +196,7 @@ export default function MetroMeetupMap({
                   height={r * 2}
                   rx={3}
                   fill={isSelected ? "#e8c56a" : "#ffffff"}
-                  stroke={isSelected ? "#c9a24b" : isHovered ? "#2d3748" : "#1a2332"}
+                  stroke={isSelected ? "#c9a24b" : isHovered ? "#1a2332" : "#1a2332"}
                   strokeWidth={isSelected ? 2.5 : 2}
                   className="transition-all duration-150"
                 />
@@ -156,31 +206,102 @@ export default function MetroMeetupMap({
                   cy={group.y}
                   r={r}
                   fill={isSelected ? "#e8c56a" : "#ffffff"}
-                  stroke={isSelected ? "#c9a24b" : isHovered ? "#2d3748" : "#4a5568"}
+                  stroke={isSelected ? "#c9a24b" : isHovered ? "#1a2332" : "#4a5568"}
                   strokeWidth={isSelected ? 2.5 : 1.75}
                   className="transition-all duration-150"
                 />
               )}
-              {(isSelected || isHovered) && (
-                <text
-                  x={group.x}
-                  y={group.y - (hub ? 16 : 14)}
-                  textAnchor="middle"
-                  className="fill-[#1a2332] font-medium"
-                  style={{ fontSize: 10, paintOrder: "stroke", stroke: "#f6f8fa", strokeWidth: 3 }}
-                >
-                  {group.name}
-                </text>
-              )}
             </g>
           );
         })}
+
+        {/* Legend */}
+        <g transform="translate(20, 672)">
+          <circle cx={0} cy={0} r={3.5} fill="#fff" stroke="#6b7c8a" strokeWidth={1.25} />
+          <text x={9} y={3} className="fill-[#5a6a78]" style={{ fontSize: 8 }}>
+            {co.mapLegendStation}
+          </text>
+          <rect x={62} y={-5} width={10} height={10} rx={2} fill="#fff" stroke="#1a2332" strokeWidth={1.5} />
+          <text x={78} y={3} className="fill-[#5a6a78]" style={{ fontSize: 8 }}>
+            {co.mapLegendTransfer}
+          </text>
+          <circle cx={148} cy={0} r={5} fill="none" stroke="#e8c56a" strokeWidth={1.75} />
+          <text x={158} y={3} className="fill-[#5a6a78]" style={{ fontSize: 8 }}>
+            {co.mapLegendMeetup}
+          </text>
+        </g>
       </svg>
 
       {tooltipStation && (
         <MetroMapTooltip station={tooltipStation} subtotal={subtotal} locale={locale} />
       )}
     </div>
+  );
+}
+
+function StationMapLabelText({
+  x,
+  y,
+  text,
+  label,
+  highlighted,
+  decor = false,
+}: {
+  x: number;
+  y: number;
+  text: string;
+  label: StationMapLabel;
+  highlighted: boolean;
+  decor?: boolean;
+}) {
+  const lx = x + label.dx;
+  const ly = y + label.dy;
+  const fontSize = decor ? 7 : highlighted ? 9.5 : 8;
+  const fill = decor ? "#5c6d7a" : highlighted ? "#0f172a" : "#1e293b";
+
+  if (label.terminalLine) {
+    const color = METRO_LINE_COLORS[label.terminalLine];
+    const upper = text.toUpperCase();
+    const charW = decor ? 4.6 : 5.1;
+    const padX = 3;
+    const boxH = decor ? 10 : 11;
+    const boxW = upper.length * charW + padX * 2;
+    let boxX = lx;
+    if (label.anchor === "middle") boxX = lx - boxW / 2;
+    else if (label.anchor === "end") boxX = lx - boxW;
+
+    return (
+      <g className="pointer-events-none select-none">
+        <rect x={boxX} y={ly - boxH + 2} width={boxW} height={boxH} rx={1} fill={color} />
+        <text
+          x={boxX + padX}
+          y={ly}
+          textAnchor="start"
+          className="fill-white font-bold"
+          style={{ fontSize: decor ? 6.5 : 7.5, letterSpacing: 0.3 }}
+        >
+          {upper}
+        </text>
+      </g>
+    );
+  }
+
+  return (
+    <text
+      x={lx}
+      y={ly}
+      textAnchor={label.anchor}
+      className={`pointer-events-none select-none ${highlighted && !decor ? "font-semibold" : "font-medium"}`}
+      style={{
+        fontSize,
+        fill,
+        paintOrder: "stroke",
+        stroke: "#f2f5f8",
+        strokeWidth: decor ? 2.5 : highlighted ? 4 : 3,
+      }}
+    >
+      {text}
+    </text>
   );
 }
 
