@@ -1,6 +1,7 @@
 "use client";
 
 import LocaleLink from "@/components/LocaleLink";
+import KlarnaBadge from "@/components/KlarnaBadge";
 import SpiderGraphic from "@/components/SpiderGraphic";
 import SpeciesImage from "@/components/SpeciesImage";
 import { useCart } from "@/context/CartContext";
@@ -85,6 +86,7 @@ export default function CartView() {
               </span>
             </div>
             <LocaleLink href="/checkout" className="btn btn-gold mt-5 w-full">{c.checkout} →</LocaleLink>
+            <KlarnaBadge amount={subtotal} variant="summary" className="mt-3 justify-center" />
             <LocaleLink href="/shop" className="btn btn-ghost mt-2 w-full">{c.continue}</LocaleLink>
           </div>
         </aside>

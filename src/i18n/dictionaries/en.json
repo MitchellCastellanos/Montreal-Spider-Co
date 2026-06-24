@@ -560,6 +560,26 @@
     "q8": "What pickup / meetup options do you offer?",
     "a8": "At checkout, choose pickup / meetup: free collection at a partner pickup point; metro station meetup via our interactive map (Mon–Sat 9:30 AM–4:30 PM) — Southwest $12 (free over $75), Central $15 ($125), North & East $20 ($150), Laval & South Shore $25 ($200); or a custom meetup location (we confirm any extra fee before fulfilling). Times are coordinated after your order, usually within 3–7 days."
   },
+  "payments": {
+    "klarnaPay4": "Pay in 4 with Klarna",
+    "klarnaInstallment": "4 × {amount} with Klarna",
+    "klarnaDetail": "Split it into 4 interest-free payments of {amount} — choose Klarna at checkout.",
+    "klarnaDetailNoAmount": "Split it into 4 interest-free payments — choose Klarna at checkout.",
+    "klarnaSummary": "Pay in 4 interest-free instalments with Klarna at checkout.",
+    "checkoutTitle": "Pay over time with Klarna",
+    "checkoutBody": "Prefer to spread the cost? Select Klarna on the secure Stripe screen to pay in 4 interest-free instalments.",
+    "homeKicker": "Flexible payment options",
+    "homeTitle": "Buy now, pay over time with Klarna",
+    "homeBody": "Bring home your spider — and its setup — today and split the cost into 4 interest-free instalments. Just choose Klarna when you check out through our secure Stripe payment.",
+    "homePoint1Title": "Pay in 4",
+    "homePoint1Body": "Four equal payments, two weeks apart — always interest-free.",
+    "homePoint2Title": "No impact to start",
+    "homePoint2Body": "Choosing Klarna at checkout won't affect your credit score.",
+    "homePoint3Title": "Secure & private",
+    "homePoint3Body": "Handled by Stripe and Klarna — we never see your card or banking details.",
+    "homeCta": "Shop the collection",
+    "disclaimer": "Subject to eligibility. Klarna options and full terms are shown at checkout."
+  },
   "footer": {
     "blurb": "Quebec's premium tarantula specialist. Captive-bred, Verified Origin, ready for pickup or meetup across Montreal.",
     "shopCol": "Shop",

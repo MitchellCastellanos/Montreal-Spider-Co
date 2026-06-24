@@ -560,6 +560,26 @@
     "q8": "Quelles options de cueillette / rencontre offrez-vous?",
     "a8": "À la caisse, choisissez cueillette / rencontre : récupération gratuite chez un partenaire; rencontre en métro via notre carte interactive (lun.–sam. 9 h 30–16 h 30) — sud-ouest 12 $ (gratuit à partir de 75 $), Centre 15 $ (125 $), Nord et Est 20 $ (150 $), Laval et Rive-Sud 25 $ (200 $); ou lieu personnalisé (nous confirmons tout frais supplémentaire avant traitement). Les heures sont coordonnées après la commande, habituellement en 3 à 7 jours."
   },
+  "payments": {
+    "klarnaPay4": "Payez en 4 fois avec Klarna",
+    "klarnaInstallment": "4 × {amount} avec Klarna",
+    "klarnaDetail": "Divisez le paiement en 4 versements sans intérêts de {amount} — choisissez Klarna au paiement.",
+    "klarnaDetailNoAmount": "Divisez le paiement en 4 versements sans intérêts — choisissez Klarna au paiement.",
+    "klarnaSummary": "Payez en 4 versements sans intérêts avec Klarna au paiement.",
+    "checkoutTitle": "Payez en plusieurs fois avec Klarna",
+    "checkoutBody": "Vous préférez étaler le coût ? Choisissez Klarna sur la page sécurisée de Stripe pour payer en 4 versements sans intérêts.",
+    "homeKicker": "Options de paiement flexibles",
+    "homeTitle": "Achetez maintenant, payez plus tard avec Klarna",
+    "homeBody": "Repartez avec votre mygale — et son installation — dès aujourd'hui et divisez le coût en 4 versements sans intérêts. Choisissez simplement Klarna lors du paiement sécurisé par Stripe.",
+    "homePoint1Title": "Payez en 4 fois",
+    "homePoint1Body": "Quatre versements égaux, aux deux semaines — toujours sans intérêts.",
+    "homePoint2Title": "Sans impact pour commencer",
+    "homePoint2Body": "Choisir Klarna au paiement n'affecte pas votre cote de crédit.",
+    "homePoint3Title": "Sécurisé et privé",
+    "homePoint3Body": "Géré par Stripe et Klarna — nous ne voyons jamais vos coordonnées bancaires.",
+    "homeCta": "Voir la collection",
+    "disclaimer": "Sous réserve d'admissibilité. Les options Klarna et les conditions complètes sont affichées au paiement."
+  },
   "footer": {
     "blurb": "Le spécialiste de la mygale au Québec. Née en captivité, Origine Vérifiée, livrée avec soin partout à Montréal — ou prête pour cueillette / rencontre.",
     "shopCol": "Boutique",

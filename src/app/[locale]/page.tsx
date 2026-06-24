@@ -63,6 +63,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     { key: "advanced", name: h.advancedName, body: h.advancedBody, hue: 210 },
   ];
 
+  const pay = dict.payments;
+  const klarnaPoints = [
+    { t: pay.homePoint1Title, b: pay.homePoint1Body },
+    { t: pay.homePoint2Title, b: pay.homePoint2Body },
+    { t: pay.homePoint3Title, b: pay.homePoint3Body },
+  ];
+
   return (
     <>
       <Hero />
@@ -137,6 +144,39 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               </Link>
             </Reveal>
           ))}
+        </div>
+      </section>
+
+      {/* Flexible payment / Klarna */}
+      <section className="border-y border-line bg-ink-soft/40">
+        <div className="container-x py-16 md:py-24">
+          <Reveal className="mx-auto max-w-3xl text-center">
+            <p className="badge mb-3">{pay.homeKicker}</p>
+            <h2 className="font-display text-3xl font-bold text-cream sm:text-4xl">{pay.homeTitle}</h2>
+            <p className="mt-3 text-bone">{pay.homeBody}</p>
+            <span className="mt-5 inline-flex items-center gap-2 rounded-full border border-line bg-ink px-4 py-2 text-sm text-bone">
+              <span className="inline-flex items-center rounded bg-[#FFB3C7] px-2 py-0.5 text-xs font-extrabold tracking-tight text-black">
+                Klarna
+              </span>
+              {pay.klarnaPay4}
+            </span>
+          </Reveal>
+          <div className="mt-12 grid gap-6 sm:grid-cols-3">
+            {klarnaPoints.map((pt, i) => (
+              <Reveal key={pt.t} delay={i * 0.08}>
+                <div className="card-glow h-full rounded-2xl p-6">
+                  <h3 className="mb-2 font-display text-lg font-semibold text-cream">{pt.t}</h3>
+                  <p className="text-sm leading-relaxed text-bone">{pt.b}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+          <Reveal className="mt-8 text-center">
+            <Link href={localeHref(loc, "/shop")} className="btn btn-gold">
+              {pay.homeCta} →
+            </Link>
+            <p className="mt-3 text-xs text-muted">{pay.disclaimer}</p>
+          </Reveal>
         </div>
       </section>
 

@@ -11,6 +11,7 @@ import { formatPrice } from "@/lib/format";
 import { breadcrumbSchema, productSchema } from "@/lib/seo";
 import SpeciesImage from "@/components/SpeciesImage";
 import AddToCart from "@/components/AddToCart";
+import KlarnaBadge from "@/components/KlarnaBadge";
 import { SITE } from "@/lib/site";
 import { withVerifiedOriginLinks } from "@/lib/verified-origin-links";
 import { basePrice } from "@/lib/types";
@@ -150,6 +151,8 @@ export default async function ProductPage({
               {formatPrice(basePrice(product), loc)}{" "}
               <span className="text-sm font-normal text-muted">{dict.common.plusTaxes}</span>
             </p>
+
+            <KlarnaBadge variant="detail" amount={basePrice(product)} className="mt-4" />
 
             <div className="my-6 h-px bg-line" />
 
