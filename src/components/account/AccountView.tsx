@@ -7,10 +7,11 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice, formatDate } from "@/lib/format";
 import SpiderGraphic from "@/components/SpiderGraphic";
 import { PreferencesTab, ReferralTab, SavedGuidesTab, WishlistTab } from "@/components/account/AccountExtras";
+import type { PickupOption } from "@/components/checkout/PickupMeetupSection";
 
 type Tab = "profile" | "orders" | "wishlist" | "guides" | "preferences" | "referral" | "payments" | "addresses";
 
-export default function AccountView() {
+export default function AccountView({ pickups }: { pickups: PickupOption[] }) {
   const { dict, locale } = useI18n();
   const { user, ready, login, register, signOut, refresh } = useAuth();
   const a = dict.account;
@@ -145,7 +146,7 @@ export default function AccountView() {
       {tab === "preferences" && (
         <div>
           <h2 className="mb-4 font-display text-xl font-bold text-cream">{a.preferencesTitle}</h2>
-          <PreferencesTab />
+          <PreferencesTab pickups={pickups} />
         </div>
       )}
       {tab === "referral" && <ReferralTab />}

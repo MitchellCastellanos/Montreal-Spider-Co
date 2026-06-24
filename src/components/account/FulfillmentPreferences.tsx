@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useI18n } from "@/i18n/I18nProvider";
 import MetroMeetupSelector from "@/components/checkout/MetroMeetupSelector";
+import type { PickupOption } from "@/components/checkout/PickupMeetupSection";
+import { formatWeeklyHoursSummary } from "@/lib/opening-hours";
 import {
   MEETUP_AVAILABILITY_OPTIONS,
   type MeetupAvailability,
@@ -16,6 +18,7 @@ import { t } from "@/lib/types";
 
 export function buildFulfillmentPreferencesPayload(
   pickupSubtype: PickupSubtype,
+  pickupId: string,
   meetupZoneId: string,
   metroLineId: string,
   metroStationId: string,
@@ -26,7 +29,7 @@ export function buildFulfillmentPreferencesPayload(
     return {
       prefMethod: "pickup" as const,
       prefPickupSubtype: "pickup_point",
-      prefPickupId: null,
+      prefPickupId: pickupId || null,
       prefMetroStationId: null,
       prefMetroLine: null,
       prefMeetupZoneId: null,
@@ -62,8 +65,10 @@ export function buildFulfillmentPreferencesPayload(
 export type FulfillmentPrefsPayload = ReturnType<typeof buildFulfillmentPreferencesPayload>;
 
 export default function FulfillmentPreferences({
+  pickups,
   onChange,
 }: {
+  pickups: PickupOption[];
   onChange: (payload: FulfillmentPrefsPayload) => void;
 }) {
   const { dict, locale } = useI18n();
@@ -73,6 +78,7 @@ export default function FulfillmentPreferences({
   const prefs = user?.preferences;
 
   const [pickupSubtype, setPickupSubtype] = useState<PickupSubtype>("metro_meetup");
+  const [pickupId, setPickupId] = useState(pickups[0]?.id ?? "");
   const [meetupZoneId, setMeetupZoneId] = useState("southwest");
   const [metroLineId, setMetroLineId] = useState("");
   const [metroStationId, setMetroStationId] = useState("");
@@ -84,6 +90,9 @@ export default function FulfillmentPreferences({
     if (!prefs || loaded) return;
     if (prefs.prefPickupSubtype === "pickup_point") {
       setPickupSubtype("pickup_point");
+      if (prefs.prefPickupId && pickups.some((p) => p.id === prefs.prefPickupId)) {
+        setPickupId(prefs.prefPickupId);
+      }
     } else if (prefs.prefPickupSubtype === "custom_meetup") {
       setPickupSubtype("custom_meetup");
       setCustomMeetupRequest(prefs.prefCustomMeetup ?? "");
@@ -108,7 +117,11 @@ export default function FulfillmentPreferences({
       }
     }
     setLoaded(true);
-  }, [prefs, loaded]);
+  }, [prefs, loaded, pickups]);
+
+  useEffect(() => {
+    if (!pickupId && pickups[0]?.id) setPickupId(pickups[0].id);
+  }, [pickupId, pickups]);
 
   useEffect(() => {
     if (!loaded || metroStationId) return;
@@ -123,6 +136,7 @@ export default function FulfillmentPreferences({
     onChange(
       buildFulfillmentPreferencesPayload(
         pickupSubtype,
+        pickupId,
         meetupZoneId,
         metroLineId,
         metroStationId,
@@ -135,6 +149,7 @@ export default function FulfillmentPreferences({
   }, [
     loaded,
     pickupSubtype,
+    pickupId,
     meetupZoneId,
     metroLineId,
     metroStationId,
@@ -213,9 +228,31 @@ export default function FulfillmentPreferences({
       )}
 
       {pickupSubtype === "pickup_point" && (
-        <p className="rounded-lg border border-line bg-ink-soft/40 p-3 text-xs text-bone">
-          {a.fulfillmentPickupNote}
-        </p>
+        <div className="space-y-3">
+          {pickups.length === 0 ? (
+            <p className="rounded-lg border border-line bg-ink-soft/40 p-3 text-xs text-bone">
+              {a.fulfillmentPickupEmpty}
+            </p>
+          ) : (
+            <>
+              <label className="field">
+                <span>{a.fulfillmentPickupLabel}</span>
+                <select className="input" value={pickupId} onChange={(e) => setPickupId(e.target.value)}>
+                  {pickups.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} — {p.neighborhood}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {pickups.find((p) => p.id === pickupId) && (
+                <p className="text-sm text-bone">
+                  {formatWeeklyHoursSummary(pickups.find((p) => p.id === pickupId)!.hours, locale)}
+                </p>
+              )}
+            </>
+          )}
+        </div>
       )}
     </div>
   );

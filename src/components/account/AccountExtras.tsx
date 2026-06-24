@@ -10,6 +10,7 @@ import { formatPrice } from "@/lib/format";
 import FulfillmentPreferences, {
   type FulfillmentPrefsPayload,
 } from "@/components/account/FulfillmentPreferences";
+import type { PickupOption } from "@/components/checkout/PickupMeetupSection";
 
 type WishlistRow = {
   id: string;
@@ -133,7 +134,7 @@ export function SavedGuidesTab() {
   );
 }
 
-export function PreferencesTab() {
+export function PreferencesTab({ pickups }: { pickups: PickupOption[] }) {
   const { dict } = useI18n();
   const { user, updateProfile } = useAuth();
   const a = dict.account;
@@ -176,7 +177,7 @@ export function PreferencesTab() {
         <p className="mt-1 text-xs text-muted">{a.experienceHint}</p>
       </div>
 
-      <FulfillmentPreferences onChange={handleFulfillmentChange} />
+      <FulfillmentPreferences pickups={pickups} onChange={handleFulfillmentChange} />
 
       <div className="space-y-2">
         <p className="text-sm font-medium text-cream">{a.newsletterTitle}</p>
