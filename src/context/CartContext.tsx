@@ -96,7 +96,26 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setLines(JSON.parse(raw));
+      if (raw) {
+        const parsed = JSON.parse(raw) as unknown;
+        if (Array.isArray(parsed)) {
+          setLines(
+            parsed.map((line) => {
+              if (!line || typeof line !== "object") return null;
+              const l = line as CartLine;
+              if (!l.snap) return l;
+              return {
+                ...l,
+                snap: {
+                  ...l.snap,
+                  common: asL(l.snap.common),
+                  sizeLabel: typeof l.snap.sizeLabel === "string" ? l.snap.sizeLabel : String(l.snap.sizeLabel ?? ""),
+                },
+              };
+            }).filter((l): l is CartLine => l !== null),
+          );
+        }
+      }
     } catch {
       /* ignore */
     }

@@ -69,6 +69,11 @@ export type SpeciesFormFields = {
   descriptionFr: string;
 };
 
+/** True when description/specs were never filled (e.g. profile created on inventory receive). */
+export function isSpeciesContentMissing(fields: Pick<SpeciesFormFields, "descriptionEn" | "humidity" | "adultSizeEn">): boolean {
+  return !fields.descriptionEn.trim() && !fields.humidity.trim() && !fields.adultSizeEn.trim();
+}
+
 export function emptySpeciesFields(): SpeciesFormFields {
   return {
     scientific: "",

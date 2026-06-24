@@ -12,11 +12,13 @@ import ProductImageField from "@/components/admin/ProductImageField";
 import SpeciesChatGptHelper from "@/components/admin/SpeciesChatGptHelper";
 import type { DistributorView } from "@/lib/data/locations";
 import ConceptInfo from "@/components/ConceptInfo";
-import { deriveAccent,
+import {
+  deriveAccent,
   deriveGenus,
   deriveHue,
   deriveSlug,
   emptySpeciesFields,
+  isSpeciesContentMissing,
   type SpeciesFormFields,
 } from "@/lib/species-utils";
 import { formatPrice } from "@/lib/format";
@@ -122,7 +124,7 @@ export default function ProductForm({
   const [slugTouched, setSlugTouched] = useState(!!product);
   const [speciesSearch, setSpeciesSearch] = useState("");
   const [selectedSpeciesId, setSelectedSpeciesId] = useState("");
-  const [detailsOpen, setDetailsOpen] = useState(!product);
+  const [detailsOpen, setDetailsOpen] = useState(!product || isSpeciesContentMissing(initial));
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const [availableAtPickup, setAvailableAtPickup] = useState(product?.availableAtPickup ?? true);
@@ -170,6 +172,11 @@ export default function ProductForm({
     if (!sci) return false;
     return speciesList.some((s) => s.scientific.toLowerCase() === sci);
   }, [form.scientific, speciesList]);
+
+  const needsSpeciesContent = useMemo(
+    () => !isInCatalog || isSpeciesContentMissing(form),
+    [isInCatalog, form],
+  );
 
   const applyChatGptFields = (fields: Partial<SpeciesFormFields>) => {
     const commonEn = fields.commonEn ?? form.commonEn;
@@ -279,12 +286,22 @@ export default function ProductForm({
           </div>
         </Section>
 
-        {/* ChatGPT prompt — new species not in catalog */}
-        {!isInCatalog && (
-          <Section title="New species? Use ChatGPT">
+        {/* ChatGPT prompt — new species or catalog entry still missing description/specs */}
+        {needsSpeciesContent && (
+          <Section title={isInCatalog ? "Fill species details with ChatGPT" : "New species? Use ChatGPT"}>
             <p className="mb-4 text-sm text-bone">
-              This species isn&apos;t in your catalog yet. Copy the prompt below into ChatGPT, paste the reply back here,
-              then save — the profile (and photo, or site default) is stored for future listings.
+              {isInCatalog ? (
+                <>
+                  <span className="text-cream">{form.scientific}</span> is in your species catalog but still missing
+                  description and care specs (common when stock was received first). Copy the prompt into ChatGPT, paste
+                  the reply here, then save.
+                </>
+              ) : (
+                <>
+                  This species isn&apos;t in your catalog yet. Copy the prompt below into ChatGPT, paste the reply back here,
+                  then save — the profile (and photo, or site default) is stored for future listings.
+                </>
+              )}
             </p>
             <SpeciesChatGptHelper
               scientific={form.scientific}
@@ -294,7 +311,7 @@ export default function ProductForm({
           </Section>
         )}
 
-        {isInCatalog && !selectedSpeciesId && form.scientific.trim() && (
+        {isInCatalog && !needsSpeciesContent && !selectedSpeciesId && form.scientific.trim() && (
           <p className="rounded-xl border border-line bg-ink-soft/40 px-4 py-3 text-sm text-bone">
             <span className="text-cream">{form.scientific}</span> is already in your species catalog — use{" "}
             <strong className="text-gold-bright">Load from species library</strong> above to auto-fill, or edit fields below.

@@ -31,7 +31,7 @@ export function asL(en: unknown, fr?: unknown): L {
   return { en: enOut, fr: frOut || enOut };
 }
 
-export function t(value: L, locale: Locale): string {
+export function t(value: unknown, locale: Locale): string {
   const direct = localeStr(value, locale);
   if (direct) return direct;
   const v = asL(value);
