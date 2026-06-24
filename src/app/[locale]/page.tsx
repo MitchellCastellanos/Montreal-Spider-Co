@@ -24,8 +24,8 @@ const testimonials = [
     name: "Jonathan T.",
     city: "Verdun",
     text: {
-      en: "Local pickup was effortless and they answered every beginner question I had. Easily the best tarantula shop in Montreal.",
-      fr: "La cueillette locale a été simplissime et ils ont répondu à toutes mes questions de débutant. La meilleure boutique de mygales à Montréal, sans hésiter.",
+      en: "Pickup / meetup was effortless and they answered every beginner question I had. Easily the best tarantula shop in Montreal.",
+      fr: "La cueillette / rencontre a été simplissime et ils ont répondu à toutes mes questions de débutant. La meilleure boutique de mygales à Montréal, sans hésiter.",
     },
   },
   {

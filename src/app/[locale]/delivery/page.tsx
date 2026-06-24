@@ -4,6 +4,7 @@ import { getDictionary } from "@/i18n/dictionaries";
 import { pageMeta } from "@/lib/pageMeta";
 import { localeHref } from "@/lib/href";
 import { DELIVERY_ZONES, FREE_DELIVERY_THRESHOLD } from "@/lib/locations";
+import { MEETUP_ZONES } from "@/lib/metro-meetup";
 import { getPickupPoints } from "@/lib/data/locations";
 import { getDistributors } from "@/lib/data/distributors";
 import { getSettings, resolvePickupTerms } from "@/lib/data/settings";
@@ -105,9 +106,53 @@ export default async function DeliveryPage({ params }: { params: Promise<{ local
         <div className="container-x py-16">
           <Reveal className="mb-8">
             <h2 className="font-display text-3xl font-bold text-cream">
-              {d.pickupTitle} <ConceptInfo concept="pickup" className="ml-2" />
+              {d.pickupMeetupTitle} <ConceptInfo concept="pickup" className="ml-2" />
             </h2>
-            <p className="mt-2 max-w-2xl text-bone">{d.pickupBody}</p>
+            <p className="mt-2 max-w-3xl text-bone">{d.pickupMeetupBody}</p>
+            <ul className="mt-4 max-w-3xl space-y-2 text-sm text-bone">
+              <li className="flex gap-2"><span className="text-gold-bright">•</span>{d.pickupOptionPoint}</li>
+              <li className="flex gap-2"><span className="text-gold-bright">•</span>{d.pickupOptionMetro}</li>
+              <li className="flex gap-2"><span className="text-gold-bright">•</span>{d.pickupOptionCustom}</li>
+            </ul>
+          </Reveal>
+
+          <Reveal className="mb-10">
+            <div className="flex items-start gap-3 rounded-2xl border border-line bg-ink-soft/40 p-5">
+              <span className="mt-0.5 text-gold-bright">📍</span>
+              <p className="text-sm leading-relaxed text-bone">{d.pickupMeetupCoordination}</p>
+            </div>
+          </Reveal>
+
+          <Reveal className="mb-10">
+            <div className="card-glow rounded-2xl p-7">
+              <h3 className="font-display text-xl font-bold text-cream">{d.metroTitle}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-bone">{d.metroBody}</p>
+              <div className="mt-5 overflow-hidden rounded-xl border border-line">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-ink-soft text-xs uppercase tracking-wide text-gold-deep">
+                    <tr>
+                      <th className="px-4 py-3">{d.zoneCol}</th>
+                      <th className="px-4 py-3">{d.feeCol}</th>
+                      <th className="px-4 py-3">{d.metroFreeCol}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {MEETUP_ZONES.map((z) => (
+                      <tr key={z.id} className="text-bone">
+                        <td className="px-4 py-3 font-medium text-cream">{t(z.name, loc)}</td>
+                        <td className="px-4 py-3 text-gold-bright">{formatPrice(z.fee, loc)}</td>
+                        <td className="px-4 py-3">{formatPrice(z.freeMeetupThreshold, loc)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </Reveal>
+
+          <Reveal className="mb-8">
+            <h3 className="font-display text-2xl font-bold text-cream">{d.pickupPointsTitle}</h3>
+            <p className="mt-2 max-w-2xl text-bone">{d.pickupPointsBody}</p>
           </Reveal>
 
           <Reveal className="mb-8">
