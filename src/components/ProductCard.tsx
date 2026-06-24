@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import LocaleLink from "./LocaleLink";
 import SpeciesImage from "./SpeciesImage";
 import DistributorAvailabilityCta from "./DistributorAvailabilityCta";
+import KlarnaBadge from "./KlarnaBadge";
 import UnitFulfillmentBadge from "./UnitFulfillmentBadge";
 import { useCart, snapshotFromProduct } from "@/context/CartContext";
 import { useProductDisplay } from "@/hooks/useProductDisplay";
@@ -168,6 +169,9 @@ export default function ProductCard({ product }: { product: Product }) {
               {formatPrice(selected?.price ?? basePrice(product), locale)}{" "}
               <span className="text-xs font-normal text-muted">{dict.common.plusTaxes}</span>
             </p>
+            {online && (
+              <KlarnaBadge amount={selected?.price ?? basePrice(product)} className="mt-1" />
+            )}
             {low && <p className="text-[11px] text-gold-deep">{dict.common.lowStock}</p>}
           </div>
           <button

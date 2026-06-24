@@ -18,6 +18,7 @@ import {
 } from "@/lib/metro-meetup";
 import { SITE } from "@/lib/site";
 import ConceptInfo from "@/components/ConceptInfo";
+import KlarnaBadge, { KlarnaPill } from "@/components/KlarnaBadge";
 import PickupMeetupSection, {
   type PickupOption,
   PickupMeetupSummary,
@@ -402,9 +403,18 @@ export default function CheckoutView({
           {showContactForm && (
           <Section title={co.payment}>
             {stripeEnabled ? (
-              <p className="rounded-lg border border-line bg-ink-soft/60 p-4 text-sm text-bone">
-                🔒 {co.stripeNote}
-              </p>
+              <div className="space-y-3">
+                <p className="rounded-lg border border-line bg-ink-soft/60 p-4 text-sm text-bone">
+                  🔒 {co.stripeNote}
+                </p>
+                <div className="flex items-start gap-3 rounded-lg border border-gold/25 bg-gold/5 p-4 text-sm text-bone">
+                  <KlarnaPill className="mt-0.5 shrink-0" />
+                  <span>
+                    <span className="block font-semibold text-cream">{dict.payments.checkoutTitle}</span>
+                    <span className="mt-1 block">{dict.payments.checkoutBody}</span>
+                  </span>
+                </div>
+              </div>
             ) : (
               <p className="rounded-lg border border-danger/30 bg-danger/5 p-4 text-sm text-bone">
                 {co.paymentsUnavailable}
@@ -491,6 +501,9 @@ export default function CheckoutView({
             >
               {paying ? co.processing : co.continueToPayment}
             </button>
+            {stripeEnabled && (
+              <KlarnaBadge variant="summary" className="mt-3 justify-center" />
+            )}
             {!showContactForm && (
               <p className="mt-3 text-center text-xs text-muted">{co.signInPrompt}</p>
             )}
