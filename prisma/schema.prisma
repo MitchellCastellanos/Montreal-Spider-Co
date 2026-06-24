@@ -376,6 +376,13 @@ model Order {
   postal          String?
   zoneId          String?
   pickupId        String?
+  /** pickup_point | metro_meetup | custom_meetup — only when method = pickup */
+  pickupSubtype   String?
+  metroStationId  String?
+  metroLine       String?
+  meetupZoneId    String?
+  meetupAvailability String?
+  customMeetupRequest String?
   locale          String            @default("en")
   salesChannel    SalesChannel      @default(web)
   paymentMethod   PaymentMethod     @default(stripe)

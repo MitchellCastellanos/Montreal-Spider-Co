@@ -4,6 +4,15 @@ import { getProductById } from "@/lib/data/products";
 import { countPurchasableStock } from "@/lib/data/specimens";
 import { hasDatabase } from "@/lib/db";
 import { DELIVERY_ZONES, FREE_DELIVERY_THRESHOLD } from "@/lib/locations";
+import {
+  type MeetupAvailability,
+  type PickupSubtype,
+  MEETUP_AVAILABILITY_OPTIONS,
+  calcMeetupFee,
+  getMeetupZone,
+  getMetroLine,
+  getMetroStation,
+} from "@/lib/metro-meetup";
 import { SITE } from "@/lib/site";
 import { getStripe } from "@/lib/stripe";
 import type { Locale } from "@/i18n/config";
@@ -29,6 +38,10 @@ export interface CheckoutPayload {
   method: "delivery" | "pickup";
   zoneId?: string;
   pickupId?: string;
+  pickupSubtype?: PickupSubtype;
+  metroStationId?: string;
+  meetupAvailability?: MeetupAvailability;
+  customMeetupRequest?: string;
   customerId?: string;
   items: CheckoutLineInput[];
   customer: CheckoutCustomerInput;
@@ -48,7 +61,19 @@ function cadCents(amount: number): number {
 }
 
 export async function validateAndBuildCheckout(payload: CheckoutPayload): Promise<ValidatedCheckout> {
-  const { locale, method, zoneId, pickupId, items, customer, customerId } = payload;
+  const {
+    locale,
+    method,
+    zoneId,
+    pickupId,
+    pickupSubtype = "pickup_point",
+    metroStationId,
+    meetupAvailability,
+    customMeetupRequest,
+    items,
+    customer,
+    customerId,
+  } = payload;
 
   if (!items.length) throw new CheckoutError("Cart is empty.", 400);
   if (!customer.name?.trim() || !customer.email?.trim() || !customer.phone?.trim()) {
@@ -62,8 +87,21 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
     if (!zoneId || !DELIVERY_ZONES.some((z) => z.id === zoneId)) {
       throw new CheckoutError("Invalid delivery zone.", 400);
     }
-  } else if (!pickupId) {
-    throw new CheckoutError("Pickup point is required.", 400);
+  } else if (pickupSubtype === "pickup_point") {
+    if (!pickupId) throw new CheckoutError("Pickup point is required.", 400);
+  } else if (pickupSubtype === "metro_meetup") {
+    if (!metroStationId || !getMetroStation(metroStationId)) {
+      throw new CheckoutError("Invalid metro station.", 400);
+    }
+    if (!meetupAvailability || !MEETUP_AVAILABILITY_OPTIONS.some((o) => o.id === meetupAvailability)) {
+      throw new CheckoutError("Meetup availability is required.", 400);
+    }
+  } else if (pickupSubtype === "custom_meetup") {
+    if (!customMeetupRequest?.trim()) {
+      throw new CheckoutError("Please describe your preferred meetup location.", 400);
+    }
+  } else {
+    throw new CheckoutError("Invalid pickup option.", 400);
   }
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
@@ -132,17 +170,32 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
   }
 
   const zone = DELIVERY_ZONES.find((z) => z.id === zoneId);
-  const deliveryFee =
-    method === "pickup" ? 0 : subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : (zone?.fee ?? 0);
+  let deliveryFee = 0;
+
+  if (method === "delivery") {
+    deliveryFee = subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : (zone?.fee ?? 0);
+  } else if (pickupSubtype === "metro_meetup") {
+    const station = getMetroStation(metroStationId!)!;
+    const meetupZone = getMeetupZone(station.zoneId)!;
+    deliveryFee = calcMeetupFee(subtotal, meetupZone);
+  }
 
   if (deliveryFee > 0) {
+    const feeLabel =
+      method === "pickup"
+        ? locale === "fr"
+          ? "Frais de cueillette / rencontre"
+          : "Pickup / Meetup fee"
+        : locale === "fr"
+          ? "Frais de livraison"
+          : "Delivery fee";
     lineItems.push({
       quantity: 1,
       price_data: {
         currency: "cad",
         unit_amount: cadCents(deliveryFee),
         product_data: {
-          name: locale === "fr" ? "Frais de livraison" : "Delivery fee",
+          name: feeLabel,
         },
       },
     });
@@ -184,7 +237,26 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
     metadata.city = customer.city!.trim();
     metadata.postal = customer.postal!.trim();
   } else {
-    metadata.pickupId = pickupId!;
+    metadata.pickupSubtype = pickupSubtype;
+    if (pickupSubtype === "pickup_point") {
+      metadata.pickupId = pickupId!;
+    } else if (pickupSubtype === "metro_meetup") {
+      const station = getMetroStation(metroStationId!)!;
+      const meetupZone = getMeetupZone(station.zoneId)!;
+      const line = getMetroLine(station.lineId)!;
+      metadata.metroStationId = station.id;
+      metadata.metroStationName = station.name;
+      metadata.metroLine = line.id;
+      metadata.metroLineName = line.name.en;
+      metadata.metroLineNameFr = line.name.fr;
+      metadata.meetupZoneId = meetupZone.id;
+      metadata.meetupZoneName = meetupZone.name.en;
+      metadata.meetupZoneNameFr = meetupZone.name.fr;
+      metadata.freeMeetupThreshold = String(meetupZone.freeMeetupThreshold);
+      metadata.meetupAvailability = meetupAvailability!;
+    } else {
+      metadata.customMeetupRequest = customMeetupRequest!.trim();
+    }
   }
 
   if (customerId) {

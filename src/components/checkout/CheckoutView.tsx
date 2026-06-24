@@ -7,12 +7,23 @@ import { useCart } from "@/context/CartContext";
 import { useAuth, type User } from "@/context/AuthContext";
 import { useI18n, useT } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
-import { formatWeeklyHoursSummary } from "@/lib/opening-hours";
-import type { WeeklyHours } from "@/lib/opening-hours";
 import { DELIVERY_ZONES, FREE_DELIVERY_THRESHOLD } from "@/lib/locations";
+import {
+  MEETUP_ZONES,
+  type MeetupAvailability,
+  type PickupSubtype,
+  calcMeetupFee,
+  getLinesForZone,
+  getMeetupZone,
+  getStationsForZoneAndLine,
+} from "@/lib/metro-meetup";
 import { t } from "@/lib/types";
 import { SITE } from "@/lib/site";
 import ConceptInfo from "@/components/ConceptInfo";
+import PickupMeetupSection, {
+  type PickupOption,
+  PickupMeetupSummary,
+} from "@/components/checkout/PickupMeetupSection";
 
 type Method = "delivery" | "pickup";
 type CheckoutAuthMode = "signin" | "guest";
@@ -29,12 +40,7 @@ function contactFromUser(user: User) {
   };
 }
 
-export interface PickupOption {
-  id: string;
-  name: string;
-  neighborhood: string;
-  hours: WeeklyHours;
-}
+export type { PickupOption };
 
 export default function CheckoutView({
   pickups,
@@ -60,7 +66,16 @@ export default function CheckoutView({
 
   const [method, setMethod] = useState<Method>("delivery");
   const [zoneId, setZoneId] = useState(DELIVERY_ZONES[0].id);
+  const [pickupSubtype, setPickupSubtype] = useState<PickupSubtype>("pickup_point");
   const [pickupId, setPickupId] = useState(pickups[0]?.id ?? "");
+  const [meetupZoneId, setMeetupZoneId] = useState(MEETUP_ZONES[0].id);
+  const initialMeetupLine = getLinesForZone(MEETUP_ZONES[0].id)[0]?.id ?? "";
+  const [metroLineId, setMetroLineId] = useState(initialMeetupLine);
+  const [metroStationId, setMetroStationId] = useState(
+    getStationsForZoneAndLine(MEETUP_ZONES[0].id, initialMeetupLine)[0]?.id ?? "",
+  );
+  const [meetupAvailability, setMeetupAvailability] = useState<MeetupAvailability>("flexible");
+  const [customMeetupRequest, setCustomMeetupRequest] = useState("");
   const [form, setForm] = useState({
     name: user?.name ?? "",
     email: user?.email ?? "",
@@ -75,9 +90,18 @@ export default function CheckoutView({
   const [payError, setPayError] = useState<string | null>(null);
 
   const zone = DELIVERY_ZONES.find((z) => z.id === zoneId)!;
-  const deliveryFee = method === "pickup" ? 0 : subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : zone.fee;
-  const tax = useMemo(() => (subtotal + deliveryFee) * SITE.taxRate, [subtotal, deliveryFee]);
-  const total = subtotal + deliveryFee + tax;
+  const meetupZone = getMeetupZone(meetupZoneId);
+  const fulfillmentFee = useMemo(() => {
+    if (method === "pickup") {
+      if (pickupSubtype === "metro_meetup" && meetupZone) {
+        return calcMeetupFee(subtotal, meetupZone);
+      }
+      return 0;
+    }
+    return subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : zone.fee;
+  }, [method, pickupSubtype, meetupZone, subtotal, zone.fee]);
+  const tax = useMemo(() => (subtotal + fulfillmentFee) * SITE.taxRate, [subtotal, fulfillmentFee]);
+  const total = subtotal + fulfillmentFee + tax;
 
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -143,6 +167,12 @@ export default function CheckoutView({
       if (!form.address) e.address = true;
       if (!form.city) e.city = true;
       if (!form.postal) e.postal = true;
+    } else if (pickupSubtype === "metro_meetup") {
+      if (!metroStationId) e.metroStation = true;
+      if (!metroLineId) e.metroLine = true;
+      if (!meetupAvailability) e.meetupAvailability = true;
+    } else if (pickupSubtype === "custom_meetup") {
+      if (!customMeetupRequest.trim()) e.customMeetup = true;
     }
     if (createAccount && guestPassword.length < 8) e.password = true;
     setErrors(e);
@@ -172,7 +202,12 @@ export default function CheckoutView({
           locale,
           method,
           zoneId: method === "delivery" ? zoneId : undefined,
-          pickupId: method === "pickup" ? pickupId : undefined,
+          pickupId: method === "pickup" && pickupSubtype === "pickup_point" ? pickupId : undefined,
+          pickupSubtype: method === "pickup" ? pickupSubtype : undefined,
+          metroStationId: method === "pickup" && pickupSubtype === "metro_meetup" ? metroStationId : undefined,
+          meetupAvailability: method === "pickup" && pickupSubtype === "metro_meetup" ? meetupAvailability : undefined,
+          customMeetupRequest:
+            method === "pickup" && pickupSubtype === "custom_meetup" ? customMeetupRequest : undefined,
           items: resolved.map((l) => ({ productId: l.productId, unitKey: l.unitKey, qty: l.qty })),
           customer: {
             name: form.name,
@@ -316,7 +351,7 @@ export default function CheckoutView({
           <Section title={co.delivery}>
             <div className="grid gap-3 sm:grid-cols-2">
               <MethodCard active={method === "delivery"} onClick={() => setMethod("delivery")} title={co.deliveryLocal} desc={co.deliveryLocalDesc} />
-              <MethodCard active={method === "pickup"} onClick={() => setMethod("pickup")} title={co.deliveryPickup} titleExtra={<ConceptInfo concept="pickup" className="ml-1" />} desc={co.deliveryPickupDesc} badge={dict.common.free} />
+              <MethodCard active={method === "pickup"} onClick={() => setMethod("pickup")} title={co.deliveryPickup} titleExtra={<ConceptInfo concept="pickup" className="ml-1" />} desc={co.deliveryPickupDesc} />
             </div>
 
             {method === "delivery" ? (
@@ -341,24 +376,26 @@ export default function CheckoutView({
                 </div>
               </div>
             ) : (
-              <div className="mt-4">
-                <Field label={co.selectPickup}>
-                  <select className="input" value={pickupId} onChange={(e) => setPickupId(e.target.value)}>
-                    {pickups.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name} — {p.neighborhood}</option>
-                    ))}
-                  </select>
-                </Field>
-                {pickups.find((p) => p.id === pickupId) && (
-                  <p className="mt-2 text-sm text-bone">
-                    {formatWeeklyHoursSummary(pickups.find((p) => p.id === pickupId)!.hours, locale)}
-                  </p>
-                )}
-                <div className="mt-3 flex items-start gap-2 rounded-lg border border-gold/25 bg-gold/5 p-3 text-xs leading-relaxed text-bone">
-                  <span className="text-gold-bright">⏳</span>
-                  <span>{pickupPolicy}</span>
-                </div>
-              </div>
+              <PickupMeetupSection
+                pickups={pickups}
+                pickupPolicy={pickupPolicy}
+                pickupSubtype={pickupSubtype}
+                onPickupSubtypeChange={setPickupSubtype}
+                pickupId={pickupId}
+                onPickupIdChange={setPickupId}
+                meetupZoneId={meetupZoneId}
+                onMeetupZoneIdChange={setMeetupZoneId}
+                metroLineId={metroLineId}
+                onMetroLineIdChange={setMetroLineId}
+                metroStationId={metroStationId}
+                onMetroStationIdChange={setMetroStationId}
+                meetupAvailability={meetupAvailability}
+                onMeetupAvailabilityChange={setMeetupAvailability}
+                customMeetupRequest={customMeetupRequest}
+                onCustomMeetupRequestChange={setCustomMeetupRequest}
+                subtotal={subtotal}
+                errors={errors}
+              />
             )}
           </Section>
           )}
@@ -406,9 +443,24 @@ export default function CheckoutView({
             <div className="my-4 h-px bg-line" />
             <div className="space-y-2 text-sm">
               <Row label={dict.cart.subtotal} value={formatPrice(subtotal, locale)} />
-              <Row label={co.deliveryFee} value={deliveryFee === 0 ? dict.common.free : formatPrice(deliveryFee, locale)} />
+              <Row
+                label={method === "pickup" ? co.pickupMeetupFee : co.deliveryFee}
+                value={fulfillmentFee === 0 ? dict.common.free : formatPrice(fulfillmentFee, locale)}
+              />
               <Row label={co.tax} value={formatPrice(tax, locale)} muted />
             </div>
+            <PickupMeetupSummary
+              method={method}
+              pickupSubtype={pickupSubtype}
+              pickups={pickups}
+              pickupId={pickupId}
+              meetupZoneId={meetupZoneId}
+              metroLineId={metroLineId}
+              metroStationId={metroStationId}
+              meetupAvailability={meetupAvailability}
+              customMeetupRequest={customMeetupRequest}
+              fulfillmentFee={fulfillmentFee}
+            />
             <div className="my-4 h-px bg-line" />
             <div className="flex items-center justify-between">
               <span className="text-bone">{dict.common.total}</span>
