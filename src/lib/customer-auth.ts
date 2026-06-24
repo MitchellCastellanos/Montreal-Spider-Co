@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import type { Address, Customer, Order, OrderLine } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { verifyPassword, hashPassword } from "@/lib/password";
+import { uniqueReferralCode } from "@/lib/account/referral";
 
 export { hashPassword, verifyPassword };
 
@@ -92,6 +93,7 @@ export async function registerCustomer(input: {
   password: string;
   name: string;
   phone?: string;
+  referralCode?: string;
 }): Promise<{ customer: CustomerProfile } | { error: string }> {
   if (!prisma) return { error: "Database not configured." };
   const email = input.email.trim().toLowerCase();
@@ -101,13 +103,25 @@ export async function registerCustomer(input: {
   const existing = await prisma.customer.findUnique({ where: { email } });
   if (existing) return { error: "An account with this email already exists." };
 
+  let referredById: string | undefined;
+  if (input.referralCode?.trim()) {
+    const referrer = await prisma.customer.findUnique({
+      where: { referralCode: input.referralCode.trim().toUpperCase() },
+      select: { id: true },
+    });
+    if (referrer) referredById = referrer.id;
+  }
+
   const passwordHash = await hashPassword(input.password);
+  const referralCode = await uniqueReferralCode();
   const created = await prisma.customer.create({
     data: {
       email,
       passwordHash,
       name: input.name.trim() || email.split("@")[0],
       phone: input.phone?.trim() ?? "",
+      referralCode,
+      referredById,
     },
   });
   await setCustomerCookie(created.id);

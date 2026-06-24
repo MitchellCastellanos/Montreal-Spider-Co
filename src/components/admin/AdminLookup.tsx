@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice, formatDate } from "@/lib/format";
+import AdminOrderPanel from "@/components/admin/AdminOrderPanel";
 
 interface LookupCustomer {
   id: string;
@@ -38,6 +39,7 @@ export default function AdminLookup() {
   const [query, setQuery] = useState("");
   const [customers, setCustomers] = useState<LookupCustomer[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -152,13 +154,23 @@ export default function AdminLookup() {
                               <ul className="space-y-3">
                                 {c.orders.map((o) => (
                                   <li key={o.id} className="rounded-xl border border-line p-3 text-sm">
-                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                      <span className="font-semibold text-gold-bright">{o.id}</span>
-                                      <span className="text-muted">{formatDate(o.date, locale)}</span>
-                                      <span className="badge">{statusLabel(o.status)}</span>
-                                      <span className="text-cream">{formatPrice(o.total, locale)}</span>
-                                    </div>
-                                    <p className="mt-2 text-bone">{o.items.join(" · ")}</p>
+                                    <button
+                                      type="button"
+                                      onClick={() => setExpandedOrder(expandedOrder === o.id ? null : o.id)}
+                                      className="w-full text-left"
+                                    >
+                                      <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <span className="font-semibold text-gold-bright">{o.id}</span>
+                                        <span className="text-muted">{formatDate(o.date, locale)}</span>
+                                        <span className="badge">{statusLabel(o.status)}</span>
+                                        <span className="text-cream">{formatPrice(o.total, locale)}</span>
+                                      </div>
+                                      <p className="mt-2 text-bone">{o.items.join(" · ")}</p>
+                                      <p className="mt-1 text-xs text-gold-deep">
+                                        {expandedOrder === o.id ? ad.orderCollapse : ad.orderManage}
+                                      </p>
+                                    </button>
+                                    <AdminOrderPanel orderNumber={o.id} open={expandedOrder === o.id} />
                                   </li>
                                 ))}
                               </ul>

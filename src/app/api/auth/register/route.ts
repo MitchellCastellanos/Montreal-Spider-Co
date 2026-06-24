@@ -3,7 +3,7 @@ import { registerCustomer } from "@/lib/customer-auth";
 import { getAccountSnapshot } from "@/lib/data/customer-account";
 
 export async function POST(req: Request) {
-  let body: { email?: string; password?: string; name?: string; phone?: string };
+  let body: { email?: string; password?: string; name?: string; phone?: string; referralCode?: string };
   try {
     body = await req.json();
   } catch {
@@ -15,6 +15,7 @@ export async function POST(req: Request) {
     password: body.password ?? "",
     name: body.name ?? "",
     phone: body.phone,
+    referralCode: body.referralCode,
   });
 
   if ("error" in result) {

@@ -9,6 +9,7 @@ import { formatPrice } from "@/lib/format";
 import { INCH_OPTIONS, MAX_INCHES, MIN_INCHES, productMatchesSizeFilter } from "@/lib/size-inches";
 import { withVerifiedOriginLinks } from "@/lib/verified-origin-links";
 import { basePrice, isAvailableAtDistributor, totalStock, type Experience, type Product, type SpiderType, type Temperament } from "@/lib/types";
+import { useAuth } from "@/context/AuthContext";
 
 type Sort = "featured" | "price-asc" | "price-desc" | "name" | "newest";
 
@@ -23,6 +24,7 @@ export default function ShopClient({ products, genera }: { products: Product[]; 
   const pathname = usePathname();
   const sp = useSearchParams();
 
+  const { user } = useAuth();
   const initArray = (key: string) => (sp.get(key) ? sp.get(key)!.split(",").filter(Boolean) : []);
   const priceCeiling = Math.ceil(Math.max(...products.map((p) => basePrice(p))) / 10) * 10;
 
@@ -38,6 +40,11 @@ export default function ShopClient({ products, genera }: { products: Product[]; 
   const [sort, setSort] = useState<Sort>((sp.get("sort") as Sort) || "featured");
   const [query, setQuery] = useState<string>(sp.get("q") || "");
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    if (!user?.experience || experience.length > 0 || sp.get("experience")) return;
+    setExperience([user.experience]);
+  }, [user?.experience, experience.length, sp]);
 
   // keep URL in sync (shareable filtered links)
   useEffect(() => {

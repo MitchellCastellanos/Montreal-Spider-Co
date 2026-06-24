@@ -15,6 +15,7 @@ import { SITE } from "@/lib/site";
 import { withVerifiedOriginLinks } from "@/lib/verified-origin-links";
 import { basePrice } from "@/lib/types";
 import ProductCard from "@/components/ProductCard";
+import ProductReviews from "@/components/account/ProductReviews";
 import JsonLd from "@/components/JsonLd";
 import Reveal from "@/components/Reveal";
 
@@ -206,6 +207,8 @@ export default async function ProductPage({
             </section>
           </div>
         </div>
+
+        <ProductReviews productId={product.id} />
 
         {/* Related */}
         {related.length > 0 && (

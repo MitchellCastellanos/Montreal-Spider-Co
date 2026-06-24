@@ -326,19 +326,139 @@ model InventoryMovement {
   @@index([type])
 }
 
+enum CouponType {
+  percent
+  fixed
+}
+
+enum MessageAuthor {
+  customer
+  staff
+}
+
 model Customer {
-  id               String    @id @default(cuid())
-  email            String    @unique
+  id               String       @id @default(cuid())
+  email            String       @unique
   passwordHash     String
   name             String
-  phone            String    @default("")
-  stripeCustomerId String?   @unique
+  phone            String       @default("")
+  stripeCustomerId String?      @unique
+  experience       Experience?
+  referralCode     String       @unique @default(cuid())
+  referredById     String?
+  referredBy       Customer?    @relation("CustomerReferrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals        Customer[]   @relation("CustomerReferrals")
+  savedCart        Json?
+  prefMethod           FulfillmentMethod?
+  prefPickupId         String?
+  prefPickupSubtype    String?
+  prefMetroStationId   String?
+  prefMetroLine        String?
+  prefMeetupZoneId     String?
+  prefMeetupAvailability String?
+  prefCustomMeetup     String?
+  prefOrderNotes       String       @default("")
+  notifyStock          Boolean      @default(true)
+  notifyPromos         Boolean      @default(true)
+  notifyCare           Boolean      @default(false)
   addresses        Address[]
   orders           Order[]
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  wishlist         WishlistItem[]
+  arrivalAlerts    ArrivalAlert[]
+  savedGuides      SavedCareGuide[]
+  reviews          ProductReview[]
+  coupons          Coupon[]
+  orderMessages    OrderMessage[]
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   @@index([phone])
+  @@index([referredById])
+}
+
+model WishlistItem {
+  id          String   @id @default(cuid())
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  productId   String
+  unitKey     String   @default("")
+  notifyStock Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@unique([customerId, productId, unitKey])
+  @@index([customerId])
+  @@index([productId])
+}
+
+model ArrivalAlert {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  productId  String?
+  genus      String?
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([customerId])
+  @@index([productId])
+  @@index([genus])
+}
+
+model SavedCareGuide {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  guideSlug  String
+  createdAt  DateTime @default(now())
+
+  @@unique([customerId, guideSlug])
+  @@index([customerId])
+}
+
+model ProductReview {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  productId  String
+  orderId    String?
+  rating     Int
+  comment    String   @default("")
+  createdAt  DateTime @default(now())
+
+  @@unique([customerId, productId])
+  @@index([productId])
+}
+
+model Coupon {
+  id         String     @id @default(cuid())
+  code       String     @unique
+  type       CouponType
+  value      Float
+  customerId String?
+  customer   Customer?  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  referrerId String?
+  maxUses    Int?
+  usedCount  Int        @default(0)
+  expiresAt  DateTime?
+  active     Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+
+  @@index([customerId])
+  @@index([referrerId])
+}
+
+model OrderMessage {
+  id         String        @id @default(cuid())
+  orderId    String
+  order      Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  author     MessageAuthor
+  body       String
+  createdAt  DateTime      @default(now())
+
+  @@index([orderId])
+  @@index([customerId])
 }
 
 model Address {
@@ -366,6 +486,9 @@ model Order {
   phone           String
   method          FulfillmentMethod
   status          OrderStatus       @default(processing)
+  statusDetail    String            @default("")
+  couponCode      String?
+  discountAmount  Float             @default(0)
   subtotal        Float
   deliveryFee     Float             @default(0)
   tax             Float             @default(0)
@@ -388,6 +511,7 @@ model Order {
   paymentMethod   PaymentMethod     @default(stripe)
   lines           OrderLine[]
   specimens       Specimen[]
+  messages        OrderMessage[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 

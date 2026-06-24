@@ -8,7 +8,7 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
-  let body: { name?: string; phone?: string };
+  let body: { name?: string; phone?: string; experience?: "beginner" | "intermediate" | "advanced" | null };
   try {
     body = await req.json();
   } catch {
@@ -20,6 +20,7 @@ export async function PATCH(req: Request) {
     data: {
       ...(body.name !== undefined ? { name: body.name.trim() } : {}),
       ...(body.phone !== undefined ? { phone: body.phone.trim() } : {}),
+      ...(body.experience !== undefined ? { experience: body.experience } : {}),
     },
   });
 

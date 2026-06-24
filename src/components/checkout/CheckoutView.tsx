@@ -76,16 +76,20 @@ export default function CheckoutView({
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState("");
+  const [discount, setDiscount] = useState(0);
+  const [couponError, setCouponError] = useState<string | null>(null);
 
   const meetupZone = getMeetupZone(meetupZoneId);
+  const discountedSubtotal = Math.max(0, subtotal - discount);
   const fulfillmentFee = useMemo(() => {
     if (pickupSubtype === "metro_meetup" && meetupZone) {
-      return calcMeetupFee(subtotal, meetupZone);
+      return calcMeetupFee(discountedSubtotal, meetupZone);
     }
     return 0;
-  }, [pickupSubtype, meetupZone, subtotal]);
-  const tax = useMemo(() => (subtotal + fulfillmentFee) * SITE.taxRate, [subtotal, fulfillmentFee]);
-  const total = subtotal + fulfillmentFee + tax;
+  }, [pickupSubtype, meetupZone, discountedSubtotal]);
+  const tax = useMemo(() => (discountedSubtotal + fulfillmentFee) * SITE.taxRate, [discountedSubtotal, fulfillmentFee]);
+  const total = discountedSubtotal + fulfillmentFee + tax;
 
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -93,7 +97,40 @@ export default function CheckoutView({
     if (!user) return;
     const contact = contactFromUser(user);
     setForm((f) => ({ ...f, ...contact }));
+    const p = user.preferences;
+    if (!p) return;
+    if (p.prefOrderNotes) setForm((f) => ({ ...f, notes: p.prefOrderNotes }));
+    if (p.prefPickupSubtype === "pickup_point" && p.prefPickupId) {
+      setPickupSubtype("pickup_point");
+      setPickupId(p.prefPickupId);
+    } else if (p.prefPickupSubtype === "metro_meetup" && p.prefMetroStationId) {
+      setPickupSubtype("metro_meetup");
+      setMetroStationId(p.prefMetroStationId);
+      if (p.prefMetroLine) setMetroLineId(p.prefMetroLine);
+      if (p.prefMeetupZoneId) setMeetupZoneId(p.prefMeetupZoneId);
+      if (p.prefMeetupAvailability) setMeetupAvailability(p.prefMeetupAvailability as MeetupAvailability);
+    } else if (p.prefPickupSubtype === "custom_meetup" && p.prefCustomMeetup) {
+      setPickupSubtype("custom_meetup");
+      setCustomMeetupRequest(p.prefCustomMeetup);
+    }
   }, [user]);
+
+  const applyCoupon = async () => {
+    setCouponError(null);
+    if (!couponCode.trim()) return;
+    const res = await fetch("/api/account/coupons/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: couponCode, subtotal }),
+    });
+    const data = (await res.json()) as { discount?: number; error?: string };
+    if (!res.ok) {
+      setDiscount(0);
+      setCouponError(data.error ?? co.couponInvalid);
+      return;
+    }
+    setDiscount(data.discount ?? 0);
+  };
 
   const showContactForm = Boolean(user) || authMode === "guest";
 
@@ -193,6 +230,7 @@ export default function CheckoutView({
             phone: form.phone,
             notes: form.notes,
           },
+          couponCode: discount > 0 ? couponCode : undefined,
         }),
       });
       const data = (await res.json()) as { url?: string; error?: string };
@@ -401,6 +439,7 @@ export default function CheckoutView({
             <div className="my-4 h-px bg-line" />
             <div className="space-y-2 text-sm">
               <Row label={dict.cart.subtotal} value={formatPrice(subtotal, locale)} />
+              {discount > 0 && <Row label={co.discount} value={`−${formatPrice(discount, locale)}`} />}
               <Row
                 label={co.pickupMeetupFee}
                 value={fulfillmentFee === 0 ? dict.common.free : formatPrice(fulfillmentFee, locale)}
@@ -419,6 +458,16 @@ export default function CheckoutView({
               fulfillmentFee={fulfillmentFee}
             />
             <div className="my-4 h-px bg-line" />
+            <div className="mb-4 flex gap-2">
+              <input
+                className="input flex-1 text-sm"
+                value={couponCode}
+                onChange={(e) => { setCouponCode(e.target.value); setDiscount(0); setCouponError(null); }}
+                placeholder={co.couponPlaceholder}
+              />
+              <button type="button" onClick={() => void applyCoupon()} className="btn btn-ghost text-sm">{co.couponApply}</button>
+            </div>
+            {couponError && <p className="mb-3 text-xs text-danger">{couponError}</p>}
             <div className="flex items-center justify-between">
               <span className="text-bone">{dict.common.total}</span>
               <span className="font-display text-2xl font-bold text-cream">{formatPrice(total, locale)}</span>

@@ -12,10 +12,19 @@ export interface SavedAddress {
 }
 
 export interface OrderItem {
+  productId?: string;
   name: string;
   size: string;
+  unitKey?: string | null;
   qty: number;
   price: number;
+}
+
+export interface OrderMessage {
+  id: string;
+  author: "customer" | "staff";
+  body: string;
+  date: string;
 }
 
 export interface Order {
@@ -23,8 +32,34 @@ export interface Order {
   date: string;
   total: number;
   status: "processing" | "delivered" | "ready" | "cancelled";
+  statusDetail?: string;
   method: "delivery" | "pickup";
+  discountAmount?: number;
+  couponCode?: string | null;
   items: OrderItem[];
+  messages?: OrderMessage[];
+}
+
+export interface CustomerPreferences {
+  prefMethod: string | null;
+  prefPickupId: string | null;
+  prefPickupSubtype: string | null;
+  prefMetroStationId: string | null;
+  prefMetroLine: string | null;
+  prefMeetupZoneId: string | null;
+  prefMeetupAvailability: string | null;
+  prefCustomMeetup: string | null;
+  prefOrderNotes: string;
+  notifyStock: boolean;
+  notifyPromos: boolean;
+  notifyCare: boolean;
+}
+
+export interface UserCoupon {
+  code: string;
+  type: "percent" | "fixed";
+  value: number;
+  expiresAt: string | null;
 }
 
 export interface User {
@@ -32,6 +67,12 @@ export interface User {
   email: string;
   name: string;
   phone: string;
+  experience?: string | null;
+  referralCode?: string;
+  referralCount?: number;
+  preferences?: CustomerPreferences;
+  counts?: { wishlist: number; alerts: number; guides: number };
+  coupons?: UserCoupon[];
   addresses: SavedAddress[];
   orders: Order[];
 }
@@ -41,9 +82,17 @@ interface AuthCtx {
   ready: boolean;
   refresh: () => Promise<void>;
   login: (email: string, password: string) => Promise<string | null>;
-  register: (input: { email: string; password: string; name: string; phone?: string }) => Promise<string | null>;
+  register: (input: {
+    email: string;
+    password: string;
+    name: string;
+    phone?: string;
+    referralCode?: string;
+  }) => Promise<string | null>;
   signOut: () => Promise<void>;
-  updateProfile: (patch: Partial<Pick<User, "name" | "phone">>) => Promise<void>;
+  updateProfile: (patch: Partial<Pick<User, "name" | "phone" | "experience">> & {
+    preferences?: Partial<CustomerPreferences>;
+  }) => Promise<void>;
   addAddress: (addr: Omit<SavedAddress, "id">) => Promise<void>;
   removeAddress: (id: string) => Promise<void>;
 }
@@ -78,23 +127,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void refresh();
   }, [refresh]);
 
-  const login = useCallback(
-    async (email: string, password: string) => {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await readJson<{ user?: User; error?: string }>(res);
-      if (!res.ok) return data.error ?? "Login failed.";
-      setUser(data.user ?? null);
-      return null;
-    },
-    []
-  );
+  const login = useCallback(async (email: string, password: string) => {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await readJson<{ user?: User; error?: string }>(res);
+    if (!res.ok) return data.error ?? "Login failed.";
+    setUser(data.user ?? null);
+    return null;
+  }, []);
 
   const register = useCallback(
-    async (input: { email: string; password: string; name: string; phone?: string }) => {
+    async (input: {
+      email: string;
+      password: string;
+      name: string;
+      phone?: string;
+      referralCode?: string;
+    }) => {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -105,7 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(data.user ?? null);
       return null;
     },
-    []
+    [],
   );
 
   const signOut = useCallback(async () => {
@@ -114,16 +166,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateProfile = useCallback(
-    async (patch: Partial<Pick<User, "name" | "phone">>) => {
-      const res = await fetch("/api/account/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
+    async (patch: Partial<Pick<User, "name" | "phone" | "experience">> & {
+      preferences?: Partial<CustomerPreferences>;
+    }) => {
+      const { preferences, ...profile } = patch;
+      if (Object.keys(profile).length > 0) {
+        await fetch("/api/account/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(profile),
+        });
+      }
+      if (preferences) {
+        await fetch("/api/account/preferences", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(preferences),
+        });
+      }
+      setUser((u) => {
+        if (!u) return u;
+        return {
+          ...u,
+          ...profile,
+          preferences: preferences ? { ...u.preferences!, ...preferences } : u.preferences,
+        };
       });
-      if (!res.ok) return;
-      setUser((u) => (u ? { ...u, ...patch } : u));
+      await refresh();
     },
-    []
+    [refresh],
   );
 
   const addAddress = useCallback(async (addr: Omit<SavedAddress, "id">) => {

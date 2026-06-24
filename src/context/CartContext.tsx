@@ -4,7 +4,8 @@
    is unavailable during SSR), so the set-state-in-effect rule is expected here. */
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useAuth } from "@/context/AuthContext";
 import { PRODUCTS } from "@/lib/products";
 import { asL, type AvailableUnit, type L, type Product } from "@/lib/types";
 
@@ -88,10 +89,13 @@ const STORAGE_KEY = "msc.cart.v1";
 const CartContext = createContext<CartCtx | null>(null);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
+  const { user, ready: authReady } = useAuth();
   const [lines, setLines] = useState<CartLine[]>([]);
   const [isOpen, setOpen] = useState(false);
   const [lastAdded, setLastAdded] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mergedForUser = useRef<string | null>(null);
 
   useEffect(() => {
     try {
@@ -123,13 +127,58 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!hydrated || !authReady || !user) return;
+    if (mergedForUser.current === user.id) return;
+    mergedForUser.current = user.id;
+
+    void (async () => {
+      try {
+        const res = await fetch("/api/account/cart", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as { lines?: CartLine[] };
+        const serverLines = Array.isArray(data.lines) ? data.lines : [];
+        setLines((local) => {
+          const merged = [...local];
+          for (const sl of serverLines) {
+            const idx = merged.findIndex((l) => l.productId === sl.productId && l.unitKey === sl.unitKey);
+            if (idx >= 0) {
+              merged[idx] = { ...merged[idx], qty: merged[idx].qty + sl.qty, snap: merged[idx].snap ?? sl.snap };
+            } else {
+              merged.push(sl);
+            }
+          }
+          return merged;
+        });
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, [hydrated, authReady, user]);
+
+  useEffect(() => {
     if (!hydrated) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(lines));
     } catch {
       /* ignore */
     }
-  }, [lines, hydrated]);
+    if (!user) return;
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(() => {
+      void fetch("/api/account/cart", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lines }),
+      });
+    }, 600);
+    return () => {
+      if (syncTimer.current) clearTimeout(syncTimer.current);
+    };
+  }, [lines, hydrated, user]);
+
+  useEffect(() => {
+    if (!user) mergedForUser.current = null;
+  }, [user]);
 
   const add = useCallback((productId: string, unitKey: string, qty = 1, snap?: CartSnapshot) => {
     setLines((prev) => {

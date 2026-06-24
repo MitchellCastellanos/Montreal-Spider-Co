@@ -9,6 +9,8 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
 import { isAvailableAtDistributor, type Product } from "@/lib/types";
 import { unitHasDistributorStock } from "@/lib/unit-fulfillment";
+import WishlistButton from "@/components/account/WishlistButton";
+import ArrivalAlertButton from "@/components/account/ArrivalAlertButton";
 
 const SEX_LABEL_KEY = { unsexed: "sexUnsexed", male: "sexMale", female: "sexFemale" } as const;
 
@@ -86,6 +88,11 @@ export default function AddToCart({ product }: { product: Product }) {
       >
         {soldOut ? dict.common.soldOut : pulse ? `✓ ${dict.common.added}` : dict.product.addToCart}
       </motion.button>
+
+      <div className="mt-3 flex flex-wrap justify-center gap-2">
+        <WishlistButton productId={product.id} unitKey={unitKey} />
+        <ArrivalAlertButton productId={product.id} genus={product.genus} />
+      </div>
 
       {!soldOut && selected && selected.stock <= 5 && (
         <p className="mt-2 text-center text-xs text-gold-deep">

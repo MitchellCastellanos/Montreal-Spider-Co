@@ -355,6 +355,11 @@ export async function syncAggregateStock(productId?: string) {
       });
     }
   });
+  if (productId) {
+    const { processWishlistStockAlerts, processArrivalAlerts } = await import("@/lib/account/stock-alerts");
+    void processWishlistStockAlerts(productId).catch((e) => console.error("[syncAggregateStock] wishlist alerts:", e));
+    void processArrivalAlerts(productId).catch((e) => console.error("[syncAggregateStock] arrival alerts:", e));
+  }
 }
 
 /** Receive a batch of one or more rows (each row = N identical specimens) across one or more species. */

@@ -15,6 +15,7 @@ import {
 import { SITE } from "@/lib/site";
 import { productOrderLineNames, productStripeLineName } from "@/lib/product-display";
 import { getStripe } from "@/lib/stripe";
+import { validateCoupon } from "@/lib/account/coupons";
 import type { Locale } from "@/i18n/config";
 
 export interface CheckoutLineInput {
@@ -40,6 +41,7 @@ export interface CheckoutPayload {
   meetupAvailability?: MeetupAvailability;
   customMeetupRequest?: string;
   customerId?: string;
+  couponCode?: string;
   items: CheckoutLineInput[];
   customer: CheckoutCustomerInput;
 }
@@ -57,6 +59,25 @@ function cadCents(amount: number): number {
   return Math.round(amount * 100);
 }
 
+function applyDiscountToProductLines(
+  lineItems: Stripe.Checkout.SessionCreateParams.LineItem[],
+  productLineCount: number,
+  discount: number,
+): void {
+  let remaining = Math.round(discount * 100) / 100;
+  for (let i = 0; i < productLineCount && remaining > 0.001; i++) {
+    const li = lineItems[i];
+    const pd = li.price_data;
+    if (!pd?.unit_amount) continue;
+    const qty = li.quantity ?? 1;
+    const lineTotal = (pd.unit_amount / 100) * qty;
+    const cut = Math.min(remaining, Math.max(0, lineTotal - 0.01));
+    const newLineTotal = lineTotal - cut;
+    pd.unit_amount = Math.max(1, Math.round((newLineTotal / qty) * 100));
+    remaining = Math.round((remaining - cut) * 100) / 100;
+  }
+}
+
 export async function validateAndBuildCheckout(payload: CheckoutPayload): Promise<ValidatedCheckout> {
   const {
     locale,
@@ -68,6 +89,7 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
     items,
     customer,
     customerId,
+    couponCode,
   } = payload;
 
   if ((payload as { method?: string }).method === "delivery") {
@@ -162,11 +184,27 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
     });
   }
 
+  const productLineCount = lineItems.length;
+  let discountAmount = 0;
+  let couponId: string | undefined;
+  let appliedCouponCode: string | undefined;
+
+  if (couponCode?.trim()) {
+    const couponResult = await validateCoupon(couponCode, customerId ?? null, subtotal);
+    if ("error" in couponResult) throw new CheckoutError(couponResult.error, 400);
+    discountAmount = couponResult.discount;
+    couponId = couponResult.coupon.id;
+    appliedCouponCode = couponResult.coupon.code;
+    applyDiscountToProductLines(lineItems, productLineCount, discountAmount);
+  }
+
+  const discountedSubtotal = subtotal - discountAmount;
+
   let deliveryFee = 0;
   if (pickupSubtype === "metro_meetup") {
     const station = getMetroStation(metroStationId!)!;
     const meetupZone = getMeetupZone(station.zoneId)!;
-    deliveryFee = calcMeetupFee(subtotal, meetupZone);
+    deliveryFee = calcMeetupFee(discountedSubtotal, meetupZone);
   }
 
   if (deliveryFee > 0) {
@@ -182,7 +220,7 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
     });
   }
 
-  const tax = (subtotal + deliveryFee) * SITE.taxRate;
+  const tax = (discountedSubtotal + deliveryFee) * SITE.taxRate;
   if (tax > 0) {
     lineItems.push({
       quantity: 1,
@@ -196,7 +234,7 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
     });
   }
 
-  const total = subtotal + deliveryFee + tax;
+  const total = discountedSubtotal + deliveryFee + tax;
 
   const metadata: Record<string, string> = {
     locale,
@@ -207,11 +245,17 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
     customerNotes: customer.notes?.trim() ?? "",
     orderItems: JSON.stringify(orderItems),
     subtotal: subtotal.toFixed(2),
+    discountAmount: discountAmount.toFixed(2),
     deliveryFee: deliveryFee.toFixed(2),
     tax: tax.toFixed(2),
     total: total.toFixed(2),
     pickupSubtype,
   };
+
+  if (appliedCouponCode) {
+    metadata.couponCode = appliedCouponCode;
+    if (couponId) metadata.couponId = couponId;
+  }
 
   if (pickupSubtype === "pickup_point") {
     metadata.pickupId = pickupId!;
@@ -237,7 +281,7 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
     metadata.customerId = customerId;
   }
 
-  return { subtotal, deliveryFee, tax, total, lineItems, metadata };
+  return { subtotal: discountedSubtotal, deliveryFee, tax, total, lineItems, metadata };
 }
 
 export async function createCheckoutSession(

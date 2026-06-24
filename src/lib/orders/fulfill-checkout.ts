@@ -4,6 +4,9 @@ import type { FulfillmentMethod, OrderStatus, SpecimenSex } from "@prisma/client
 import { prisma } from "@/lib/db";
 import { sendOrderConfirmationEmail, sendDistributorSaleAlertEmail } from "@/lib/email";
 import { assignSpecimensFifo, syncAggregateStock, type DistributorPickupLine } from "@/lib/data/specimens";
+import { redeemCoupon } from "@/lib/account/coupons";
+import { grantReferralReward } from "@/lib/account/referral";
+import { saveFulfillmentFromCheckout } from "@/lib/account/preferences";
 
 function generateOrderNumber(): string {
   return `MSC-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -78,6 +81,8 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
         method,
         status,
         subtotal: Number(md.subtotal ?? 0),
+        discountAmount: Number(md.discountAmount ?? 0),
+        couponCode: md.couponCode ?? null,
         deliveryFee: Number(md.deliveryFee ?? 0),
         tax: Number(md.tax ?? 0),
         total: (session.amount_total ?? 0) / 100,
@@ -133,6 +138,44 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
   });
 
   await syncAggregateStock();
+
+  if (md.couponId) {
+    try {
+      await redeemCoupon(md.couponId);
+    } catch (e) {
+      console.error("[fulfill-checkout] coupon redeem failed:", e);
+    }
+  }
+
+  if (customerId) {
+    try {
+      await saveFulfillmentFromCheckout(customerId, {
+        prefPickupId: md.pickupId ?? null,
+        prefPickupSubtype: md.pickupSubtype ?? null,
+        prefMetroStationId: md.metroStationId ?? null,
+        prefMetroLine: md.metroLine ?? null,
+        prefMeetupZoneId: md.meetupZoneId ?? null,
+        prefMeetupAvailability: md.meetupAvailability ?? null,
+        prefCustomMeetup: md.customMeetupRequest ?? null,
+        notes: md.customerNotes,
+      });
+
+      const buyer = await prisma.customer.findUnique({
+        where: { id: customerId },
+        select: { referredById: true },
+      });
+      if (buyer?.referredById) {
+        const priorOrders = await prisma.order.count({
+          where: { customerId, id: { not: order.id } },
+        });
+        if (priorOrders === 0) {
+          await grantReferralReward(buyer.referredById);
+        }
+      }
+    } catch (e) {
+      console.error("[fulfill-checkout] post-order account updates failed:", e);
+    }
+  }
 
   try {
     await sendOrderConfirmationEmail({

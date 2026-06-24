@@ -12,6 +12,7 @@ import { breadcrumbSchema } from "@/lib/seo";
 import PageHero from "@/components/PageHero";
 import Reveal from "@/components/Reveal";
 import ProductCard from "@/components/ProductCard";
+import SaveGuideButton from "@/components/account/SaveGuideButton";
 import JsonLd from "@/components/JsonLd";
 
 export function generateStaticParams() {
@@ -61,6 +62,9 @@ export default async function CareGuidePage({ params }: { params: Promise<{ loca
         <Link href={localeHref(loc, "/care")} className="mb-8 inline-block text-sm text-gold-deep hover:text-gold-bright">
           ← {dict.care.backToGuides}
         </Link>
+        <div className="mb-8">
+          <SaveGuideButton slug={slug} />
+        </div>
         <Reveal className="mx-auto mb-12 max-w-4xl">
           <div className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl border border-line">
             <Image
