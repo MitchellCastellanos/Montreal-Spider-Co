@@ -1,6 +1,13 @@
 import type { Locale } from "@/i18n/config";
 import { t } from "@/lib/types";
 
+export {
+  METRO_MAP_VIEWBOX,
+  METRO_LINE_PATHS,
+  METRO_MAP_LANDMASS,
+  METRO_MAP_ZONE_LABELS,
+} from "@/lib/metro-map-schematic";
+
 export type PickupSubtype = "pickup_point" | "metro_meetup" | "custom_meetup";
 
 export type MeetupAvailability =
@@ -75,21 +82,10 @@ export const MEETUP_AREAS: MeetupArea[] = [
 export const MEETUP_ZONES = MEETUP_AREAS;
 
 export const METRO_LINES: MetroLine[] = [
-  { id: "orange", name: { en: "Orange Line", fr: "Ligne orange" }, color: "#F7941D" },
-  { id: "green", name: { en: "Green Line", fr: "Ligne verte" }, color: "#00A651" },
-  { id: "blue", name: { en: "Blue Line", fr: "Ligne bleue" }, color: "#009EE0" },
-  { id: "yellow", name: { en: "Yellow Line", fr: "Ligne jaune" }, color: "#FFD200" },
-];
-
-/** Schematic SVG track segments (viewBox 0 0 520 480) */
-export const METRO_LINE_PATHS: { line: MetroLineId; d: string }[] = [
-  {
-    line: "orange",
-    d: "M 300 35 L 300 175 L 300 255 L 280 335 M 300 130 L 130 130",
-  },
-  { line: "green", d: "M 470 215 L 300 215 L 200 275 L 155 385" },
-  { line: "blue", d: "M 175 200 L 300 130" },
-  { line: "yellow", d: "M 300 255 L 300 445" },
+  { id: "orange", name: { en: "Orange Line", fr: "Ligne orange" }, color: "#F58220" },
+  { id: "green", name: { en: "Green Line", fr: "Ligne verte" }, color: "#008B45" },
+  { id: "blue", name: { en: "Blue Line", fr: "Ligne bleue" }, color: "#005596" },
+  { id: "yellow", name: { en: "Yellow Line", fr: "Ligne jaune" }, color: "#FFD100" },
 ];
 
 const AREA_LOOKUP = Object.fromEntries(MEETUP_AREAS.map((a) => [a.id, a])) as Record<
@@ -121,40 +117,40 @@ function station(
 }
 
 export const METRO_STATIONS: MetroStation[] = [
-  // Southwest — near Lachine / NDG / Lasalle
-  station("lionel-groulx-green", "Lionel-Groulx", "green", "southwest", 200, 275, true),
-  station("lionel-groulx-orange", "Lionel-Groulx", "orange", "southwest", 200, 275, true),
-  station("vendome", "Vendôme", "green", "southwest", 160, 260),
-  station("monk", "Monk", "green", "southwest", 140, 300),
-  station("angrignon", "Angrignon", "green", "southwest", 155, 385),
-  station("lucien-lallier", "Lucien-L'Allier", "orange", "southwest", 280, 335, true),
+  // Southwest
+  station("lionel-groulx-green", "Lionel-Groulx", "green", "southwest", 238, 248, true),
+  station("lionel-groulx-orange", "Lionel-Groulx", "orange", "southwest", 238, 248, true),
+  station("vendome", "Vendôme", "green", "southwest", 198, 272),
+  station("monk", "Monk", "green", "southwest", 172, 308),
+  station("angrignon", "Angrignon", "green", "southwest", 152, 362),
+  station("lucien-lallier", "Lucien-L'Allier", "orange", "southwest", 288, 328, true),
 
-  // Central — downtown core
-  station("berri-uqam-orange", "Berri-UQAM", "orange", "central", 300, 215, true),
-  station("berri-uqam-green", "Berri-UQAM", "green", "central", 300, 215, true),
-  station("mcgill", "McGill", "green", "central", 260, 215),
-  station("place-des-arts", "Place-des-Arts", "green", "central", 240, 215),
-  station("bonaventure", "Bonaventure", "orange", "central", 300, 255),
-  station("square-victoria", "Square-Victoria-OACI", "orange", "central", 280, 295),
+  // Central
+  station("berri-uqam-orange", "Berri-UQAM", "orange", "central", 380, 248, true),
+  station("berri-uqam-green", "Berri-UQAM", "green", "central", 380, 248, true),
+  station("mcgill", "McGill", "green", "central", 350, 248),
+  station("place-des-arts", "Place-des-Arts", "green", "central", 320, 248),
+  station("bonaventure", "Bonaventure", "orange", "central", 370, 282),
+  station("square-victoria", "Square-Victoria-OACI", "orange", "central", 340, 310),
 
   // North & East
-  station("jean-talon-orange", "Jean-Talon", "orange", "north-east", 300, 130, true),
-  station("jean-talon-blue", "Jean-Talon", "blue", "north-east", 300, 130, true),
-  station("rosemont", "Rosemont", "orange", "north-east", 300, 175),
-  station("papineau", "Papineau", "green", "north-east", 380, 215),
-  station("frontenac", "Frontenac", "green", "north-east", 420, 215),
-  station("honore-beaugrand", "Honoré-Beaugrand", "green", "north-east", 470, 215),
-  station("henri-bourassa", "Henri-Bourassa", "orange", "north-east", 300, 85),
-  station("cote-vertu", "Côte-Vertu", "orange", "north-east", 130, 130),
-  station("snowdon-orange", "Snowdon", "orange", "north-east", 175, 200, true),
-  station("snowdon-blue", "Snowdon", "blue", "north-east", 175, 200, true),
+  station("jean-talon-orange", "Jean-Talon", "orange", "north-east", 378, 152, true),
+  station("jean-talon-blue", "Jean-Talon", "blue", "north-east", 378, 152, true),
+  station("rosemont", "Rosemont", "orange", "north-east", 380, 198),
+  station("papineau", "Papineau", "green", "north-east", 428, 248),
+  station("frontenac", "Frontenac", "green", "north-east", 468, 248),
+  station("honore-beaugrand", "Honoré-Beaugrand", "green", "north-east", 518, 248),
+  station("henri-bourassa", "Henri-Bourassa", "orange", "north-east", 380, 115),
+  station("cote-vertu", "Côte-Vertu", "orange", "north-east", 98, 152),
+  station("snowdon-orange", "Snowdon", "orange", "north-east", 178, 198, true),
+  station("snowdon-blue", "Snowdon", "blue", "north-east", 178, 198, true),
 
   // Laval & South Shore
-  station("montmorency", "Montmorency", "orange", "laval-south-shore", 300, 35),
-  station("de-la-concorde", "De la Concorde", "orange", "laval-south-shore", 280, 55),
-  station("longueuil", "Longueuil–Université-de-Sherbrooke", "yellow", "laval-south-shore", 300, 405),
-  station("jean-drapeau", "Jean-Drapeau", "yellow", "laval-south-shore", 300, 365),
-  station("radisson", "Radisson", "yellow", "laval-south-shore", 300, 445),
+  station("montmorency", "Montmorency", "orange", "laval-south-shore", 380, 52),
+  station("de-la-concorde", "De la Concorde", "orange", "laval-south-shore", 368, 72),
+  station("longueuil", "Longueuil–Université-de-Sherbrooke", "yellow", "laval-south-shore", 380, 390),
+  station("jean-drapeau", "Jean-Drapeau", "yellow", "laval-south-shore", 380, 340),
+  station("radisson", "Radisson", "yellow", "laval-south-shore", 380, 438),
 ];
 
 export const MEETUP_AVAILABILITY_OPTIONS: {
@@ -169,8 +165,6 @@ export const MEETUP_AVAILABILITY_OPTIONS: {
   { id: "saturday", label: { en: "Saturday 9:30 AM–4:30 PM", fr: "Samedi 9 h 30 – 16 h 30" } },
   { id: "flexible", label: { en: "Flexible within meetup hours", fr: "Flexible selon les heures de rencontre" } },
 ];
-
-export const METRO_MAP_VIEWBOX = { width: 520, height: 480 };
 
 export function getMeetupArea(areaId: string): MeetupArea | undefined {
   return MEETUP_AREAS.find((a) => a.id === areaId);
@@ -243,15 +237,33 @@ export function stationDisplayName(station: MetroStation, locale: Locale): strin
 }
 
 /** Unique physical station names for map rendering (one dot per location). */
-export function getMapStationGroups(): { key: string; name: string; x: number; y: number; stations: MetroStation[] }[] {
-  const groups = new Map<string, { key: string; name: string; x: number; y: number; stations: MetroStation[] }>();
+export function getMapStationGroups(): {
+  key: string;
+  name: string;
+  x: number;
+  y: number;
+  isTransferHub: boolean;
+  stations: MetroStation[];
+}[] {
+  const groups = new Map<
+    string,
+    { key: string; name: string; x: number; y: number; isTransferHub: boolean; stations: MetroStation[] }
+  >();
   for (const s of METRO_STATIONS) {
     const key = `${s.name}:${s.x}:${s.y}`;
     const existing = groups.get(key);
     if (existing) {
       existing.stations.push(s);
+      existing.isTransferHub = existing.isTransferHub || Boolean(s.isTransferHub);
     } else {
-      groups.set(key, { key, name: s.name, x: s.x, y: s.y, stations: [s] });
+      groups.set(key, {
+        key,
+        name: s.name,
+        x: s.x,
+        y: s.y,
+        isTransferHub: Boolean(s.isTransferHub),
+        stations: [s],
+      });
     }
   }
   return [...groups.values()];

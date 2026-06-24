@@ -4,8 +4,11 @@ import { useMemo, useState } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
 import {
+  MEETUP_AREAS,
   METRO_LINE_PATHS,
+  METRO_MAP_LANDMASS,
   METRO_MAP_VIEWBOX,
+  METRO_MAP_ZONE_LABELS,
   type MetroStation,
   calcStationMeetupFee,
   getMapStationGroups,
@@ -19,9 +22,7 @@ export interface MetroMeetupMapProps {
   selectedStationId?: string;
   preferredLineId?: string;
   onSelectStation?: (station: MetroStation) => void;
-  /** Cart subtotal for fee preview; 0 shows base area fees. */
   subtotal?: number;
-  /** When true, stations are not selectable (hover tooltips still work). */
   readOnly?: boolean;
   className?: string;
 }
@@ -55,32 +56,69 @@ export default function MetroMeetupMap({
   const tooltipStation = hoveredGroup?.stations[0] ?? selectedStation;
 
   return (
-    <div className={`overflow-hidden rounded-xl border border-line bg-ink-soft/30 ${className}`}>
+    <div className={`overflow-hidden rounded-xl border border-line ${className}`}>
       <svg
         viewBox={`0 0 ${METRO_MAP_VIEWBOX.width} ${METRO_MAP_VIEWBOX.height}`}
-        className="h-auto w-full"
+        className="h-auto w-full bg-[#dce4ec]"
         role="img"
         aria-label={co.meetupStepStation}
       >
-        {METRO_LINE_PATHS.map((track) => {
+        {/* Geographic backdrop */}
+        {METRO_MAP_LANDMASS.map((shape) => (
+          <path key={shape.id} d={shape.d} fill={shape.fill} />
+        ))}
+
+        {/* Meetup area hints */}
+        {METRO_MAP_ZONE_LABELS.map((label) => {
+          const area = MEETUP_AREAS.find((a) => a.id === label.area);
+          if (!area) return null;
+          return (
+            <text
+              key={label.area}
+              x={label.x}
+              y={label.y}
+              textAnchor={label.anchor}
+              className="select-none fill-[#9aa8b6] font-medium uppercase tracking-widest"
+              style={{ fontSize: 9 }}
+            >
+              {t(area.name, locale)}
+            </text>
+          );
+        })}
+
+        {/* Line casings (white) then coloured tracks — STM-style */}
+        {METRO_LINE_PATHS.map((track, i) => (
+          <path
+            key={`casing-${track.line}-${i}`}
+            d={track.d}
+            fill="none"
+            stroke="#ffffff"
+            strokeWidth={11}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        ))}
+        {METRO_LINE_PATHS.map((track, i) => {
           const line = getMetroLine(track.line);
           return (
             <path
-              key={track.line}
+              key={`track-${track.line}-${i}`}
               d={track.d}
               fill="none"
               stroke={line?.color ?? "#666"}
-              strokeWidth={5}
+              strokeWidth={6}
               strokeLinecap="round"
               strokeLinejoin="round"
-              opacity={0.55}
             />
           );
         })}
 
+        {/* Stations */}
         {mapGroups.map((group) => {
           const isSelected = group.stations.some((s) => s.id === selectedStationId);
           const isHovered = hoveredKey === group.key;
+          const hub = group.isTransferHub;
+          const r = isSelected ? 10 : isHovered ? 9 : hub ? 8 : 6;
 
           return (
             <g
@@ -100,22 +138,36 @@ export default function MetroMeetupMap({
               tabIndex={interactive ? 0 : undefined}
               aria-label={group.name}
             >
-              <circle
-                cx={group.x}
-                cy={group.y}
-                r={isSelected ? 11 : isHovered ? 10 : 7}
-                fill={isSelected ? "var(--gold-bright)" : isHovered ? "var(--cream)" : "var(--bone)"}
-                stroke={isSelected ? "var(--gold)" : "var(--line)"}
-                strokeWidth={isSelected ? 2.5 : 1.5}
-                className="transition-all duration-150"
-              />
+              {hub ? (
+                <rect
+                  x={group.x - r}
+                  y={group.y - r}
+                  width={r * 2}
+                  height={r * 2}
+                  rx={3}
+                  fill={isSelected ? "#e8c56a" : "#ffffff"}
+                  stroke={isSelected ? "#c9a24b" : isHovered ? "#2d3748" : "#1a2332"}
+                  strokeWidth={isSelected ? 2.5 : 2}
+                  className="transition-all duration-150"
+                />
+              ) : (
+                <circle
+                  cx={group.x}
+                  cy={group.y}
+                  r={r}
+                  fill={isSelected ? "#e8c56a" : "#ffffff"}
+                  stroke={isSelected ? "#c9a24b" : isHovered ? "#2d3748" : "#4a5568"}
+                  strokeWidth={isSelected ? 2.5 : 1.75}
+                  className="transition-all duration-150"
+                />
+              )}
               {(isSelected || isHovered) && (
                 <text
                   x={group.x}
-                  y={group.y - 14}
+                  y={group.y - (hub ? 16 : 14)}
                   textAnchor="middle"
-                  className="fill-cream"
-                  style={{ fontSize: 10 }}
+                  className="fill-[#1a2332] font-medium"
+                  style={{ fontSize: 10, paintOrder: "stroke", stroke: "#f6f8fa", strokeWidth: 3 }}
                 >
                   {group.name}
                 </text>
@@ -151,7 +203,15 @@ function MetroMapTooltip({
     <div className="border-t border-line bg-ink-soft/50 px-4 py-3 text-sm">
       <p className="font-semibold text-cream">{station.name}</p>
       {area && <p className="text-xs text-muted">{t(area.name, locale)}</p>}
-      {line && <p className="text-xs text-muted">{t(line.name, locale)}</p>}
+      {line && (
+        <p className="text-xs text-muted">
+          <span
+            className="mr-1.5 inline-block h-2 w-2 rounded-full"
+            style={{ backgroundColor: line.color }}
+          />
+          {t(line.name, locale)}
+        </p>
+      )}
       <p className="mt-1 text-bone">
         {co.meetupFeeLabel}: {fee === 0 ? dict.common.free : formatPrice(fee, locale)}
       </p>
