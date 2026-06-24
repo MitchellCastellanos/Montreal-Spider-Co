@@ -6,7 +6,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 import { PRODUCTS } from "@/lib/products";
-import type { AvailableUnit, L, Product } from "@/lib/types";
+import { asL, type AvailableUnit, type L, type Product } from "@/lib/types";
 
 /** Display snapshot stored on each line so cart works even when the client
  *  does not hold the full (DB-backed) catalog. */
@@ -60,7 +60,7 @@ export function snapshotFromProduct(product: Product, unit: AvailableUnit): Cart
   return {
     slug: product.slug,
     scientific: product.scientific,
-    common: product.common,
+    common: asL(product.common),
     hue: product.hue,
     accent: product.accent,
     image: product.image,
@@ -154,7 +154,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
               id: l.productId,
               slug: l.snap.slug,
               scientific: l.snap.scientific,
-              common: l.snap.common,
+              common: asL(l.snap.common),
               hue: l.snap.hue,
               accent: l.snap.accent,
               image: l.snap.image,
@@ -176,7 +176,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             id: product.id,
             slug: product.slug,
             scientific: product.scientific,
-            common: product.common,
+            common: asL(product.common),
             hue: product.hue,
             accent: product.accent,
             image: product.image,

@@ -3,34 +3,39 @@ import type { WeeklyHours } from "@/lib/opening-hours";
 
 export type L = { en: string; fr: string };
 
-/** Coerce DB / JSON blobs into a safe bilingual pair. */
-export function asL(en: unknown, fr?: unknown): L {
-  if (en && typeof en === "object" && "en" in en) {
-    const v = en as L;
-    if (typeof v.en === "string") {
-      return { en: v.en, fr: v.fr || v.en };
-    }
-    return asL(v.en, v.fr);
-  }
-  if (typeof en === "string") {
-    const trimmed = en.trim();
+/** Resolve any bilingual blob (string, JSON, nested {en,fr}) to a single locale string. */
+function localeStr(value: unknown, locale: Locale): string {
+  if (value == null) return "";
+  if (typeof value === "string") {
+    const trimmed = value.trim();
     if (trimmed.startsWith("{") && trimmed.includes('"en"')) {
       try {
-        return asL(JSON.parse(trimmed));
+        return localeStr(JSON.parse(trimmed), locale);
       } catch {
-        /* use raw string */
+        return value;
       }
     }
-    const frStr = typeof fr === "string" ? fr : "";
-    return { en, fr: frStr || en };
+    return value;
   }
-  const frStr = typeof fr === "string" ? fr : "";
-  return { en: String(en ?? ""), fr: frStr || String(en ?? "") };
+  if (typeof value === "object" && "en" in value) {
+    const o = value as { en?: unknown; fr?: unknown };
+    return localeStr(o[locale] ?? o.en ?? o.fr, locale);
+  }
+  return String(value);
+}
+
+/** Coerce DB / JSON blobs into a safe bilingual pair of plain strings. */
+export function asL(en: unknown, fr?: unknown): L {
+  const enOut = localeStr(en, "en");
+  const frOut = localeStr(fr, "fr") || localeStr(en, "fr");
+  return { en: enOut, fr: frOut || enOut };
 }
 
 export function t(value: L, locale: Locale): string {
+  const direct = localeStr(value, locale);
+  if (direct) return direct;
   const v = asL(value);
-  return v[locale] || v.en;
+  return v[locale] || v.en || v.fr;
 }
 
 export type Experience = "beginner" | "intermediate" | "advanced";
