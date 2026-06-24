@@ -3,8 +3,34 @@ import type { WeeklyHours } from "@/lib/opening-hours";
 
 export type L = { en: string; fr: string };
 
+/** Coerce DB / JSON blobs into a safe bilingual pair. */
+export function asL(en: unknown, fr?: unknown): L {
+  if (en && typeof en === "object" && "en" in en) {
+    const v = en as L;
+    if (typeof v.en === "string") {
+      return { en: v.en, fr: v.fr || v.en };
+    }
+    return asL(v.en, v.fr);
+  }
+  if (typeof en === "string") {
+    const trimmed = en.trim();
+    if (trimmed.startsWith("{") && trimmed.includes('"en"')) {
+      try {
+        return asL(JSON.parse(trimmed));
+      } catch {
+        /* use raw string */
+      }
+    }
+    const frStr = typeof fr === "string" ? fr : "";
+    return { en, fr: frStr || en };
+  }
+  const frStr = typeof fr === "string" ? fr : "";
+  return { en: String(en ?? ""), fr: frStr || String(en ?? "") };
+}
+
 export function t(value: L, locale: Locale): string {
-  return value[locale] ?? value.en;
+  const v = asL(value);
+  return v[locale] || v.en;
 }
 
 export type Experience = "beginner" | "intermediate" | "advanced";

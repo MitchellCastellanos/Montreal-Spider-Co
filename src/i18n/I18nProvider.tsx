@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext } from "react";
+import { t, type L } from "@/lib/types";
 import type { Locale } from "./config";
 import type enDict from "./dictionaries/en.json";
 
@@ -31,5 +32,5 @@ export function useI18n(): Ctx {
 /** Convenience helper for localized data objects ({ en, fr }). */
 export function useT() {
   const { locale } = useI18n();
-  return (value: { en: string; fr: string }) => value[locale] ?? value.en;
+  return (value: L) => t(value, locale);
 }

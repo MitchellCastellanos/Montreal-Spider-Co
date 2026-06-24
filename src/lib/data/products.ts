@@ -10,7 +10,7 @@ import { getSpeciesById, type SpeciesProfile } from "@/lib/data/species";
 import { deriveSlug } from "@/lib/species-utils";
 import { PRODUCTS as SEED, GENERA as SEED_GENERA } from "@/lib/products";
 import { parseWeeklyHours, EMPTY_WEEKLY_HOURS } from "@/lib/opening-hours";
-import { isStorefrontVisible, type AvailableUnit, type DistributorSnippet, type Product, type ProductDistributorStock } from "@/lib/types";
+import { asL, isStorefrontVisible, type AvailableUnit, type DistributorSnippet, type Product, type ProductDistributorStock } from "@/lib/types";
 
 export type { Product };
 
@@ -49,7 +49,7 @@ function mapProduct(p: DbProductFull, defaultImage?: string | null): Product {
     id: p.id,
     slug: p.slug,
     scientific: p.scientific,
-    common: { en: p.commonEn, fr: p.commonFr },
+    common: asL(p.commonEn, p.commonFr),
     genus: p.genus,
     experience: p.experience,
     type: p.type,
@@ -65,15 +65,15 @@ function mapProduct(p: DbProductFull, defaultImage?: string | null): Product {
     hue: p.hue,
     accent: p.accent,
     image,
-    adultSize: { en: p.adultSizeEn, fr: p.adultSizeFr },
-    growth: { en: p.growthEn, fr: p.growthFr },
-    origin: { en: p.originEn, fr: p.originFr },
-    lifespan: { en: p.lifespanEn, fr: p.lifespanFr },
+    adultSize: asL(p.adultSizeEn, p.adultSizeFr),
+    growth: asL(p.growthEn, p.growthFr),
+    origin: asL(p.originEn, p.originFr),
+    lifespan: asL(p.lifespanEn, p.lifespanFr),
     humidity: p.humidity,
     temperature: p.temperature,
-    enclosure: { en: p.enclosureEn, fr: p.enclosureFr },
-    diet: { en: p.dietEn, fr: p.dietFr },
-    description: { en: p.descriptionEn, fr: p.descriptionFr },
+    enclosure: asL(p.enclosureEn, p.enclosureFr),
+    diet: asL(p.dietEn, p.dietFr),
+    description: asL(p.descriptionEn, p.descriptionFr),
     careGuide: p.careGuide ?? undefined,
     arrived: p.arrived.toISOString().slice(0, 10),
   };
