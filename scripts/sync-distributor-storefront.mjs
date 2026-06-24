@@ -20,17 +20,35 @@ async function syncDistributorStockCounts() {
     select: { id: true, productId: true, locationId: true },
   });
 
+  const countByKey = new Map(
+    consignmentCounts.map((c) => [`${c.productId}:${c.locationId}`, c._count._all]),
+  );
+  const syncedKeys = new Set();
+
   let updated = 0;
+  let created = 0;
+
   for (const row of distRows) {
-    const match = consignmentCounts.find(
-      (c) => c.productId === row.productId && c.locationId === row.locationId,
-    );
-    const stock = match?._count._all ?? 0;
+    const key = `${row.productId}:${row.locationId}`;
+    syncedKeys.add(key);
+    const stock = countByKey.get(key) ?? 0;
     await prisma.productDistributorStock.update({
       where: { id: row.id },
       data: { stock },
     });
     updated++;
+  }
+
+  for (const c of consignmentCounts) {
+    if (!c.locationId) continue;
+    const key = `${c.productId}:${c.locationId}`;
+    if (syncedKeys.has(key)) continue;
+    await prisma.productDistributorStock.upsert({
+      where: { productId_locationId: { productId: c.productId, locationId: c.locationId } },
+      create: { productId: c.productId, locationId: c.locationId, stock: c._count._all },
+      update: { stock: c._count._all },
+    });
+    created++;
   }
 
   const productIds = [...new Set(consignmentCounts.map((c) => c.productId))];
@@ -41,7 +59,7 @@ async function syncDistributorStockCounts() {
     });
   }
 
-  return { distRowsUpdated: updated, listingsEnabled: productIds.length };
+  return { distRowsUpdated: updated, distRowsCreated: created, listingsEnabled: productIds.length };
 }
 
 async function backfillConsignmentPrices() {
@@ -86,7 +104,7 @@ async function main() {
 
   const stock = await syncDistributorStockCounts();
   console.log(
-    `[sync-distributor-storefront] Distributor stock rows updated: ${stock.distRowsUpdated}; listings with distributor channel enabled: ${stock.listingsEnabled}`,
+    `[sync-distributor-storefront] Distributor stock rows updated: ${stock.distRowsUpdated}, created: ${stock.distRowsCreated}; listings with distributor channel enabled: ${stock.listingsEnabled}`,
   );
 
   const prices = await backfillConsignmentPrices();

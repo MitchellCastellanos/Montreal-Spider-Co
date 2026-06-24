@@ -320,11 +320,28 @@ export async function syncAggregateStock(productId?: string) {
       select: { id: true, productId: true, locationId: true },
     });
 
+    const countByKey = new Map(
+      consignmentCounts.map((c) => [`${c.productId}:${c.locationId}`, c._count._all] as const),
+    );
+    const syncedKeys = new Set<string>();
+
     for (const row of distRows) {
-      const match = consignmentCounts.find((c) => c.productId === row.productId && c.locationId === row.locationId);
+      const key = `${row.productId}:${row.locationId}`;
+      syncedKeys.add(key);
       await tx.productDistributorStock.update({
         where: { id: row.id },
-        data: { stock: match?._count._all ?? 0 },
+        data: { stock: countByKey.get(key) ?? 0 },
+      });
+    }
+
+    for (const c of consignmentCounts) {
+      if (!c.locationId) continue;
+      const key = `${c.productId}:${c.locationId}`;
+      if (syncedKeys.has(key)) continue;
+      await tx.productDistributorStock.upsert({
+        where: { productId_locationId: { productId: c.productId, locationId: c.locationId } },
+        create: { productId: c.productId, locationId: c.locationId, stock: c._count._all },
+        update: { stock: c._count._all },
       });
     }
 

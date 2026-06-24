@@ -406,6 +406,19 @@ async function uniqueProductSlug(base: string): Promise<string> {
   return slug;
 }
 
+/** Ensure every active distributor has a ProductDistributorStock row for this listing. */
+export async function ensureProductDistributorStockRows(productId: string): Promise<void> {
+  const db = requireDb();
+  const distributors = await getDistributorLocations();
+  for (const d of distributors.filter((loc) => loc.isDistributor)) {
+    await db.productDistributorStock.upsert({
+      where: { productId_locationId: { productId, locationId: d.id } },
+      create: { productId, locationId: d.id, stock: 0 },
+      update: {},
+    });
+  }
+}
+
 /**
  * Return the storefront listing for a species, creating one from the species profile when missing.
  * Received stock always gets a visible listing (hideWhenSoldOut stays false).
@@ -430,6 +443,7 @@ export async function ensureProductListingForSpecies(speciesId: string): Promise
         newArrival: true,
       },
     });
+    await ensureProductDistributorStockRows(existing.id);
     return existing.id;
   }
 
