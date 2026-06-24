@@ -156,6 +156,8 @@
     "breadcrumb": "Shop",
     "addToCart": "Add to cart",
     "selectSize": "Choose a size",
+    "cardAvailability": "Available sizes and prices",
+    "moreSizes": "+{count} more",
     "size": "Size",
     "careLevel": "Care level",
     "temperament": "Temperament",

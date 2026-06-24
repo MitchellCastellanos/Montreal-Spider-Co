@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import LocaleLink from "./LocaleLink";
 import SpeciesImage from "./SpeciesImage";
@@ -8,6 +9,12 @@ import { useCart, snapshotFromProduct } from "@/context/CartContext";
 import { useProductDisplay } from "@/hooks/useProductDisplay";
 import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
+import {
+  CARD_AVAILABILITY_MAX,
+  cardAvailabilityUnits,
+  cardUnitSexSymbol,
+  cardUnitShowsSex,
+} from "@/lib/product-display";
 import { basePrice, isAvailableAtDistributor, isPurchasableOnline, totalStock, type Product } from "@/lib/types";
 
 const expColor: Record<string, string> = {
@@ -24,8 +31,13 @@ export default function ProductCard({ product }: { product: Product }) {
   const stock = totalStock(product);
   const online = isPurchasableOnline(product);
   const atDistributor = isAvailableAtDistributor(product);
-  const inStockUnits = product.availability.filter((u) => u.stock > 0);
-  const cheapest = inStockUnits.length > 0 ? inStockUnits.reduce((a, b) => (b.price < a.price ? b : a)) : null;
+  const inStockUnits = cardAvailabilityUnits(product.availability);
+  const visibleUnits = inStockUnits.slice(0, CARD_AVAILABILITY_MAX);
+  const hiddenUnitCount = inStockUnits.length - visibleUnits.length;
+  const defaultUnit = inStockUnits[0] ?? null;
+  const [unitKey, setUnitKey] = useState(defaultUnit?.key ?? "");
+  const selected =
+    inStockUnits.find((u) => u.key === unitKey) ?? defaultUnit;
   const low = stock > 0 && stock <= 5;
 
   return (
@@ -79,6 +91,53 @@ export default function ProductCard({ product }: { product: Product }) {
           <Chip>{dict.filters[product.temperament]}</Chip>
         </div>
 
+        {visibleUnits.length > 0 && (
+          <ul
+            className="mb-3 space-y-1 rounded-xl border border-line/60 bg-ink-soft/30 p-1.5"
+            role="listbox"
+            aria-label={dict.product.cardAvailability}
+          >
+            {visibleUnits.map((unit) => {
+              const active = unit.key === selected?.key;
+              return (
+                <li key={unit.key} role="presentation">
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={active}
+                    onClick={() => setUnitKey(unit.key)}
+                    className={`flex w-full items-baseline justify-between gap-3 rounded-lg px-2 py-1.5 text-left transition ${
+                      active ? "bg-gold/15 ring-1 ring-gold/40" : "hover:bg-ink-soft/60"
+                    }`}
+                  >
+                    <span className="text-sm font-medium tabular-nums text-cream">
+                      {unit.sizeLabel}
+                      {cardUnitShowsSex(inStockUnits, unit) && (
+                        <span className="ml-1 text-xs text-muted" aria-hidden>
+                          {cardUnitSexSymbol(unit)}
+                        </span>
+                      )}
+                    </span>
+                    <span className="shrink-0 text-sm font-semibold tabular-nums text-gold-bright">
+                      {formatPrice(unit.price, locale)}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+            {hiddenUnitCount > 0 && (
+              <li className="pt-0.5">
+                <LocaleLink
+                  href={`/product/${product.slug}`}
+                  className="text-xs font-semibold text-gold-bright hover:underline"
+                >
+                  {dict.product.moreSizes.replace("{count}", String(hiddenUnitCount))}
+                </LocaleLink>
+              </li>
+            )}
+          </ul>
+        )}
+
         {atDistributor && product.distributors && (
           <div className="mb-3">
             <DistributorAvailabilityCta distributors={product.distributors} variant="card" />
@@ -87,18 +146,26 @@ export default function ProductCard({ product }: { product: Product }) {
 
         <div className="mt-auto flex items-end justify-between gap-2 pt-2">
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-muted">{dict.common.from}</p>
+            <p className="text-[11px] uppercase tracking-wide text-muted">
+              {inStockUnits.length > 1 && selected
+                ? selected.sizeLabel
+                : dict.common.from}
+            </p>
             <p className="font-display text-xl font-bold text-cream">
-              {formatPrice(basePrice(product), locale)}{" "}
+              {formatPrice(selected?.price ?? basePrice(product), locale)}{" "}
               <span className="text-xs font-normal text-muted">{dict.common.plusTaxes}</span>
             </p>
             {low && <p className="text-[11px] text-gold-deep">{dict.common.lowStock}</p>}
           </div>
           <button
-            disabled={!online || !cheapest}
-            onClick={() => cheapest && add(product.id, cheapest.key, 1, snapshotFromProduct(product, cheapest))}
+            disabled={!online || !selected}
+            onClick={() => selected && add(product.id, selected.key, 1, snapshotFromProduct(product, selected))}
             className="btn btn-gold px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
-            aria-label={`${dict.common.addToCart} — ${title}`}
+            aria-label={
+              selected
+                ? `${dict.common.addToCart} — ${title}, ${selected.sizeLabel}`
+                : `${dict.common.addToCart} — ${title}`
+            }
           >
             +
           </button>

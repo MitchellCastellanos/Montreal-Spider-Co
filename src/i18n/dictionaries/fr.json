@@ -156,6 +156,8 @@
     "breadcrumb": "Boutique",
     "addToCart": "Ajouter au panier",
     "selectSize": "Choisir une taille",
+    "cardAvailability": "Tailles et prix disponibles",
+    "moreSizes": "+{count} de plus",
     "size": "Taille",
     "careLevel": "Niveau de soin",
     "temperament": "Tempérament",

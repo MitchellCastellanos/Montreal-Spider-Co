@@ -1,6 +1,30 @@
 import type { Locale } from "@/i18n/config";
-import type { Product } from "./types";
+import type { AvailableUnit, Product } from "./types";
 import { t } from "./types";
+
+/** Max size/price rows on a shop listing card before "+N more". */
+export const CARD_AVAILABILITY_MAX = 4;
+
+const SEX_SYMBOL = { male: "♂", female: "♀" } as const;
+
+/** In-stock units for listing cards, smallest size first. */
+export function cardAvailabilityUnits(availability: AvailableUnit[]): AvailableUnit[] {
+  return availability
+    .filter((u) => u.stock > 0)
+    .sort((a, b) => a.sizeCm - b.sizeCm || a.price - b.price);
+}
+
+/** Show a sex marker when multiple in-stock units share a size but differ in sex. */
+export function cardUnitShowsSex(units: AvailableUnit[], unit: AvailableUnit): boolean {
+  if (unit.sex === "unsexed") return false;
+  const atSize = units.filter((u) => u.sizeCm === unit.sizeCm);
+  if (atSize.length <= 1) return false;
+  return new Set(atSize.map((u) => u.sex)).size > 1;
+}
+
+export function cardUnitSexSymbol(unit: AvailableUnit): string {
+  return unit.sex === "unsexed" ? "" : SEX_SYMBOL[unit.sex];
+}
 
 type Named = Pick<Product, "scientific" | "common">;
 
