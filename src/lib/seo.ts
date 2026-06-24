@@ -2,6 +2,7 @@ import type enDict from "@/i18n/dictionaries/en.json";
 import type { Locale } from "@/i18n/config";
 import { SITE } from "./site";
 import type { Product } from "./types";
+import { productSeoName } from "@/lib/product-display";
 import { t } from "./types";
 import { basePrice, totalStock } from "./types";
 
@@ -48,7 +49,7 @@ export function productSchema(product: Product, locale: Locale) {
   return {
     "@context": "https://schema.org",
     "@type": "Product",
-    name: `${t(product.common, locale)} (${product.scientific})`,
+    name: productSeoName(product, locale),
     description: t(product.description, locale),
     category: "Tarantula",
     brand: { "@type": "Brand", name: SITE.name },

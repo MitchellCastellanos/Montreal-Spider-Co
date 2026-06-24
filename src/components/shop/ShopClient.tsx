@@ -89,7 +89,7 @@ export default function ShopClient({ products, genera }: { products: Product[]; 
         case "price-desc":
           return basePrice(b) - basePrice(a);
         case "name":
-          return tr(a.common).localeCompare(tr(b.common));
+          return a.scientific.localeCompare(b.scientific);
         case "newest":
           return b.arrived.localeCompare(a.arrived);
         default:

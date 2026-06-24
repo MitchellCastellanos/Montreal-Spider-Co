@@ -4,6 +4,7 @@ import Link from "next/link";
 import { isLocale, locales, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { getProductBySlug, getRelated, getStorefrontProducts } from "@/lib/data/products";
+import { productDisplaySubtitle, productDisplayTitle, productImageAlt, productSeoName } from "@/lib/product-display";
 import { t } from "@/lib/types";
 import { localeHref } from "@/lib/href";
 import { formatPrice } from "@/lib/format";
@@ -36,7 +37,7 @@ export async function generateMetadata({
   const product = await getProductBySlug(slug);
   if (!product) return {};
   const dict = await getDictionary(loc);
-  const name = `${t(product.common, loc)} (${product.scientific})`;
+  const name = productSeoName(product, loc);
   return {
     title: name,
     description: t(product.description, loc),
@@ -87,6 +88,8 @@ export default async function ProductPage({
   ];
 
   const guarantees = [p.guaranteeLive, p.guaranteeLocal, p.guaranteeSupport];
+  const displayTitle = productDisplayTitle(product);
+  const displaySubtitle = productDisplaySubtitle(product, loc);
 
   return (
     <>
@@ -95,7 +98,7 @@ export default async function ProductPage({
         data={breadcrumbSchema([
           { name: dict.meta.siteName, url: `/${loc}` },
           { name: p.breadcrumb, url: `/${loc}/shop` },
-          { name: t(product.common, loc), url: `/${loc}/product/${slug}` },
+          { name: displayTitle, url: `/${loc}/product/${slug}` },
         ])}
       />
 
@@ -106,7 +109,7 @@ export default async function ProductPage({
           <span>/</span>
           <Link href={localeHref(loc, "/shop")} className="hover:text-gold-bright">{p.breadcrumb}</Link>
           <span>/</span>
-          <span className="text-bone">{t(product.common, loc)}</span>
+          <span className="text-bone">{displayTitle}</span>
         </nav>
 
         <div className="grid gap-10 lg:grid-cols-2">
@@ -120,7 +123,7 @@ export default async function ProductPage({
                 image={product.image}
                 hue={product.hue}
                 accent={product.accent}
-                alt={`${t(product.common, loc)} — ${product.scientific}`}
+                alt={productImageAlt(product, loc)}
                 sizes="(max-width: 1024px) 100vw, 50vw"
                 priority
               />
@@ -137,10 +140,10 @@ export default async function ProductPage({
           {/* Info */}
           <div>
             <span className="text-sm font-semibold uppercase tracking-wider text-gold-deep">{product.genus}</span>
-            <h1 className="mt-1 font-display text-4xl font-bold leading-tight text-cream md:text-5xl">
-              {t(product.common, loc)}
+            <h1 className="mt-1 font-display text-4xl font-bold italic leading-tight text-cream md:text-5xl">
+              {displayTitle}
             </h1>
-            <p className="mt-1 text-lg italic text-muted">{product.scientific}</p>
+            {displaySubtitle && <p className="mt-1 text-lg text-muted">{displaySubtitle}</p>}
 
             <p className="mt-3 text-2xl font-bold text-cream">
               <span className="text-sm font-normal text-muted">{dict.common.from} </span>

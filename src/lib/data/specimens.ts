@@ -25,6 +25,7 @@ export interface SpecimenView {
   id: string;
   productId: string;
   productName: string;
+  commonName: string;
   productImage: string | null;
   scientific: string;
   sizeCm: number;
@@ -161,7 +162,8 @@ function mapSpecimen(
   return {
     id: s.id,
     productId: s.productId,
-    productName: s.product.commonEn,
+    productName: s.product.scientific,
+    commonName: s.product.commonEn,
     productImage: s.product.image,
     scientific: s.product.scientific,
     sizeCm: s.sizeCm,
@@ -741,7 +743,7 @@ export async function assignSpecimensFifo(
 
   const specimenInclude = {
     location: { select: { name: true, phone: true } },
-    product: { select: { commonEn: true } },
+    product: { select: { commonEn: true, scientific: true } },
   } as const;
 
   const warehouseSpecimens = await tx.specimen.findMany({
@@ -804,7 +806,7 @@ export async function assignSpecimensFifo(
 
     if (wasConsignment && s.location) {
       distributorPickups.push({
-        productName: s.product.commonEn,
+        productName: s.product.scientific,
         sizeLabel: formatCmAsInches(s.sizeCm),
         sex: s.sex,
         distributorName: s.location.name,
@@ -937,14 +939,14 @@ export async function exportSoldSpecimensCsv(from?: Date, to?: Date): Promise<st
     orderBy: { soldAt: "desc" },
   });
 
-  const header = "soldAt,tarantulAppId,species,scientific,sizeCm,sex,unitCost,salePrice,margin,channel,payment,location\n";
+  const header = "soldAt,tarantulAppId,scientific,commonName,sizeCm,sex,unitCost,salePrice,margin,channel,payment,location\n";
   const lines = rows.map((s) => {
     const margin = (s.salePrice ?? 0) - s.unitCost;
     return [
       s.soldAt?.toISOString().slice(0, 10) ?? "",
       s.tarantulAppId ?? "",
-      `"${s.product.commonEn.replace(/"/g, '""')}"`,
       s.product.scientific,
+      `"${s.product.commonEn.replace(/"/g, '""')}"`,
       s.sizeCm.toFixed(2),
       s.sex,
       s.unitCost.toFixed(2),

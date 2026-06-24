@@ -4,12 +4,12 @@ import LocaleLink from "@/components/LocaleLink";
 import SpiderGraphic from "@/components/SpiderGraphic";
 import SpeciesImage from "@/components/SpeciesImage";
 import { useCart } from "@/context/CartContext";
-import { useI18n, useT } from "@/i18n/I18nProvider";
+import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
+import { productDisplaySubtitle, productDisplayTitle, productImageAlt } from "@/lib/product-display";
 
 export default function CartView() {
   const { dict, locale } = useI18n();
-  const tr = useT();
   const { resolved, subtotal, setQty, remove } = useCart();
   const c = dict.cart;
 
@@ -31,18 +31,20 @@ export default function CartView() {
       <h1 className="mb-8 font-display text-4xl font-bold text-cream">{c.title}</h1>
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
-          {resolved.map((line) => (
+          {resolved.map((line) => {
+            const subtitle = productDisplaySubtitle(line.product, locale);
+            return (
             <div key={line.key} className="card-glow flex gap-4 rounded-2xl p-4">
               <LocaleLink href={`/product/${line.product.slug}`} className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-line" style={{ background: `radial-gradient(120% 120% at 50% 20%, hsl(${line.product.hue} 30% 16%), var(--ink))` }}>
-                <SpeciesImage image={line.product.image} hue={line.product.hue} accent={line.product.accent} alt={tr(line.product.common)} sizes="96px" />
+                <SpeciesImage image={line.product.image} hue={line.product.hue} accent={line.product.accent} alt={productImageAlt(line.product, locale)} sizes="96px" />
               </LocaleLink>
               <div className="flex flex-1 flex-col">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <LocaleLink href={`/product/${line.product.slug}`} className="font-display text-lg font-semibold text-cream hover:text-gold-bright">
-                      {tr(line.product.common)}
+                    <LocaleLink href={`/product/${line.product.slug}`} className="font-display text-lg font-semibold italic text-cream hover:text-gold-bright">
+                      {productDisplayTitle(line.product)}
                     </LocaleLink>
-                    <p className="text-xs italic text-muted">{line.product.scientific}</p>
+                    {subtitle && <p className="text-xs text-muted">{subtitle}</p>}
                     <p className="mt-1 text-sm text-bone">{line.size.label}</p>
                   </div>
                   <button onClick={() => remove(line.productId, line.unitKey)} className="text-sm text-muted hover:text-danger">{c.remove}</button>
@@ -57,7 +59,8 @@ export default function CartView() {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         <aside>

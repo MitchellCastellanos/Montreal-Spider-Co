@@ -5,7 +5,8 @@ import LocaleLink from "./LocaleLink";
 import SpeciesImage from "./SpeciesImage";
 import DistributorAvailabilityCta from "./DistributorAvailabilityCta";
 import { useCart, snapshotFromProduct } from "@/context/CartContext";
-import { useI18n, useT } from "@/i18n/I18nProvider";
+import { useProductDisplay } from "@/hooks/useProductDisplay";
+import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
 import { basePrice, isAvailableAtDistributor, isPurchasableOnline, totalStock, type Product } from "@/lib/types";
 
@@ -18,7 +19,7 @@ const expColor: Record<string, string> = {
 export default function ProductCard({ product }: { product: Product }) {
   const { dict, locale } = useI18n();
   const { add } = useCart();
-  const tr = useT();
+  const { title, subtitle, imageAlt } = useProductDisplay(product);
 
   const stock = totalStock(product);
   const online = isPurchasableOnline(product);
@@ -39,7 +40,7 @@ export default function ProductCard({ product }: { product: Product }) {
           style={{ background: `radial-gradient(120% 120% at 50% 20%, hsl(${product.hue} 30% 16%), var(--ink))` }}
         >
           <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-110">
-            <SpeciesImage image={product.image} hue={product.hue} accent={product.accent} alt={tr(product.common)} sizes="(max-width: 768px) 50vw, 25vw" />
+            <SpeciesImage image={product.image} hue={product.hue} accent={product.accent} alt={imageAlt} sizes="(max-width: 768px) 50vw, 25vw" />
           </div>
           <div className="absolute left-3 top-3 flex flex-col gap-1.5">
             {product.newArrival && <span className="badge bg-gold/20">{dict.shop.sortNewest}</span>}
@@ -67,10 +68,11 @@ export default function ProductCard({ product }: { product: Product }) {
 
         <LocaleLink href={`/product/${product.slug}`}>
           <h3 className="font-display text-lg font-semibold leading-tight text-cream transition-colors group-hover:text-gold-bright">
-            {tr(product.common)}
+            {title}
           </h3>
         </LocaleLink>
-        <p className="mb-3 text-xs italic text-muted">{product.scientific}</p>
+        {subtitle && <p className="mb-3 text-xs text-muted">{subtitle}</p>}
+        {!subtitle && <div className="mb-3" />}
 
         <div className="mb-3 flex flex-wrap gap-1.5">
           <Chip>{dict.filters[product.type]}</Chip>
@@ -96,7 +98,7 @@ export default function ProductCard({ product }: { product: Product }) {
             disabled={!online || !cheapest}
             onClick={() => cheapest && add(product.id, cheapest.key, 1, snapshotFromProduct(product, cheapest))}
             className="btn btn-gold px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
-            aria-label={`${dict.common.addToCart} — ${tr(product.common)}`}
+            aria-label={`${dict.common.addToCart} — ${title}`}
           >
             +
           </button>

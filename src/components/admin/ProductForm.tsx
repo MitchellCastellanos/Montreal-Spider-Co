@@ -240,7 +240,7 @@ export default function ProductForm({
                 >
                   <span>
                     <span className="font-medium text-cream">{s.scientific}</span>
-                    <span className="ml-2 text-muted">— {s.commonEn}</span>
+                    {s.commonEn && <span className="ml-2 text-muted">— {s.commonEn}</span>}
                   </span>
                   <span className="text-xs capitalize text-muted">{s.experience}</span>
                 </button>
@@ -264,13 +264,12 @@ export default function ProductForm({
                 required
               />
             </Field>
-            <Field label="Common name (EN) *">
+            <Field label="Common name (EN)">
               <input
                 name="commonEn"
                 value={form.commonEn}
                 onChange={(e) => onCommonEnChange(e.target.value)}
                 className="input"
-                required
               />
             </Field>
             <Field label="Common name (FR)">

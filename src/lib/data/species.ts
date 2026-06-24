@@ -166,17 +166,19 @@ export async function upsertSpecies(input: SpeciesInput): Promise<string> {
 /** Create or update a minimal species profile (e.g. when receiving stock for a new species). */
 export async function upsertSpeciesMinimal(
   scientific: string,
-  commonEn: string,
+  commonEn?: string,
   commonFr?: string,
 ): Promise<string> {
   const sci = scientific.trim();
-  const en = commonEn.trim();
-  if (!sci || !en) throw new Error("Scientific and common name (EN) are required.");
+  if (!sci) throw new Error("Scientific name is required.");
+
+  const en = (commonEn ?? "").trim();
+  const fr = (commonFr ?? en).trim();
 
   return upsertSpecies({
     scientific: sci,
     commonEn: en,
-    commonFr: (commonFr ?? en).trim() || en,
+    commonFr: fr,
     genus: deriveGenus(sci),
     experience: "beginner",
     type: "terrestrial",

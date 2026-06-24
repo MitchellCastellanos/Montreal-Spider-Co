@@ -13,6 +13,7 @@ import {
   getMetroStation,
 } from "@/lib/metro-meetup";
 import { SITE } from "@/lib/site";
+import { productOrderLineNames, productStripeLineName } from "@/lib/product-display";
 import { getStripe } from "@/lib/stripe";
 import type { Locale } from "@/i18n/config";
 
@@ -126,16 +127,17 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
         availableStock = unit.stock;
       }
     }
-    if (availableStock < item.qty) throw new CheckoutError(`${product.common[locale]} is out of stock.`, 400);
+    if (availableStock < item.qty) throw new CheckoutError(`${product.scientific} is out of stock.`, 400);
 
-    const name = `${product.common[locale]} — ${unit.sizeLabel}`;
+    const name = productStripeLineName(product, unit.sizeLabel);
     subtotal += unit.price * item.qty;
+    const orderNames = productOrderLineNames(product);
     orderItems.push({
       productId: product.id,
       sizeCm: unit.sizeCm,
       sex: unit.sex,
-      nameEn: product.common.en,
-      nameFr: product.common.fr,
+      nameEn: orderNames.nameEn,
+      nameFr: orderNames.nameFr,
       sizeLabelEn: unit.sizeLabel,
       sizeLabelFr: unit.sizeLabel,
       qty: item.qty,

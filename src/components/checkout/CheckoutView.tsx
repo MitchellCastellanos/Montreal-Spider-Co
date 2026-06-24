@@ -5,8 +5,9 @@ import LocaleLink from "@/components/LocaleLink";
 import SpeciesImage from "@/components/SpeciesImage";
 import { useCart } from "@/context/CartContext";
 import { useAuth, type User } from "@/context/AuthContext";
-import { useI18n, useT } from "@/i18n/I18nProvider";
+import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
+import { productDisplaySubtitle, productDisplayTitle, productImageAlt } from "@/lib/product-display";
 import {
   MEETUP_ZONES,
   type MeetupAvailability,
@@ -45,7 +46,6 @@ export default function CheckoutView({
   stripeEnabled?: boolean;
 }) {
   const { dict, locale } = useI18n();
-  const tr = useT();
   const { resolved, subtotal } = useCart();
   const { user, ready, login, register, signOut, updateProfile } = useAuth();
   const co = dict.checkout;
@@ -381,18 +381,22 @@ export default function CheckoutView({
           <div className="card-glow sticky top-24 rounded-2xl p-6">
             <h2 className="font-display text-xl font-bold text-cream">{co.summary}</h2>
             <ul className="mt-4 space-y-3">
-              {resolved.map((l) => (
+              {resolved.map((l) => {
+                const subtitle = productDisplaySubtitle(l.product, locale);
+                return (
                 <li key={l.key} className="flex items-center gap-3">
                   <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-line bg-ink">
-                    <SpeciesImage image={l.product.image} hue={l.product.hue} accent={l.product.accent} alt={tr(l.product.common)} sizes="48px" />
+                    <SpeciesImage image={l.product.image} hue={l.product.hue} accent={l.product.accent} alt={productImageAlt(l.product, locale)} sizes="48px" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm text-cream">{tr(l.product.common)}</p>
+                    <p className="truncate text-sm italic text-cream">{productDisplayTitle(l.product)}</p>
+                    {subtitle && <p className="truncate text-xs text-muted">{subtitle}</p>}
                     <p className="text-xs text-muted">{l.size.label} × {l.qty}</p>
                   </div>
                   <span className="text-sm text-bone">{formatPrice(l.lineTotal, locale)}</span>
                 </li>
-              ))}
+                );
+              })}
             </ul>
             <div className="my-4 h-px bg-line" />
             <div className="space-y-2 text-sm">

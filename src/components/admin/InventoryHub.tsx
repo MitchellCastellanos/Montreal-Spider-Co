@@ -195,7 +195,7 @@ export default function InventoryHub({
       }
       if (filterQ) {
         const q = filterQ.toLowerCase();
-        const hay = `${s.tarantulAppId ?? ""} ${s.productName} ${s.scientific} ${s.notes}`.toLowerCase();
+        const hay = `${s.tarantulAppId ?? ""} ${s.productName} ${s.scientific} ${s.commonName} ${s.notes}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
@@ -549,8 +549,8 @@ function SpecimenRow({
           {taState.ok && taEditing && <p className="text-xs text-ok">Saved</p>}
         </td>
         <td className="px-3 py-2">
-          <p className="font-medium text-cream">{s.productName}</p>
-          <p className="text-xs italic text-muted">{s.scientific}</p>
+          <p className="font-medium italic text-cream">{s.productName}</p>
+          {s.commonName && <p className="text-xs text-muted">{s.commonName}</p>}
         </td>
         <td className="px-3 py-2">{s.sizeLabel}</td>
         <td className="px-3 py-2">
@@ -1042,7 +1042,8 @@ function ReceiveBatchForm({
                     <option value="__new__">+ New species (creates listing)</option>
                     {catalogSpecies.map((s) => (
                       <option key={s.id} value={s.id}>
-                        {s.commonEn} — {s.scientific}
+                        {s.scientific}
+                        {s.commonEn ? ` — ${s.commonEn}` : ""}
                       </option>
                     ))}
                   </select>
@@ -1077,13 +1078,12 @@ function ReceiveBatchForm({
                       />
                     </label>
                     <label className="field min-w-[160px] flex-1">
-                      <span>Common name (EN) *</span>
+                      <span>Common name (EN)</span>
                       <input
                         value={block.newCommonEn}
                         onChange={(e) => updateBlock(block.key, { newCommonEn: e.target.value })}
                         className="input"
                         placeholder="Mexican Red Knee"
-                        required
                       />
                     </label>
                   </>

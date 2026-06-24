@@ -6,6 +6,7 @@ import { deleteProductAction, updateDistributorPriceAction, type ActionState } f
 import type { Locale } from "@/i18n/config";
 import { formatPrice } from "@/lib/format";
 import { localeHref } from "@/lib/href";
+import { productDisplaySubtitle, productDisplayTitle } from "@/lib/product-display";
 import { basePrice, distributorStockTotal, t, warehouseStock, type Product } from "@/lib/types";
 import SortableTh, { cmpNum, cmpStr, toggleSortKey, type SortDir } from "./SortableTh";
 
@@ -183,7 +184,7 @@ export default function ListingsTable({
     return [...filtered].sort((a, b) => {
       switch (sortKey) {
         case "species":
-          return cmpStr(t(a.common, locale), t(b.common, locale), sortDir);
+          return cmpStr(a.scientific, b.scientific, sortDir);
         case "channels":
           return cmpStr(channelSortLabel(a), channelSortLabel(b), sortDir);
         case "warehouse":
@@ -284,8 +285,10 @@ export default function ListingsTable({
                         style={{ background: `hsl(${p.hue} 30% 16%)` }}
                       />
                       <div className="min-w-0">
-                        <p className="truncate font-medium text-cream">{t(p.common, locale)}</p>
-                        <p className="truncate text-xs italic text-muted">{p.scientific}</p>
+                        <p className="truncate font-medium italic text-cream">{productDisplayTitle(p)}</p>
+                        {productDisplaySubtitle(p, locale) && (
+                          <p className="truncate text-xs text-muted">{productDisplaySubtitle(p, locale)}</p>
+                        )}
                       </div>
                     </div>
                   </td>

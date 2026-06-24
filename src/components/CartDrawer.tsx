@@ -2,8 +2,9 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useCart } from "@/context/CartContext";
-import { useI18n, useT } from "@/i18n/I18nProvider";
+import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
+import { productDisplaySubtitle, productDisplayTitle, productImageAlt } from "@/lib/product-display";
 import LocaleLink from "./LocaleLink";
 import SpiderGraphic from "./SpiderGraphic";
 import SpeciesImage from "./SpeciesImage";
@@ -11,7 +12,6 @@ import SpeciesImage from "./SpeciesImage";
 export default function CartDrawer() {
   const { isOpen, closeCart, resolved, subtotal, setQty, remove, count } = useCart();
   const { dict, locale } = useI18n();
-  const tr = useT();
   const c = dict.cart;
 
   return (
@@ -57,20 +57,22 @@ export default function CartDrawer() {
                 </div>
               ) : (
                 <ul className="space-y-4">
-                  {resolved.map((line) => (
+                  {resolved.map((line) => {
+                    const subtitle = productDisplaySubtitle(line.product, locale);
+                    return (
                     <li key={line.key} className="flex gap-3 border-b border-line/60 pb-4">
                       <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-line bg-ink">
-                        <SpeciesImage image={line.product.image} hue={line.product.hue} accent={line.product.accent} alt={tr(line.product.common)} sizes="64px" />
+                        <SpeciesImage image={line.product.image} hue={line.product.hue} accent={line.product.accent} alt={productImageAlt(line.product, locale)} sizes="64px" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <LocaleLink
                           href={`/product/${line.product.slug}`}
                           onClick={closeCart}
-                          className="block truncate text-sm font-semibold text-cream hover:text-gold-bright"
+                          className="block truncate text-sm font-semibold italic text-cream hover:text-gold-bright"
                         >
-                          {tr(line.product.common)}
+                          {productDisplayTitle(line.product)}
                         </LocaleLink>
-                        <p className="truncate text-xs italic text-muted">{line.product.scientific}</p>
+                        {subtitle && <p className="truncate text-xs text-muted">{subtitle}</p>}
                         <p className="text-xs text-bone">{line.size.label}</p>
                         <div className="mt-2 flex items-center justify-between">
                           <div className="flex items-center gap-2">
@@ -103,7 +105,8 @@ export default function CartDrawer() {
                         ✕
                       </button>
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               )}
             </div>

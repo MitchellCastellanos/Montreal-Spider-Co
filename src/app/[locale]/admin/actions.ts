@@ -116,7 +116,7 @@ export async function saveProductAction(_prev: ActionState, formData: FormData):
   if (!Array.isArray(distributorStocks)) distributorStocks = [];
 
   const slug = str(formData, "slug").toLowerCase().replace(/\s+/g, "-");
-  if (!slug || !str(formData, "scientific") || !str(formData, "commonEn")) {
+  if (!slug || !str(formData, "scientific")) {
     return { error: "missing_fields" };
   }
 
@@ -315,7 +315,7 @@ export async function sendTestEmailAction(_prev: ActionState, formData: FormData
 
 interface ReceiveBatchRowForm {
   speciesId?: string;
-  newSpecies?: { scientific: string; commonEn: string; commonFr?: string };
+  newSpecies?: { scientific: string; commonEn?: string; commonFr?: string };
   /** @deprecated legacy — resolved from speciesId when receiving */
   productId?: string;
   sizeCm: number;
@@ -345,13 +345,13 @@ async function resolveReceiveListing(
     if (!cache.has(key)) cache.set(key, await ensureProductListingForSpecies(r.speciesId));
     return cache.get(key)!;
   }
-  if (r.newSpecies?.scientific?.trim() && r.newSpecies?.commonEn?.trim()) {
+  if (r.newSpecies?.scientific?.trim()) {
     const sci = r.newSpecies.scientific.trim().toLowerCase();
     const key = `new:${sci}`;
     if (!cache.has(key)) {
       const speciesId = await upsertSpeciesMinimal(
         r.newSpecies.scientific.trim(),
-        r.newSpecies.commonEn.trim(),
+        r.newSpecies.commonEn?.trim() ?? "",
         r.newSpecies.commonFr,
       );
       cache.set(key, await ensureProductListingForSpecies(speciesId));
