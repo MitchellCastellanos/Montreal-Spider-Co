@@ -2,6 +2,7 @@ import Link from "next/link";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getAllProducts } from "@/lib/data/products";
 import { getDistributorLocations } from "@/lib/data/locations";
+import { syncAggregateStock } from "@/lib/data/specimens";
 import { hasDatabase } from "@/lib/db";
 import { localeHref } from "@/lib/href";
 import ListingsTable from "@/components/admin/ListingsTable";
@@ -9,6 +10,11 @@ import ListingsTable from "@/components/admin/ListingsTable";
 export default async function AdminProductsPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   const loc: Locale = isLocale(locale) ? locale : "en";
+
+  if (hasDatabase) {
+    await syncAggregateStock();
+  }
+
   const [products, distributorLocs] = await Promise.all([getAllProducts(), getDistributorLocations()]);
 
   return (
