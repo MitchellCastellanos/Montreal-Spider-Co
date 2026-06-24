@@ -1,16 +1,21 @@
+import { SITE } from "@/lib/site";
+
 type Props = {
   label?: string;
   size?: "sm" | "md" | "lg";
   className?: string;
 };
 
-/** TarantulApp Verified Origin seal — used across product cards and pages. */
+/** TarantulApp Verified Origin seal — links to the official certification page. */
 export default function VerifiedBadge({ label = "TarantulApp Verified Origin", size = "md", className = "" }: Props) {
   const dims = size === "sm" ? 16 : size === "lg" ? 26 : 20;
   const text = size === "sm" ? "text-[10px]" : size === "lg" ? "text-sm" : "text-xs";
   return (
-    <span
-      className={`badge ${text} ${className}`}
+    <a
+      href={SITE.verifiedOriginUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`badge inline-flex items-center gap-1 transition-opacity hover:opacity-90 ${text} ${className}`}
       title={label}
     >
       <svg width={dims} height={dims} viewBox="0 0 24 24" aria-hidden="true">
@@ -24,6 +29,6 @@ export default function VerifiedBadge({ label = "TarantulApp Verified Origin", s
         <path d="M8.5 12.2l2.4 2.4 4.6-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
       {label}
-    </span>
+    </a>
   );
 }

@@ -11,7 +11,8 @@ import { breadcrumbSchema, productSchema } from "@/lib/seo";
 import SpeciesImage from "@/components/SpeciesImage";
 import AddToCart from "@/components/AddToCart";
 import DistributorAvailabilityCta from "@/components/DistributorAvailabilityCta";
-import VerifiedBadge from "@/components/VerifiedBadge";
+import { SITE } from "@/lib/site";
+import { withVerifiedOriginLinks } from "@/lib/verified-origin-links";
 import { basePrice, isAvailableAtDistributor } from "@/lib/types";
 import ProductCard from "@/components/ProductCard";
 import JsonLd from "@/components/JsonLd";
@@ -123,9 +124,6 @@ export default async function ProductPage({
                 sizes="(max-width: 1024px) 100vw, 50vw"
                 priority
               />
-              <div className="absolute left-4 top-4 z-10">
-                <VerifiedBadge label="Verified Origin" size="sm" />
-              </div>
             </div>
             <div className="mt-4 grid grid-cols-3 gap-3">
               {guarantees.map((g) => (
@@ -199,11 +197,16 @@ export default async function ProductPage({
             </section>
 
             <section className="mt-8 rounded-2xl border border-gold/25 bg-gradient-to-br from-gold/10 to-transparent p-5">
-              <VerifiedBadge label={p.verifiedTitle} />
-              <p className="mt-3 text-sm leading-relaxed text-bone">{p.verifiedBody}</p>
-              <Link href={localeHref(loc, "/verified-origin")} className="mt-3 inline-block text-sm font-semibold text-gold-bright hover:underline">
+              <h2 className="font-display text-lg font-semibold text-cream">{withVerifiedOriginLinks(p.verifiedTitle, loc)}</h2>
+              <p className="mt-3 text-sm leading-relaxed text-bone">{withVerifiedOriginLinks(p.verifiedBody, loc)}</p>
+              <a
+                href={SITE.verifiedOriginUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-block text-sm font-semibold text-gold-bright hover:underline"
+              >
                 {dict.common.learnMore} →
-              </Link>
+              </a>
             </section>
           </div>
         </div>

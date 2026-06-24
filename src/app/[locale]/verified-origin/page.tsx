@@ -6,6 +6,8 @@ import { localeHref } from "@/lib/href";
 import PageHero from "@/components/PageHero";
 import Reveal from "@/components/Reveal";
 import VerifiedBadge from "@/components/VerifiedBadge";
+import { withVerifiedOriginLinks } from "@/lib/verified-origin-links";
+import { SITE } from "@/lib/site";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -32,7 +34,11 @@ export default async function VerifiedPage({ params }: { params: Promise<{ local
 
   return (
     <>
-      <PageHero kicker={v.kicker} title={v.title} subtitle={v.subtitle} />
+      <PageHero
+        kicker={withVerifiedOriginLinks(v.kicker, loc)}
+        title={withVerifiedOriginLinks(v.title, loc)}
+        subtitle={withVerifiedOriginLinks(v.subtitle, loc)}
+      />
 
       <section className="container-x py-16">
         <div className="grid items-center gap-10 lg:grid-cols-2">
@@ -54,9 +60,17 @@ export default async function VerifiedPage({ params }: { params: Promise<{ local
 
           <Reveal delay={0.1}>
             <h2 className="font-display text-3xl font-bold text-cream">{v.what}</h2>
-            <p className="mt-4 leading-relaxed text-bone">{v.whatBody}</p>
-            <div className="mt-6">
+            <p className="mt-4 leading-relaxed text-bone">{withVerifiedOriginLinks(v.whatBody, loc)}</p>
+            <div className="mt-6 flex flex-wrap items-center gap-4">
               <VerifiedBadge label={dict.footer.verifiedBadge} size="lg" />
+              <a
+                href={SITE.verifiedOriginUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-semibold text-gold-bright hover:underline"
+              >
+                {dict.common.learnMore} →
+              </a>
             </div>
           </Reveal>
         </div>
@@ -70,7 +84,7 @@ export default async function VerifiedPage({ params }: { params: Promise<{ local
                 <div className="card-glow h-full rounded-2xl p-6">
                   <span className="font-display text-3xl font-black text-gold/30">0{i + 1}</span>
                   <h3 className="mt-2 font-display text-lg font-semibold text-cream">{pt.t}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-bone">{pt.b}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-bone">{withVerifiedOriginLinks(pt.b, loc)}</p>
                 </div>
               </Reveal>
             ))}
@@ -87,7 +101,7 @@ export default async function VerifiedPage({ params }: { params: Promise<{ local
             <Reveal key={i} as="li" delay={i * 0.1}>
               <div className="flex items-start gap-4 rounded-2xl border border-line bg-ink-soft/40 p-5">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold font-bold text-ink">{i + 1}</span>
-                <p className="text-bone">{step}</p>
+                <p className="text-bone">{withVerifiedOriginLinks(step, loc)}</p>
               </div>
             </Reveal>
           ))}

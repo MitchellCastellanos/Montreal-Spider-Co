@@ -6,9 +6,10 @@ import LocaleLink from "./LocaleLink";
 import VerifiedBadge from "./VerifiedBadge";
 import { useI18n } from "@/i18n/I18nProvider";
 import { SITE } from "@/lib/site";
+import { withVerifiedOriginLinks } from "@/lib/verified-origin-links";
 
 export default function Footer() {
-  const { dict } = useI18n();
+  const { dict, locale } = useI18n();
   const [subscribed, setSubscribed] = useState(false);
   const f = dict.footer;
   const year = new Date().getFullYear();
@@ -27,7 +28,7 @@ export default function Footer() {
                 <span className="font-display text-sm tracking-[0.3em] text-gold-bright">SPIDER CO.</span>
               </span>
             </LocaleLink>
-            <p className="mt-4 max-w-sm text-sm leading-relaxed text-bone">{f.blurb}</p>
+            <p className="mt-4 max-w-sm text-sm leading-relaxed text-bone">{withVerifiedOriginLinks(f.blurb, locale)}</p>
             <div className="mt-5">
               <VerifiedBadge label={f.verifiedBadge} />
             </div>
@@ -68,7 +69,7 @@ export default function Footer() {
 
           <FooterCol title={f.learnCol}>
             <LocaleLink href="/care" className="footer-link">{dict.nav.care}</LocaleLink>
-            <LocaleLink href="/verified-origin" className="footer-link">{dict.nav.verified}</LocaleLink>
+            <a href={SITE.verifiedOriginUrl} target="_blank" rel="noopener noreferrer" className="footer-link">{dict.nav.verified}</a>
             <LocaleLink href="/faq" className="footer-link">{dict.nav.faq}</LocaleLink>
           </FooterCol>
 

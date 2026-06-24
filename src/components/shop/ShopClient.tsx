@@ -7,6 +7,7 @@ import ProductCard from "@/components/ProductCard";
 import { useI18n, useT } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
 import { INCH_OPTIONS, MAX_INCHES, MIN_INCHES, productMatchesSizeFilter } from "@/lib/size-inches";
+import { withVerifiedOriginLinks } from "@/lib/verified-origin-links";
 import { basePrice, isAvailableAtDistributor, totalStock, type Experience, type Product, type SpiderType, type Temperament } from "@/lib/types";
 
 type Sort = "featured" | "price-asc" | "price-desc" | "name" | "newest";
@@ -201,7 +202,7 @@ export default function ShopClient({ products, genera }: { products: Product[]; 
     <div className="container-x py-10 md:py-14">
       <div className="mb-8">
         <h1 className="font-display text-4xl font-bold text-cream md:text-5xl">{s.title}</h1>
-        <p className="mt-2 max-w-2xl text-bone">{s.subtitle}</p>
+        <p className="mt-2 max-w-2xl text-bone">{withVerifiedOriginLinks(s.subtitle, locale)}</p>
       </div>
 
       <div className="mb-6 flex flex-wrap items-center gap-3">

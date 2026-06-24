@@ -8,6 +8,8 @@ import ProductCard from "@/components/ProductCard";
 import Reveal from "@/components/Reveal";
 import Newsletter from "@/components/Newsletter";
 import VerifiedBadge from "@/components/VerifiedBadge";
+import { withVerifiedOriginLinks } from "@/lib/verified-origin-links";
+import { SITE } from "@/lib/site";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -102,7 +104,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                   <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-gold/30 bg-gold/10 text-gold-bright">
                     {i === 1 ? <CheckSeal /> : <Dot index={i} />}
                   </div>
-                  <h3 className="mb-2 font-display text-lg font-semibold text-cream">{item.t}</h3>
+                  <h3 className="mb-2 font-display text-lg font-semibold text-cream">
+                    {i === 1 ? withVerifiedOriginLinks(item.t, loc) : item.t}
+                  </h3>
                   <p className="text-sm leading-relaxed text-bone">{item.b}</p>
                 </div>
               </Reveal>
@@ -141,12 +145,12 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         <div className="container-x flex flex-col items-center gap-6 py-14 text-center md:flex-row md:justify-between md:text-left">
           <div className="max-w-2xl">
             <VerifiedBadge label={dict.verified.kicker} size="lg" className="mb-3" />
-            <h2 className="font-display text-2xl font-bold text-cream sm:text-3xl">{dict.verified.title}</h2>
-            <p className="mt-2 text-bone">{dict.verified.subtitle}</p>
+            <h2 className="font-display text-2xl font-bold text-cream sm:text-3xl">{withVerifiedOriginLinks(dict.verified.title, loc)}</h2>
+            <p className="mt-2 text-bone">{withVerifiedOriginLinks(dict.verified.subtitle, loc)}</p>
           </div>
-          <Link href={localeHref(loc, "/verified-origin")} className="btn btn-gold shrink-0">
+          <a href={SITE.verifiedOriginUrl} target="_blank" rel="noopener noreferrer" className="btn btn-gold shrink-0">
             {dict.common.learnMore} →
-          </Link>
+          </a>
         </div>
       </section>
 
@@ -160,7 +164,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             <Reveal key={tst.name} delay={i * 0.1}>
               <figure className="card-glow h-full rounded-2xl p-6">
                 <div className="mb-3 text-gold-bright">★★★★★</div>
-                <blockquote className="text-sm leading-relaxed text-cream">“{tst.text[loc]}”</blockquote>
+                <blockquote className="text-sm leading-relaxed text-cream">“{withVerifiedOriginLinks(tst.text[loc], loc)}”</blockquote>
                 <figcaption className="mt-4 text-sm text-muted">
                   <span className="font-semibold text-bone">{tst.name}</span> · {tst.city}
                 </figcaption>

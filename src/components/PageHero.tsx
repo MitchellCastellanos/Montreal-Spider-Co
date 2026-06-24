@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Reveal from "./Reveal";
 
 export default function PageHero({
@@ -5,9 +6,9 @@ export default function PageHero({
   title,
   subtitle,
 }: {
-  kicker?: string;
-  title: string;
-  subtitle?: string;
+  kicker?: ReactNode;
+  title: ReactNode;
+  subtitle?: ReactNode;
 }) {
   return (
     <section className="relative overflow-hidden border-b border-line">

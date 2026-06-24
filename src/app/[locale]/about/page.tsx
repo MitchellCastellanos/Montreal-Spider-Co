@@ -6,6 +6,7 @@ import { localeHref } from "@/lib/href";
 import PageHero from "@/components/PageHero";
 import Reveal from "@/components/Reveal";
 import VerifiedBadge from "@/components/VerifiedBadge";
+import { withVerifiedOriginLinks } from "@/lib/verified-origin-links";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -59,7 +60,7 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
           </Reveal>
           <Reveal delay={0.1}>
             <p className="leading-relaxed text-bone">{a.body1}</p>
-            <p className="mt-4 leading-relaxed text-bone">{a.body2}</p>
+            <p className="mt-4 leading-relaxed text-bone">{withVerifiedOriginLinks(a.body2, loc)}</p>
             <div className="mt-6">
               <VerifiedBadge label={dict.footer.verifiedBadge} size="lg" />
             </div>
@@ -100,7 +101,7 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
               <Reveal key={val.t} delay={i * 0.1}>
                 <div className="card-glow h-full rounded-2xl p-7" style={{ background: `radial-gradient(120% 100% at 20% 0%, hsl(${val.hue} 28% 13%), var(--ink-card))` }}>
                   <h3 className="font-display text-xl font-semibold text-cream">{val.t}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-bone">{val.b}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-bone">{withVerifiedOriginLinks(val.b, loc)}</p>
                 </div>
               </Reveal>
             ))}

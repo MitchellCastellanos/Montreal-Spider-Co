@@ -2,9 +2,12 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useI18n } from "@/i18n/I18nProvider";
+import { withVerifiedOriginLinks } from "@/lib/verified-origin-links";
 
 export default function FaqAccordion({ items }: { items: { q: string; a: string }[] }) {
   const [open, setOpen] = useState<number | null>(0);
+  const { locale } = useI18n();
 
   return (
     <div className="mx-auto max-w-3xl space-y-3">
@@ -17,7 +20,7 @@ export default function FaqAccordion({ items }: { items: { q: string; a: string 
               className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
               aria-expanded={isOpen}
             >
-              <span className="font-display text-lg font-medium text-cream">{item.q}</span>
+              <span className="font-display text-lg font-medium text-cream">{withVerifiedOriginLinks(item.q, locale)}</span>
               <span className={`shrink-0 text-gold-bright transition-transform ${isOpen ? "rotate-45" : ""}`}>＋</span>
             </button>
             <AnimatePresence initial={false}>
@@ -28,7 +31,7 @@ export default function FaqAccordion({ items }: { items: { q: string; a: string 
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <p className="px-5 pb-5 leading-relaxed text-bone">{item.a}</p>
+                  <p className="px-5 pb-5 leading-relaxed text-bone">{withVerifiedOriginLinks(item.a, locale)}</p>
                 </motion.div>
               )}
             </AnimatePresence>

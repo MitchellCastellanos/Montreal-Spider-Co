@@ -6,13 +6,15 @@ import Image from "next/image";
 import LocaleLink from "@/components/LocaleLink";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { useI18n } from "@/i18n/I18nProvider";
+import { SITE } from "@/lib/site";
+import { withVerifiedOriginLinks } from "@/lib/verified-origin-links";
 
 /** Save your hero image as public/images/hero-editorial.png (or .webp — update HERO_IMAGE). */
 const HERO_IMAGE = "/images/hero-editorial.png";
 const HERO_FALLBACK = "/images/hero-bg.png";
 
 export default function Hero() {
-  const { dict } = useI18n();
+  const { dict, locale } = useI18n();
   const h = dict.home;
   const ref = useRef<HTMLDivElement>(null);
   const [src, setSrc] = useState(HERO_IMAGE);
@@ -68,7 +70,7 @@ export default function Hero() {
             transition={{ duration: 0.7, delay: 0.15 }}
             className="mt-6 max-w-xl text-lg leading-relaxed text-bone"
           >
-            {h.heroSub}
+            {withVerifiedOriginLinks(h.heroSub, locale)}
           </motion.p>
 
           <motion.div
@@ -80,9 +82,9 @@ export default function Hero() {
             <LocaleLink href="/shop" className="btn btn-gold text-base">
               {h.heroCta} <span aria-hidden>→</span>
             </LocaleLink>
-            <LocaleLink href="/verified-origin" className="btn btn-ghost text-base">
+            <a href={SITE.verifiedOriginUrl} target="_blank" rel="noopener noreferrer" className="btn btn-ghost text-base">
               {h.heroCta2}
-            </LocaleLink>
+            </a>
           </motion.div>
 
           <motion.div

@@ -18,5 +18,6 @@ export const SITE = {
     facebook: "https://facebook.com/montrealspiderco",
     tiktok: "https://tiktok.com/@montrealspiderco",
   },
+  verifiedOriginUrl: "https://tarantulapp.com/verified-origin",
   taxRate: 0.14975, // GST 5% + QST 9.975%
 } as const;
