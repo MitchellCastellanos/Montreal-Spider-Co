@@ -5,6 +5,7 @@ import { pageMeta } from "@/lib/pageMeta";
 import { localeHref } from "@/lib/href";
 import PageHero from "@/components/PageHero";
 import Reveal from "@/components/Reveal";
+import MetroMeetupPublicSection from "@/components/MetroMeetupPublicSection";
 import Link from "next/link";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
@@ -32,6 +33,12 @@ export default async function PickupPointsPage({ params }: { params: Promise<{ l
               {p.cta} →
             </Link>
           </div>
+        </Reveal>
+      </section>
+
+      <section className="container-x pb-16">
+        <Reveal>
+          <MetroMeetupPublicSection locale={loc} />
         </Reveal>
       </section>
     </>

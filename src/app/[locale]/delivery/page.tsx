@@ -3,13 +3,11 @@ import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { pageMeta } from "@/lib/pageMeta";
 import { localeHref } from "@/lib/href";
-import { MEETUP_ZONES } from "@/lib/metro-meetup";
+import MetroMeetupPublicSection from "@/components/MetroMeetupPublicSection";
 import { getPickupPoints } from "@/lib/data/locations";
 import { getDistributors } from "@/lib/data/distributors";
 import { getSettings, resolvePickupTerms } from "@/lib/data/settings";
 import { formatWeeklyHoursLines } from "@/lib/opening-hours";
-import { t } from "@/lib/types";
-import { formatPrice } from "@/lib/format";
 import PageHero from "@/components/PageHero";
 import Reveal from "@/components/Reveal";
 import ConceptInfo from "@/components/ConceptInfo";
@@ -85,30 +83,7 @@ export default async function DeliveryPage({ params }: { params: Promise<{ local
           </Reveal>
 
           <Reveal className="mb-10">
-            <div className="card-glow rounded-2xl p-7">
-              <h3 className="font-display text-xl font-bold text-cream">{d.metroTitle}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-bone">{d.metroBody}</p>
-              <div className="mt-5 overflow-hidden rounded-xl border border-line">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-ink-soft text-xs uppercase tracking-wide text-gold-deep">
-                    <tr>
-                      <th className="px-4 py-3">{d.zoneCol}</th>
-                      <th className="px-4 py-3">{d.feeCol}</th>
-                      <th className="px-4 py-3">{d.metroFreeCol}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line">
-                    {MEETUP_ZONES.map((z) => (
-                      <tr key={z.id} className="text-bone">
-                        <td className="px-4 py-3 font-medium text-cream">{t(z.name, loc)}</td>
-                        <td className="px-4 py-3 text-gold-bright">{formatPrice(z.fee, loc)}</td>
-                        <td className="px-4 py-3">{formatPrice(z.freeMeetupThreshold, loc)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <MetroMeetupPublicSection locale={loc} />
           </Reveal>
 
           <Reveal className="mb-8">

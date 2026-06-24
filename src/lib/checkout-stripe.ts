@@ -7,8 +7,8 @@ import {
   type MeetupAvailability,
   type PickupSubtype,
   MEETUP_AVAILABILITY_OPTIONS,
-  calcMeetupFee,
-  getMeetupZone,
+  calcStationMeetupFee,
+  getMeetupArea,
   getMetroLine,
   getMetroStation,
 } from "@/lib/metro-meetup";
@@ -203,8 +203,7 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
   let deliveryFee = 0;
   if (pickupSubtype === "metro_meetup") {
     const station = getMetroStation(metroStationId!)!;
-    const meetupZone = getMeetupZone(station.zoneId)!;
-    deliveryFee = calcMeetupFee(discountedSubtotal, meetupZone);
+    deliveryFee = calcStationMeetupFee(discountedSubtotal, station);
   }
 
   if (deliveryFee > 0) {
@@ -261,17 +260,18 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
     metadata.pickupId = pickupId!;
   } else if (pickupSubtype === "metro_meetup") {
     const station = getMetroStation(metroStationId!)!;
-    const meetupZone = getMeetupZone(station.zoneId)!;
-    const line = getMetroLine(station.lineId)!;
+    const meetupArea = getMeetupArea(station.area)!;
+    const line = getMetroLine(station.line)!;
     metadata.metroStationId = station.id;
     metadata.metroStationName = station.name;
     metadata.metroLine = line.id;
     metadata.metroLineName = line.name.en;
     metadata.metroLineNameFr = line.name.fr;
-    metadata.meetupZoneId = meetupZone.id;
-    metadata.meetupZoneName = meetupZone.name.en;
-    metadata.meetupZoneNameFr = meetupZone.name.fr;
-    metadata.freeMeetupThreshold = String(meetupZone.freeMeetupThreshold);
+    metadata.meetupZoneId = meetupArea.id;
+    metadata.meetupZoneName = meetupArea.name.en;
+    metadata.meetupZoneNameFr = meetupArea.name.fr;
+    metadata.meetupFee = String(station.fee);
+    metadata.freeMeetupThreshold = String(station.freeMeetupThreshold);
     metadata.meetupAvailability = meetupAvailability!;
   } else {
     metadata.customMeetupRequest = customMeetupRequest!.trim();

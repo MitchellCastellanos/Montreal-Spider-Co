@@ -9,13 +9,12 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
 import { productDisplaySubtitle, productDisplayTitle, productImageAlt } from "@/lib/product-display";
 import {
-  MEETUP_ZONES,
   type MeetupAvailability,
   type PickupSubtype,
-  calcMeetupFee,
-  getLinesForZone,
-  getMeetupZone,
-  getStationsForZoneAndLine,
+  calcStationMeetupFee,
+  getLinesForArea,
+  getMetroStation,
+  getStationsForAreaAndLine,
 } from "@/lib/metro-meetup";
 import { SITE } from "@/lib/site";
 import ConceptInfo from "@/components/ConceptInfo";
@@ -59,11 +58,11 @@ export default function CheckoutView({
 
   const [pickupSubtype, setPickupSubtype] = useState<PickupSubtype>("pickup_point");
   const [pickupId, setPickupId] = useState(pickups[0]?.id ?? "");
-  const [meetupZoneId, setMeetupZoneId] = useState(MEETUP_ZONES[0].id);
-  const initialMeetupLine = getLinesForZone(MEETUP_ZONES[0].id)[0]?.id ?? "";
-  const [metroLineId, setMetroLineId] = useState(initialMeetupLine);
+  const [meetupZoneId, setMeetupZoneId] = useState("southwest");
+  const initialMeetupLine = getLinesForArea("southwest")[0]?.id ?? "";
+  const [metroLineId, setMetroLineId] = useState<string>(initialMeetupLine);
   const [metroStationId, setMetroStationId] = useState(
-    getStationsForZoneAndLine(MEETUP_ZONES[0].id, initialMeetupLine)[0]?.id ?? "",
+    getStationsForAreaAndLine("southwest", initialMeetupLine)[0]?.id ?? "",
   );
   const [meetupAvailability, setMeetupAvailability] = useState<MeetupAvailability>("flexible");
   const [customMeetupRequest, setCustomMeetupRequest] = useState("");
@@ -80,14 +79,14 @@ export default function CheckoutView({
   const [discount, setDiscount] = useState(0);
   const [couponError, setCouponError] = useState<string | null>(null);
 
-  const meetupZone = getMeetupZone(meetupZoneId);
+  const selectedStation = metroStationId ? getMetroStation(metroStationId) : undefined;
   const discountedSubtotal = Math.max(0, subtotal - discount);
   const fulfillmentFee = useMemo(() => {
-    if (pickupSubtype === "metro_meetup" && meetupZone) {
-      return calcMeetupFee(discountedSubtotal, meetupZone);
+    if (pickupSubtype === "metro_meetup" && selectedStation) {
+      return calcStationMeetupFee(discountedSubtotal, selectedStation);
     }
     return 0;
-  }, [pickupSubtype, meetupZone, discountedSubtotal]);
+  }, [pickupSubtype, selectedStation, discountedSubtotal]);
   const tax = useMemo(() => (discountedSubtotal + fulfillmentFee) * SITE.taxRate, [discountedSubtotal, fulfillmentFee]);
   const total = discountedSubtotal + fulfillmentFee + tax;
 
@@ -105,9 +104,16 @@ export default function CheckoutView({
       setPickupId(p.prefPickupId);
     } else if (p.prefPickupSubtype === "metro_meetup" && p.prefMetroStationId) {
       setPickupSubtype("metro_meetup");
-      setMetroStationId(p.prefMetroStationId);
-      if (p.prefMetroLine) setMetroLineId(p.prefMetroLine);
-      if (p.prefMeetupZoneId) setMeetupZoneId(p.prefMeetupZoneId);
+      const saved = getMetroStation(p.prefMetroStationId);
+      if (saved) {
+        setMetroStationId(saved.id);
+        setMetroLineId(saved.line);
+        setMeetupZoneId(saved.area);
+      } else {
+        setMetroStationId(p.prefMetroStationId);
+        if (p.prefMetroLine) setMetroLineId(p.prefMetroLine);
+        if (p.prefMeetupZoneId) setMeetupZoneId(p.prefMeetupZoneId);
+      }
       if (p.prefMeetupAvailability) setMeetupAvailability(p.prefMeetupAvailability as MeetupAvailability);
     } else if (p.prefPickupSubtype === "custom_meetup" && p.prefCustomMeetup) {
       setPickupSubtype("custom_meetup");
@@ -386,7 +392,7 @@ export default function CheckoutView({
               onMeetupAvailabilityChange={setMeetupAvailability}
               customMeetupRequest={customMeetupRequest}
               onCustomMeetupRequestChange={setCustomMeetupRequest}
-              subtotal={subtotal}
+              subtotal={discountedSubtotal}
               errors={errors}
             />
           </Section>

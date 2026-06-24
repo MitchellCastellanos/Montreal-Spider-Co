@@ -12,92 +12,149 @@ export type MeetupAvailability =
   | "saturday"
   | "flexible";
 
-export interface MeetupZone {
-  id: string;
+export type MetroMeetupAreaId = "southwest" | "central" | "north-east" | "laval-south-shore";
+
+export type MetroLineId = "green" | "orange" | "blue" | "yellow";
+
+/** @deprecated Use MetroMeetupAreaId — kept for order DB / preferences compatibility */
+export type MeetupZone = MeetupArea;
+
+export interface MeetupArea {
+  id: MetroMeetupAreaId;
   name: { en: string; fr: string };
   fee: number;
   freeMeetupThreshold: number;
 }
 
 export interface MetroLine {
-  id: string;
+  id: MetroLineId;
   name: { en: string; fr: string };
+  color: string;
 }
 
 export interface MetroStation {
   id: string;
   name: string;
-  lineId: string;
-  zoneId: string;
+  line: MetroLineId;
+  area: MetroMeetupAreaId;
+  fee: number;
+  freeMeetupThreshold: number;
   isTransferHub?: boolean;
+  x: number;
+  y: number;
 }
 
-export const MEETUP_ZONES: MeetupZone[] = [
+export const MEETUP_AREAS: MeetupArea[] = [
   {
-    id: "zone-1",
-    name: { en: "Zone 1 — Central Montreal", fr: "Zone 1 — Montréal centre" },
-    fee: 10,
+    id: "southwest",
+    name: { en: "Southwest Montreal", fr: "Montréal sud-ouest" },
+    fee: 12,
     freeMeetupThreshold: 75,
   },
   {
-    id: "zone-2",
-    name: { en: "Zone 2 — Inner Montreal", fr: "Zone 2 — Montréal intérieur" },
+    id: "central",
+    name: { en: "Central Montreal", fr: "Montréal centre" },
     fee: 15,
-    freeMeetupThreshold: 100,
+    freeMeetupThreshold: 125,
   },
   {
-    id: "zone-3",
-    name: { en: "Zone 3 — Greater Island", fr: "Zone 3 — Grande île" },
+    id: "north-east",
+    name: { en: "North & East Montreal", fr: "Montréal nord et est" },
     fee: 20,
     freeMeetupThreshold: 150,
   },
   {
-    id: "zone-4",
-    name: { en: "Zone 4 — Off-Island & Outer", fr: "Zone 4 — Hors île & périphérie" },
-    fee: 20,
-    freeMeetupThreshold: 180,
+    id: "laval-south-shore",
+    name: { en: "Laval & South Shore", fr: "Laval et Rive-Sud" },
+    fee: 25,
+    freeMeetupThreshold: 200,
   },
 ];
 
+/** Alias — checkout and delivery page import MEETUP_ZONES */
+export const MEETUP_ZONES = MEETUP_AREAS;
+
 export const METRO_LINES: MetroLine[] = [
-  { id: "orange", name: { en: "Orange Line", fr: "Ligne orange" } },
-  { id: "green", name: { en: "Green Line", fr: "Ligne verte" } },
-  { id: "blue", name: { en: "Blue Line", fr: "Ligne bleue" } },
-  { id: "yellow", name: { en: "Yellow Line", fr: "Ligne jaune" } },
+  { id: "orange", name: { en: "Orange Line", fr: "Ligne orange" }, color: "#F7941D" },
+  { id: "green", name: { en: "Green Line", fr: "Ligne verte" }, color: "#00A651" },
+  { id: "blue", name: { en: "Blue Line", fr: "Ligne bleue" }, color: "#009EE0" },
+  { id: "yellow", name: { en: "Yellow Line", fr: "Ligne jaune" }, color: "#FFD200" },
 ];
 
+/** Schematic SVG track segments (viewBox 0 0 520 480) */
+export const METRO_LINE_PATHS: { line: MetroLineId; d: string }[] = [
+  {
+    line: "orange",
+    d: "M 300 35 L 300 175 L 300 255 L 280 335 M 300 130 L 130 130",
+  },
+  { line: "green", d: "M 470 215 L 300 215 L 200 275 L 155 385" },
+  { line: "blue", d: "M 175 200 L 300 130" },
+  { line: "yellow", d: "M 300 255 L 300 445" },
+];
+
+const AREA_LOOKUP = Object.fromEntries(MEETUP_AREAS.map((a) => [a.id, a])) as Record<
+  MetroMeetupAreaId,
+  MeetupArea
+>;
+
+function station(
+  id: string,
+  name: string,
+  line: MetroLineId,
+  area: MetroMeetupAreaId,
+  x: number,
+  y: number,
+  isTransferHub?: boolean,
+): MetroStation {
+  const a = AREA_LOOKUP[area];
+  return {
+    id,
+    name,
+    line,
+    area,
+    fee: a.fee,
+    freeMeetupThreshold: a.freeMeetupThreshold,
+    isTransferHub,
+    x,
+    y,
+  };
+}
+
 export const METRO_STATIONS: MetroStation[] = [
-  // Zone 1
-  { id: "berri-uqam", name: "Berri-UQAM", lineId: "orange", zoneId: "zone-1", isTransferHub: true },
-  { id: "berri-uqam-green", name: "Berri-UQAM", lineId: "green", zoneId: "zone-1", isTransferHub: true },
-  { id: "mcgill", name: "McGill", lineId: "green", zoneId: "zone-1" },
-  { id: "place-des-arts", name: "Place-des-Arts", lineId: "green", zoneId: "zone-1" },
-  { id: "bonaventure", name: "Bonaventure", lineId: "orange", zoneId: "zone-1" },
-  { id: "square-victoria", name: "Square-Victoria-OACI", lineId: "orange", zoneId: "zone-1" },
-  { id: "lucien-lallier", name: "Lucien-L'Allier", lineId: "orange", zoneId: "zone-1", isTransferHub: true },
-  // Zone 2
-  { id: "jean-talon", name: "Jean-Talon", lineId: "orange", zoneId: "zone-2", isTransferHub: true },
-  { id: "jean-talon-blue", name: "Jean-Talon", lineId: "blue", zoneId: "zone-2", isTransferHub: true },
-  { id: "rosemont", name: "Rosemont", lineId: "orange", zoneId: "zone-2" },
-  { id: "lionel-groulx", name: "Lionel-Groulx", lineId: "green", zoneId: "zone-2", isTransferHub: true },
-  { id: "lionel-groulx-orange", name: "Lionel-Groulx", lineId: "orange", zoneId: "zone-2", isTransferHub: true },
-  { id: "papineau", name: "Papineau", lineId: "green", zoneId: "zone-2" },
-  { id: "frontenac", name: "Frontenac", lineId: "green", zoneId: "zone-2" },
-  { id: "angrignon", name: "Angrignon", lineId: "green", zoneId: "zone-2" },
-  // Zone 3
-  { id: "cote-vertu", name: "Côte-Vertu", lineId: "orange", zoneId: "zone-3" },
-  { id: "henri-bourassa", name: "Henri-Bourassa", lineId: "orange", zoneId: "zone-3" },
-  { id: "snowdon", name: "Snowdon", lineId: "orange", zoneId: "zone-3", isTransferHub: true },
-  { id: "snowdon-blue", name: "Snowdon", lineId: "blue", zoneId: "zone-3", isTransferHub: true },
-  { id: "vendome", name: "Vendôme", lineId: "green", zoneId: "zone-3" },
-  { id: "monk", name: "Monk", lineId: "green", zoneId: "zone-3" },
-  { id: "honore-beaugrand", name: "Honoré-Beaugrand", lineId: "green", zoneId: "zone-3" },
-  // Zone 4
-  { id: "radisson", name: "Radisson", lineId: "yellow", zoneId: "zone-4" },
-  { id: "longueuil", name: "Longueuil–Université-de-Sherbrooke", lineId: "yellow", zoneId: "zone-4" },
-  { id: "jean-drapeau", name: "Jean-Drapeau", lineId: "yellow", zoneId: "zone-4" },
-  { id: "de-la-concorde", name: "De la Concorde", lineId: "orange", zoneId: "zone-4" },
-  { id: "montmorency", name: "Montmorency", lineId: "orange", zoneId: "zone-4" },
+  // Southwest — near Lachine / NDG / Lasalle
+  station("lionel-groulx-green", "Lionel-Groulx", "green", "southwest", 200, 275, true),
+  station("lionel-groulx-orange", "Lionel-Groulx", "orange", "southwest", 200, 275, true),
+  station("vendome", "Vendôme", "green", "southwest", 160, 260),
+  station("monk", "Monk", "green", "southwest", 140, 300),
+  station("angrignon", "Angrignon", "green", "southwest", 155, 385),
+  station("lucien-lallier", "Lucien-L'Allier", "orange", "southwest", 280, 335, true),
+
+  // Central — downtown core
+  station("berri-uqam-orange", "Berri-UQAM", "orange", "central", 300, 215, true),
+  station("berri-uqam-green", "Berri-UQAM", "green", "central", 300, 215, true),
+  station("mcgill", "McGill", "green", "central", 260, 215),
+  station("place-des-arts", "Place-des-Arts", "green", "central", 240, 215),
+  station("bonaventure", "Bonaventure", "orange", "central", 300, 255),
+  station("square-victoria", "Square-Victoria-OACI", "orange", "central", 280, 295),
+
+  // North & East
+  station("jean-talon-orange", "Jean-Talon", "orange", "north-east", 300, 130, true),
+  station("jean-talon-blue", "Jean-Talon", "blue", "north-east", 300, 130, true),
+  station("rosemont", "Rosemont", "orange", "north-east", 300, 175),
+  station("papineau", "Papineau", "green", "north-east", 380, 215),
+  station("frontenac", "Frontenac", "green", "north-east", 420, 215),
+  station("honore-beaugrand", "Honoré-Beaugrand", "green", "north-east", 470, 215),
+  station("henri-bourassa", "Henri-Bourassa", "orange", "north-east", 300, 85),
+  station("cote-vertu", "Côte-Vertu", "orange", "north-east", 130, 130),
+  station("snowdon-orange", "Snowdon", "orange", "north-east", 175, 200, true),
+  station("snowdon-blue", "Snowdon", "blue", "north-east", 175, 200, true),
+
+  // Laval & South Shore
+  station("montmorency", "Montmorency", "orange", "laval-south-shore", 300, 35),
+  station("de-la-concorde", "De la Concorde", "orange", "laval-south-shore", 280, 55),
+  station("longueuil", "Longueuil–Université-de-Sherbrooke", "yellow", "laval-south-shore", 300, 405),
+  station("jean-drapeau", "Jean-Drapeau", "yellow", "laval-south-shore", 300, 365),
+  station("radisson", "Radisson", "yellow", "laval-south-shore", 300, 445),
 ];
 
 export const MEETUP_AVAILABILITY_OPTIONS: {
@@ -113,8 +170,15 @@ export const MEETUP_AVAILABILITY_OPTIONS: {
   { id: "flexible", label: { en: "Flexible within meetup hours", fr: "Flexible selon les heures de rencontre" } },
 ];
 
-export function getMeetupZone(zoneId: string): MeetupZone | undefined {
-  return MEETUP_ZONES.find((z) => z.id === zoneId);
+export const METRO_MAP_VIEWBOX = { width: 520, height: 480 };
+
+export function getMeetupArea(areaId: string): MeetupArea | undefined {
+  return MEETUP_AREAS.find((a) => a.id === areaId);
+}
+
+/** @deprecated Use getMeetupArea */
+export function getMeetupZone(zoneId: string): MeetupArea | undefined {
+  return getMeetupArea(zoneId);
 }
 
 export function getMetroStation(stationId: string): MetroStation | undefined {
@@ -125,29 +189,46 @@ export function getMetroLine(lineId: string): MetroLine | undefined {
   return METRO_LINES.find((l) => l.id === lineId);
 }
 
-export function getStationsForZone(zoneId: string): MetroStation[] {
-  return METRO_STATIONS.filter((s) => s.zoneId === zoneId);
+export function getStationsForArea(areaId: string): MetroStation[] {
+  return METRO_STATIONS.filter((s) => s.area === areaId);
 }
 
-export function getLinesForZone(zoneId: string): MetroLine[] {
-  const lineIds = new Set(getStationsForZone(zoneId).map((s) => s.lineId));
+/** @deprecated Use getStationsForArea */
+export function getStationsForZone(zoneId: string): MetroStation[] {
+  return getStationsForArea(zoneId);
+}
+
+export function getLinesForArea(areaId: string): MetroLine[] {
+  const lineIds = new Set(getStationsForArea(areaId).map((s) => s.line));
   return METRO_LINES.filter((l) => lineIds.has(l.id));
 }
 
-export function getStationsForZoneAndLine(zoneId: string, lineId: string): MetroStation[] {
-  return METRO_STATIONS.filter((s) => s.zoneId === zoneId && s.lineId === lineId);
+/** @deprecated Use getLinesForArea */
+export function getLinesForZone(zoneId: string): MetroLine[] {
+  return getLinesForArea(zoneId);
 }
 
-export function calcMeetupFee(subtotal: number, zone: MeetupZone): number {
-  return subtotal >= zone.freeMeetupThreshold ? 0 : zone.fee;
+export function getStationsForAreaAndLine(areaId: string, lineId: string): MetroStation[] {
+  return METRO_STATIONS.filter((s) => s.area === areaId && s.line === lineId);
+}
+
+/** @deprecated Use getStationsForAreaAndLine */
+export function getStationsForZoneAndLine(zoneId: string, lineId: string): MetroStation[] {
+  return getStationsForAreaAndLine(zoneId, lineId);
+}
+
+export function calcMeetupFee(subtotal: number, area: Pick<MeetupArea, "fee" | "freeMeetupThreshold">): number {
+  return subtotal >= area.freeMeetupThreshold ? 0 : area.fee;
+}
+
+export function calcStationMeetupFee(subtotal: number, station: Pick<MetroStation, "fee" | "freeMeetupThreshold">): number {
+  return calcMeetupFee(subtotal, station);
 }
 
 export function stationFee(stationId: string, subtotal: number): number {
-  const station = getMetroStation(stationId);
-  if (!station) return 0;
-  const zone = getMeetupZone(station.zoneId);
-  if (!zone) return 0;
-  return calcMeetupFee(subtotal, zone);
+  const s = getMetroStation(stationId);
+  if (!s) return 0;
+  return calcStationMeetupFee(subtotal, s);
 }
 
 export function meetupAvailabilityLabel(id: MeetupAvailability, locale: Locale): string {
@@ -156,7 +237,22 @@ export function meetupAvailabilityLabel(id: MeetupAvailability, locale: Locale):
 }
 
 export function stationDisplayName(station: MetroStation, locale: Locale): string {
-  const line = getMetroLine(station.lineId);
+  const line = getMetroLine(station.line);
   const hub = station.isTransferHub ? (locale === "fr" ? " (correspondance)" : " (transfer hub)") : "";
   return `${station.name}${hub}${line ? ` — ${t(line.name, locale)}` : ""}`;
+}
+
+/** Unique physical station names for map rendering (one dot per location). */
+export function getMapStationGroups(): { key: string; name: string; x: number; y: number; stations: MetroStation[] }[] {
+  const groups = new Map<string, { key: string; name: string; x: number; y: number; stations: MetroStation[] }>();
+  for (const s of METRO_STATIONS) {
+    const key = `${s.name}:${s.x}:${s.y}`;
+    const existing = groups.get(key);
+    if (existing) {
+      existing.stations.push(s);
+    } else {
+      groups.set(key, { key, name: s.name, x: s.x, y: s.y, stations: [s] });
+    }
+  }
+  return [...groups.values()];
 }

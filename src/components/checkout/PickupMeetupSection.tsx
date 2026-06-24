@@ -1,23 +1,19 @@
 "use client";
 
-import { useMemo } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
 import { formatWeeklyHoursSummary } from "@/lib/opening-hours";
 import type { WeeklyHours } from "@/lib/opening-hours";
 import {
   MEETUP_AVAILABILITY_OPTIONS,
-  MEETUP_ZONES,
   type MeetupAvailability,
   type PickupSubtype,
-  calcMeetupFee,
-  getLinesForZone,
-  getMeetupZone,
+  getMeetupArea,
+  getMetroLine,
   getMetroStation,
-  getStationsForZoneAndLine,
-  stationDisplayName,
 } from "@/lib/metro-meetup";
 import { t } from "@/lib/types";
+import MetroMeetupSelector from "@/components/checkout/MetroMeetupSelector";
 
 export interface PickupOption {
   id: string;
@@ -107,30 +103,6 @@ export default function PickupMeetupSection({
   const { dict, locale } = useI18n();
   const co = dict.checkout;
 
-  const meetupZone = getMeetupZone(meetupZoneId);
-  const linesInZone = useMemo(() => getLinesForZone(meetupZoneId), [meetupZoneId]);
-  const stationsInZoneLine = useMemo(
-    () => getStationsForZoneAndLine(meetupZoneId, metroLineId),
-    [meetupZoneId, metroLineId],
-  );
-  const selectedStation = metroStationId ? getMetroStation(metroStationId) : undefined;
-  const meetupFee = meetupZone ? calcMeetupFee(subtotal, meetupZone) : 0;
-
-  const handleZoneChange = (zoneId: string) => {
-    onMeetupZoneIdChange(zoneId);
-    const lines = getLinesForZone(zoneId);
-    const firstLine = lines[0]?.id ?? "";
-    onMetroLineIdChange(firstLine);
-    const stations = getStationsForZoneAndLine(zoneId, firstLine);
-    onMetroStationIdChange(stations[0]?.id ?? "");
-  };
-
-  const handleLineChange = (lineId: string) => {
-    onMetroLineIdChange(lineId);
-    const stations = getStationsForZoneAndLine(meetupZoneId, lineId);
-    onMetroStationIdChange(stations[0]?.id ?? "");
-  };
-
   return (
     <div className="mt-4 space-y-4">
       <div className="grid gap-3 sm:grid-cols-3">
@@ -180,45 +152,16 @@ export default function PickupMeetupSection({
 
       {pickupSubtype === "metro_meetup" && (
         <div className="space-y-4">
-          <Field label={co.meetupStepZone}>
-            <select className="input" value={meetupZoneId} onChange={(e) => handleZoneChange(e.target.value)}>
-              {MEETUP_ZONES.map((z) => (
-                <option key={z.id} value={z.id}>
-                  {t(z.name, locale)} — {formatPrice(z.fee, locale)} · {co.meetupFreeOver} {formatPrice(z.freeMeetupThreshold, locale)}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          <Field label={co.meetupStepLine} error={errors.metroLine}>
-            <select
-              className="input"
-              value={metroLineId}
-              onChange={(e) => handleLineChange(e.target.value)}
-              disabled={!meetupZoneId}
-            >
-              {linesInZone.map((line) => (
-                <option key={line.id} value={line.id}>
-                  {t(line.name, locale)}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          <Field label={co.meetupStepStation} error={errors.metroStation}>
-            <select
-              className="input"
-              value={metroStationId}
-              onChange={(e) => onMetroStationIdChange(e.target.value)}
-              disabled={!metroLineId}
-            >
-              {stationsInZoneLine.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {stationDisplayName(s, locale)}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <MetroMeetupSelector
+            areaId={meetupZoneId}
+            lineId={metroLineId}
+            stationId={metroStationId}
+            subtotal={subtotal}
+            onAreaChange={onMeetupZoneIdChange}
+            onLineChange={onMetroLineIdChange}
+            onStationChange={onMetroStationIdChange}
+            errors={{ metroLine: errors.metroLine, metroStation: errors.metroStation }}
+          />
 
           <Field label={co.meetupAvailability} error={errors.meetupAvailability}>
             <select
@@ -234,25 +177,6 @@ export default function PickupMeetupSection({
             </select>
           </Field>
 
-          {meetupZone && (
-            <div className="rounded-lg border border-line bg-ink-soft/40 p-3 text-sm text-bone">
-              <p>
-                {co.meetupFeeLabel}:{" "}
-                <span className="font-medium text-cream">
-                  {meetupFee === 0 ? dict.common.free : formatPrice(meetupFee, locale)}
-                </span>
-              </p>
-              <p className="mt-1 text-xs text-muted">
-                {co.meetupFreeOver} {formatPrice(meetupZone.freeMeetupThreshold, locale)}
-              </p>
-            </div>
-          )}
-
-          {selectedStation && (
-            <p className="text-xs text-muted">
-              {co.meetupSelectedStation}: {stationDisplayName(selectedStation, locale)}
-            </p>
-          )}
         </div>
       )}
 
@@ -304,9 +228,9 @@ export function PickupMeetupSummary({
   const { dict, locale } = useI18n();
   const co = dict.checkout;
 
-  const meetupZone = getMeetupZone(meetupZoneId);
+  const meetupArea = getMeetupArea(meetupZoneId);
   const station = metroStationId ? getMetroStation(metroStationId) : undefined;
-  const line = metroLineId ? getLinesForZone(meetupZoneId).find((l) => l.id === metroLineId) : undefined;
+  const line = station ? getMetroLine(station.line) : undefined;
   const availabilityOpt = MEETUP_AVAILABILITY_OPTIONS.find((o) => o.id === meetupAvailability);
   const pickup = pickups.find((p) => p.id === pickupId);
 
@@ -319,14 +243,14 @@ export function PickupMeetupSummary({
       )}
       {pickupSubtype === "metro_meetup" && (
         <>
-          {meetupZone && <SummaryRow label={co.meetupStepZone} value={t(meetupZone.name, locale)} />}
+          {meetupArea && <SummaryRow label={co.meetupStepZone} value={t(meetupArea.name, locale)} />}
           {line && <SummaryRow label={co.meetupStepLine} value={t(line.name, locale)} />}
           {station && <SummaryRow label={co.meetupStepStation} value={station.name} />}
           {availabilityOpt && <SummaryRow label={co.meetupAvailability} value={t(availabilityOpt.label, locale)} />}
-          {meetupZone && (
+          {station && (
             <SummaryRow
               label={co.meetupFreeOver}
-              value={formatPrice(meetupZone.freeMeetupThreshold, locale)}
+              value={formatPrice(station.freeMeetupThreshold, locale)}
             />
           )}
         </>
