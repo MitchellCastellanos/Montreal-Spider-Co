@@ -320,8 +320,8 @@ export async function syncAggregateStock(productId?: string) {
       select: { id: true, productId: true, locationId: true },
     });
 
-    const countByKey = new Map(
-      consignmentCounts.map((c) => [`${c.productId}:${c.locationId}`, c._count._all] as const),
+    const countByKey = new Map<string, number>(
+      consignmentCounts.map((c) => [`${c.productId}:${c.locationId}`, c._count._all]),
     );
     const syncedKeys = new Set<string>();
 
