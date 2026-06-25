@@ -7,6 +7,7 @@ import { getDictionary } from "@/i18n/dictionaries";
 import { SITE } from "@/lib/site";
 import { localeHref } from "@/lib/href";
 import Providers from "@/components/Providers";
+import ThemeScope from "@/components/ThemeScope";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import JsonLd from "@/components/JsonLd";
@@ -99,9 +100,11 @@ export default async function LocaleLayout({
           Skip to content
         </a>
         <Providers locale={locale} dict={dict}>
-          <Header />
-          <main id="main">{children}</main>
-          <Footer />
+          <ThemeScope locale={locale}>
+            <Header />
+            <main id="main">{children}</main>
+            <Footer />
+          </ThemeScope>
         </Providers>
       </body>
     </html>

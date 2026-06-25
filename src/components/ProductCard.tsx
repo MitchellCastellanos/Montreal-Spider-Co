@@ -58,7 +58,7 @@ export default function ProductCard({ product }: { product: Product }) {
       <LocaleLink href={`/product/${product.slug}`} className="relative block">
         <div
           className="relative aspect-square overflow-hidden"
-          style={{ background: `radial-gradient(120% 120% at 50% 20%, hsl(${product.hue} 30% 16%), var(--ink))` }}
+          style={{ background: `radial-gradient(120% 120% at 50% 20%, hsl(${product.hue} var(--hue-sat) var(--hue-light)), var(--ink))` }}
         >
           <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-110">
             <SpeciesImage image={product.image} hue={product.hue} accent={product.accent} alt={imageAlt} sizes="(max-width: 768px) 50vw, 25vw" />

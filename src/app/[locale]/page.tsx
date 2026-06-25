@@ -10,7 +10,6 @@ import Newsletter from "@/components/Newsletter";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { withVerifiedOriginLinks } from "@/lib/verified-origin-links";
 import { SITE } from "@/lib/site";
-import Image from "next/image";
 import Link from "next/link";
 
 const testimonials = [
@@ -109,7 +108,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               <Reveal key={item.t} delay={i * 0.08}>
                 <div className="card-glow h-full rounded-2xl p-6">
                   <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-gold/30 bg-gold/10 text-gold-bright">
-                    {i === 1 ? <CheckSeal /> : <Dot index={i} />}
+                    <Dot index={i} />
                   </div>
                   <h3 className="mb-2 font-display text-lg font-semibold text-cream">
                     {i === 1 ? withVerifiedOriginLinks(item.t, loc) : item.t}
@@ -134,7 +133,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               <Link
                 href={localeHref(loc, `/shop?experience=${cat.key}`)}
                 className="card-glow group relative block overflow-hidden rounded-2xl p-8"
-                style={{ background: `radial-gradient(130% 100% at 20% 0%, hsl(${cat.hue} 30% 14%), var(--ink-card))` }}
+                style={{ background: `radial-gradient(130% 100% at 20% 0%, hsl(${cat.hue} var(--hue-sat) var(--hue-light)), var(--ink-card))` }}
               >
                 <h3 className="font-display text-2xl font-bold text-cream">{cat.name}</h3>
                 <p className="mt-2 text-sm text-bone">{cat.body}</p>
@@ -217,22 +216,12 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       {/* CTA */}
       <section className="container-x pb-16 md:pb-24">
         <Reveal>
-          <div className="relative overflow-hidden rounded-3xl border border-gold/30 bg-gradient-to-br from-ink-soft to-ink p-10 text-center md:p-16">
-            <Image
-              src="/images/cta-texture.png"
-              alt=""
-              fill
-              sizes="100vw"
-              className="pointer-events-none absolute inset-0 object-cover opacity-50"
-            />
-            <div className="web-grid pointer-events-none absolute inset-0 opacity-20" />
-            <div className="relative">
-              <h2 className="mx-auto max-w-2xl font-display text-3xl font-bold text-cream sm:text-4xl">{h.ctaTitle}</h2>
-              <p className="mx-auto mt-3 max-w-xl text-bone">{h.ctaBody}</p>
-              <Link href={localeHref(loc, "/shop")} className="btn btn-gold mt-7 text-base">
-                {h.ctaButton} →
-              </Link>
-            </div>
+          <div className="relative overflow-hidden rounded-3xl border border-line bg-ink-card p-10 text-center shadow-[0_1px_2px_rgba(20,16,8,.04)] md:p-16">
+            <h2 className="mx-auto max-w-2xl font-display text-3xl font-bold text-cream sm:text-4xl">{h.ctaTitle}</h2>
+            <p className="mx-auto mt-3 max-w-xl text-bone">{h.ctaBody}</p>
+            <Link href={localeHref(loc, "/shop")} className="btn btn-gold mt-7 text-base">
+              {h.ctaButton} →
+            </Link>
           </div>
         </Reveal>
       </section>
@@ -248,8 +237,34 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 }
 
 function Dot({ index }: { index: number }) {
-  const icons = ["🕷", "✓", "📍", "💬"];
-  return <span className="text-lg">{icons[index] ?? "•"}</span>;
+  const icons = [SproutIcon, CheckSeal, PinIcon, ChatIcon];
+  const Icon = icons[index] ?? SproutIcon;
+  return <Icon />;
+}
+
+function SproutIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 21V11" />
+      <path d="M12 11c0-3.5-2.5-6-6-6 0 3.5 2.5 6 6 6Z" />
+      <path d="M12 8c0-3 2-5 5-5 0 3-2 5-5 5Z" />
+    </svg>
+  );
+}
+function PinIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12Z" />
+      <circle cx="12" cy="9" r="2.4" />
+    </svg>
+  );
+}
+function ChatIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 5h16v11H9l-4 4V5Z" />
+    </svg>
+  );
 }
 function CheckSeal() {
   return (

@@ -18,6 +18,52 @@
   --muted: #8a8373;
   --danger: #c2543d;
   --ok: #7fae5e;
+  --hue-sat: 30%;
+  --hue-light: 15%;
+}
+
+/* ------------------------------------------------------------
+   Light editorial theme — scoped re-tint of the brand tokens.
+   Applied to a wrapper around Header/Home/Footer; every utility
+   class built on these vars (bg-ink, text-cream, card-glow, …)
+   re-themes automatically, no component changes required.
+   ------------------------------------------------------------ */
+.theme-light {
+  --ink: #f7f3ea;
+  --ink-soft: #f0e9d8;
+  --ink-card: #ffffff;
+  --line: #e3d8bd;
+  --cream: #1d1a14;
+  --bone: #4a4538;
+  --muted: #7a7259;
+  --gold: #9c7a32;
+  --gold-bright: #8a6a26;
+  --gold-deep: #6b5019;
+  --danger: #a8432e;
+  --ok: #4f7a37;
+  --hue-sat: 45%;
+  --hue-light: 92%;
+  background-color: var(--ink);
+  color: var(--cream);
+}
+
+.theme-light .card-glow {
+  background: var(--ink-card);
+  box-shadow: 0 1px 2px rgba(20, 16, 8, 0.04);
+}
+.theme-light .card-glow:hover {
+  border-color: color-mix(in srgb, var(--gold) 35%, var(--line));
+  box-shadow: 0 14px 32px -16px rgba(20, 16, 8, 0.12);
+  transform: none;
+}
+.theme-light .btn-gold {
+  box-shadow: 0 8px 20px -10px rgba(20, 16, 8, 0.35);
+}
+.theme-light .btn-gold:hover {
+  box-shadow: 0 12px 26px -10px rgba(20, 16, 8, 0.4);
+}
+.theme-light .badge {
+  background: color-mix(in srgb, var(--gold) 12%, white);
 }
 
 @theme inline {
