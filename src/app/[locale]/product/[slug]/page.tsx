@@ -118,7 +118,7 @@ export default async function ProductPage({
           <div className="lg:sticky lg:top-24 lg:self-start">
             <div
               className="relative aspect-square overflow-hidden rounded-3xl border border-line"
-              style={{ background: `radial-gradient(130% 130% at 50% 20%, hsl(${product.hue} 32% 18%), var(--ink))` }}
+              style={{ background: `radial-gradient(130% 130% at 50% 20%, hsl(${product.hue} var(--hue-sat) var(--hue-light)), var(--ink))` }}
             >
               <SpeciesImage
                 image={product.image}
