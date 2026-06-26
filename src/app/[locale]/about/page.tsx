@@ -36,7 +36,7 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
   const stats = [
     { v: "18+", l: dict.home.statSpecies },
     { v: "100%", l: loc === "fr" ? "Nées en captivité" : "Captive-bred" },
-    { v: "500+", l: dict.home.statKeepers },
+    { v: "100%", l: dict.home.statVerified },
     { v: "2026", l: loc === "fr" ? "Fondée" : "Established" },
   ];
 

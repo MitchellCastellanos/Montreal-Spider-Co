@@ -13,33 +13,6 @@ import { SITE } from "@/lib/site";
 import Image from "next/image";
 import Link from "next/link";
 
-const testimonials = [
-  {
-    name: "Camille R.",
-    city: "Le Plateau",
-    text: {
-      en: "My Brazilian Black arrived in perfect health with its Verified Origin certificate. The care sheet made me feel confident from day one.",
-      fr: "Ma mygale noire du Brésil est arrivée en pleine santé avec son certificat Origine Vérifiée. La fiche de soins m'a rassurée dès le premier jour.",
-    },
-  },
-  {
-    name: "Jonathan T.",
-    city: "Verdun",
-    text: {
-      en: "Pickup / meetup was effortless and they answered every beginner question I had. Easily the best tarantula shop in Montreal.",
-      fr: "La cueillette / rencontre a été simplissime et ils ont répondu à toutes mes questions de débutant. La meilleure boutique de mygales à Montréal, sans hésiter.",
-    },
-  },
-  {
-    name: "Priya S.",
-    city: "Rosemont",
-    text: {
-      en: "The GBB I ordered is stunning and clearly thriving. You can tell these spiders are raised with real care.",
-      fr: "Le GBB que j'ai commandé est magnifique et visiblement épanoui. On sent que ces mygales sont élevées avec un vrai soin.",
-    },
-  },
-];
-
 export const revalidate = 60;
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
@@ -194,24 +167,15 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </div>
       </section>
 
-      {/* Testimonials */}
+      {/* Growing in Montreal */}
       <section className="container-x py-16 md:py-24">
-        <Reveal className="mb-10 text-center">
-          <h2 className="font-display text-3xl font-bold text-cream sm:text-4xl">{h.testimonialsTitle}</h2>
+        <Reveal className="mx-auto max-w-2xl text-center">
+          <h2 className="font-display text-3xl font-bold text-cream sm:text-4xl">{h.growingTitle}</h2>
+          <p className="mt-3 text-bone">{h.growingBody}</p>
+          <Link href={localeHref(loc, "/shop")} className="btn btn-gold mt-7 text-base">
+            {dict.common.shopNow} →
+          </Link>
         </Reveal>
-        <div className="grid gap-6 md:grid-cols-3">
-          {testimonials.map((tst, i) => (
-            <Reveal key={tst.name} delay={i * 0.1}>
-              <figure className="card-glow h-full rounded-2xl p-6">
-                <div className="mb-3 text-gold-bright">★★★★★</div>
-                <blockquote className="text-sm leading-relaxed text-cream">“{withVerifiedOriginLinks(tst.text[loc], loc)}”</blockquote>
-                <figcaption className="mt-4 text-sm text-muted">
-                  <span className="font-semibold text-bone">{tst.name}</span> · {tst.city}
-                </figcaption>
-              </figure>
-            </Reveal>
-          ))}
-        </div>
       </section>
 
       {/* CTA */}

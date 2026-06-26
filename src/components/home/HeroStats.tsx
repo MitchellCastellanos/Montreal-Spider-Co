@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { useI18n } from "@/i18n/I18nProvider";
 import { VerifiedOriginLink } from "@/lib/verified-origin-links";
+import LocaleLink from "@/components/LocaleLink";
 
 export default function HeroStats() {
   const { dict } = useI18n();
@@ -10,7 +11,6 @@ export default function HeroStats() {
 
   const stats = [
     { value: "18+", label: h.statSpecies },
-    { value: "500+", label: h.statKeepers },
     { value: "100%", label: h.statVerified, link: true },
     { value: "MTL", label: h.statDelivery },
   ];
@@ -37,6 +37,21 @@ export default function HeroStats() {
             </p>
           </motion.div>
         ))}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-40px" }}
+          transition={{ duration: 0.45, delay: stats.length * 0.07 }}
+          className="text-center sm:text-left"
+        >
+          <LocaleLink
+            href="/shop"
+            className="inline-flex items-center gap-1 font-display text-2xl font-bold text-gold-bright transition-all hover:gap-2 sm:text-3xl"
+          >
+            {dict.common.shopNow} →
+          </LocaleLink>
+          <p className="mt-1 text-[11px] uppercase tracking-wide text-muted">{h.viewAll}</p>
+        </motion.div>
       </div>
     </section>
   );
