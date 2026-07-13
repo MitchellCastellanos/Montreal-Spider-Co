@@ -1,9 +1,17 @@
-/** Display labels for inventory enums (admin UI). */
+/** Display labels for inventory enums (admin UI). Status ≠ location: a specimen can be Available at a partner store. */
 export const STATUS_LABELS: Record<string, string> = {
-  available: "Available (warehouse)",
-  consignment: "At distributor",
+  available: "Available",
+  /** @deprecated legacy status — new rows are always `available` + a partner location. */
+  consignment: "Available (legacy partner)",
+  allocated: "Allocated (paid order)",
   sold: "Sold",
   written_off: "Written off",
+};
+
+export const LOCATION_TYPE_LABELS: Record<string, string> = {
+  warehouse: "MSC warehouse",
+  consignment: "Partner store",
+  transit: "In transit",
 };
 
 export const CHANNEL_LABELS: Record<string, string> = {

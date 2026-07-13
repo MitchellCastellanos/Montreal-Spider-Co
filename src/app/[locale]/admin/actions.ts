@@ -260,6 +260,8 @@ export async function createLocationAction(_prev: ActionState, formData: FormDat
     active: true,
     isPickup: bool(formData, "isPickup"),
     isDistributor: bool(formData, "isDistributor"),
+    email: str(formData, "email"),
+    contactName: str(formData, "contactName"),
   };
 
   if (!input.isPickup && !input.isDistributor) {
@@ -552,12 +554,17 @@ export async function updateSpecimenAction(_prev: ActionState, formData: FormDat
   const sizeCm = Number(formData.get("sizeCm"));
   if (!Number.isFinite(sizeCm) || sizeCm <= 0) return { error: "Size (cm) must be greater than 0." };
 
+  const settlementRaw = str(formData, "settlementPrice");
+  const msrpRaw = str(formData, "msrp");
+
   try {
     await updateSpecimen(str(formData, "specimenId"), {
       sizeCm,
       sex: (str(formData, "sex") === "male" || str(formData, "sex") === "female" ? str(formData, "sex") : "unsexed") as SpecimenSex,
       unitCost: num(formData, "unitCost", 0),
       price: num(formData, "price", 0),
+      settlementPrice: settlementRaw === "" ? null : Math.max(0, Number(settlementRaw) || 0),
+      msrp: msrpRaw === "" ? null : Math.max(0, Number(msrpRaw) || 0),
       locationType: str(formData, "locationType") === "consignment" ? "consignment" : "warehouse",
       locationId: str(formData, "locationId") || null,
       notes: str(formData, "notes"),

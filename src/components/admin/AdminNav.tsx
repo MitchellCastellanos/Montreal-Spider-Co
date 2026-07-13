@@ -9,6 +9,11 @@ import { localeHref } from "@/lib/href";
 const NAV = [
   { href: "/admin", label: "Listings" },
   { href: "/admin/inventory", label: "Inventory" },
+  { href: "/admin/operations", label: "Operations" },
+  { href: "/admin/audits", label: "Store audits" },
+  { href: "/admin/restock", label: "Restock" },
+  { href: "/admin/settlements", label: "Settlements" },
+  { href: "/admin/labels", label: "QR labels" },
   { href: "/admin/finance", label: "Finance" },
   { href: "/admin/pickup", label: "Locations" },
   { href: "/admin/media", label: "Media & photos" },

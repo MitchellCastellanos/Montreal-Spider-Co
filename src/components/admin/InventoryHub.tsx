@@ -300,7 +300,7 @@ export default function InventoryHub({
             <select value={filterLocation} onChange={(e) => setFilterLocation(e.target.value)} className="input w-auto">
               <option value="">All locations</option>
               <option value="warehouse">Warehouse</option>
-              <option value="consignment">Any distributor</option>
+              <option value="consignment">Any partner store</option>
               {distributors.map((d) => (
                 <option key={d.id} value={d.id}>{d.name}</option>
               ))}
@@ -505,13 +505,19 @@ function SpecimenRow({
   const [sex, setSex] = useState(s.sex);
   const [unitCost, setUnitCost] = useState(s.unitCost);
   const [price, setPrice] = useState(s.price);
+  const [settlementPrice, setSettlementPrice] = useState(s.settlementPrice != null ? String(s.settlementPrice) : "");
+  const [msrp, setMsrp] = useState(s.msrp != null ? String(s.msrp) : "");
   const [locationType, setLocationType] = useState(s.locationType);
   const [locationId, setLocationId] = useState(s.locationId ?? "");
   const [notes, setNotes] = useState(s.notes ?? "");
 
-  const locked = s.status === "sold" || s.status === "written_off";
+  const locked = s.status === "sold" || s.status === "written_off" || s.status === "allocated";
   const location =
-    s.locationType === "warehouse" ? "Warehouse" : (s.locationName ?? "Distributor");
+    s.locationType === "warehouse"
+      ? "Warehouse"
+      : s.locationType === "transit"
+        ? `In transit${s.locationName ? ` → ${s.locationName}` : ""}`
+        : (s.locationName ?? "Partner store");
 
   return (
     <>
@@ -563,15 +569,24 @@ function SpecimenRow({
         <td className="px-3 py-2">{formatPrice(s.price, locale)}</td>
         <td className="px-3 py-2 text-xs text-muted">{s.purchasedAt}</td>
         <td className="px-3 py-2">
-          {!locked && (
-            <button
-              type="button"
-              onClick={() => setEditing((v) => !v)}
-              className="rounded border border-line px-2 py-1 text-xs text-cream hover:bg-ink-soft"
+          <div className="flex gap-1">
+            {!locked && (
+              <button
+                type="button"
+                onClick={() => setEditing((v) => !v)}
+                className="rounded border border-line px-2 py-1 text-xs text-cream hover:bg-ink-soft"
+              >
+                {editing ? "Close" : "Edit"}
+              </button>
+            )}
+            <Link
+              href={localeHref(locale, `/admin/specimens/${s.id}`)}
+              className="rounded border border-line px-2 py-1 text-xs text-muted hover:text-gold-bright"
+              title="Growth, molts, QR label & movements"
             >
-              {editing ? "Close" : "Edit"}
-            </button>
-          )}
+              Details
+            </Link>
+          </div>
         </td>
       </tr>
       {editing && !locked && (
@@ -613,7 +628,7 @@ function SpecimenRow({
                 />
               </label>
               <label className="field">
-                <span>Price ($)</span>
+                <span>Web price ($)</span>
                 <input
                   name="price"
                   type="number"
@@ -622,6 +637,32 @@ function SpecimenRow({
                   value={price}
                   onChange={(e) => setPrice(Number(e.target.value))}
                   className="input"
+                />
+              </label>
+              <label className="field">
+                <span>Settlement ($) <InfoHint text="Owed to MSC when a partner sells this specimen. Internal only." /></span>
+                <input
+                  name="settlementPrice"
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  value={settlementPrice}
+                  onChange={(e) => setSettlementPrice(e.target.value)}
+                  className="input"
+                  placeholder="—"
+                />
+              </label>
+              <label className="field">
+                <span>MSRP ($) <InfoHint text="Suggested retail for partners. Shown on the QR label." /></span>
+                <input
+                  name="msrp"
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  value={msrp}
+                  onChange={(e) => setMsrp(e.target.value)}
+                  className="input"
+                  placeholder="—"
                 />
               </label>
               <label className="field">

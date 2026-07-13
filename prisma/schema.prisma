@@ -142,6 +142,11 @@ model ProductSize {
   @@index([sizeMaxInches])
 }
 
+/**
+ * A physical location MSC operates through. Capabilities (pickup, consignment, …)
+ * are independent flags — a location may support any combination. Partners never
+ * own inventory: specimens located here still belong to Montreal Spider Co.
+ */
 model StoreLocation {
   id            String   @id @default(cuid())
   name          String
@@ -152,12 +157,28 @@ model StoreLocation {
   phone         String   @default("")
   position      Int      @default(0)
   active        Boolean  @default(true)
+  /** Capability: customers can collect web orders here. */
   isPickup      Boolean  @default(false)
+  /** Capability: holds MSC consignment inventory for walk-in sales. */
   isDistributor Boolean  @default(false)
+  /** Partner contact email — used for all partner operations notifications. */
+  email         String   @default("")
+  contactName   String   @default("")
+  whatsapp      String   @default("")
+  /** Unguessable token embedded in QR codes / links so partners can use simple confirmation pages without accounts. */
+  partnerToken  String   @unique @default(cuid())
+  /** Minimum retail price policy (%) relative to MSRP that partners must respect. 100 = never below MSRP. */
+  minPricePct   Float?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   distributorStock ProductDistributorStock[]
   consignmentSpecimens Specimen[]
+  fulfillments     Fulfillment[]
+  audits           StoreAudit[]
+  restockProposals RestockProposal[]
+  settlementEntries SettlementEntry[]
+  settlementStatements SettlementStatement[]
+  tasks            OperationsTask[]
 }
 
 model ProductDistributorStock {
@@ -210,6 +231,8 @@ model SpeciesLibraryImage {
 // ---------------------------------------------------------------------------
 
 enum OrderStatus {
+  /** Stripe payment succeeded — specimens are allocated, fulfillment not started. */
+  paid
   processing
   ready
   delivered
@@ -223,14 +246,20 @@ enum FulfillmentMethod {
 
 enum SpecimenStatus {
   available
+  /** @deprecated location is no longer a status — legacy rows are backfilled to `available` + locationType `consignment`. */
   consignment
+  /** Reserved for a paid order; hidden from the storefront until delivered or released. */
+  allocated
   sold
   written_off
 }
 
 enum SpecimenLocationType {
   warehouse
+  /** Physically at a partner store (MSC still owns the specimen). */
   consignment
+  /** In transit between locations (e.g. restock delivery). */
+  transit
 }
 
 enum SalesChannel {
@@ -256,6 +285,12 @@ enum InventoryMovementType {
   transfer
   sale
   write_off
+  /** Reserved for a paid order (available → allocated). */
+  allocation
+  /** Released back to available (cancellation / no-show). */
+  release
+  /** Inventory correction from a store audit. */
+  correction
 }
 
 enum SpecimenSex {
@@ -284,18 +319,34 @@ model Specimen {
   locationType    SpecimenLocationType @default(warehouse)
   locationId      String?
   location        StoreLocation?       @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  /** Internal only — inventory valuation, margin, accounting. */
   unitCost        Float                @default(0)
+  /** Internal — amount owed to MSC when a partner sells this specimen (replaces the old "distributor price"). */
+  settlementPrice Float?
+  /** Suggested retail price for partners; they may charge more, subject to the location's min price policy. */
+  msrp            Float?
   purchasedAt     DateTime             @default(now())
   supplier        String               @default("")
   notes           String               @default("")
+  /** Actual amount the customer paid. Stored permanently, never overwritten. */
   salePrice       Float?
   soldAt          DateTime?
   salesChannel    SalesChannel?
   paymentMethod   PaymentMethod?
+  /** Date sizeCm was last measured (intake, audit, or molt). */
+  lastMeasuredAt  DateTime?
+  /** Unguessable token behind the specimen QR code (open / audit / pickup / walk-in sale / report issue). */
+  qrToken         String               @unique @default(cuid())
   orderId         String?
   order           Order?               @relation(fields: [orderId], references: [id], onDelete: SetNull)
   orderLineLinks  OrderLineSpecimen[]
   movements       InventoryMovement[]
+  growthRecords   GrowthRecord[]
+  moltEvents      MoltEvent[]
+  auditItems      StoreAuditItem[]
+  restockItems    RestockProposalItem[]
+  settlementEntries SettlementEntry[]
+  tasks           OperationsTask[]
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
 
@@ -481,6 +532,8 @@ model Order {
   customerId      String?
   customer        Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
   stripeSessionId String?           @unique
+  /** Needed for automatic refunds (no-show / cancellation). */
+  stripePaymentIntentId String?
   email           String
   name            String
   phone           String
@@ -512,6 +565,8 @@ model Order {
   lines           OrderLine[]
   specimens       Specimen[]
   messages        OrderMessage[]
+  fulfillment     Fulfillment?
+  tasks           OperationsTask[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -552,4 +607,336 @@ model OrderLineSpecimen {
 
   @@unique([specimenId])
   @@index([orderLineId])
+}
+
+// ---------------------------------------------------------------------------
+// Fulfillment — everything after payment until physical delivery
+// ---------------------------------------------------------------------------
+
+enum FulfillmentStatus {
+  /** Order paid, specimens allocated — not yet being prepared. */
+  pending
+  /** MSC is preparing the specimen (packing / transferring to pickup point). */
+  preparing
+  /** Ready to collect — the pickup window clock is running. */
+  ready
+  /** Customer collected — specimens delivered, order complete. */
+  completed
+  /** Customer never collected within the window. */
+  no_show
+  /** Cancelled (manually or after a no-show). */
+  cancelled
+}
+
+/**
+ * One fulfillment record per paid order. Separate from the Order (the purchase)
+ * and from Inventory (the specimens): tracks pickup/meetup preparation,
+ * confirmation, reminders, no-shows and refunds.
+ */
+model Fulfillment {
+  id              String            @id @default(cuid())
+  orderId         String            @unique
+  order           Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status          FulfillmentStatus @default(pending)
+  /** Pickup point / partner location, when the order collects at a StoreLocation. */
+  locationId      String?
+  location        StoreLocation?    @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  /** Agreed pickup / meetup moment, when scheduled. */
+  scheduledFor    DateTime?
+  /** When the order became ready to collect (starts the no-show window). */
+  readyAt         DateTime?
+  /** Deadline after which the order is treated as a no-show. */
+  collectBy       DateTime?
+  remindersSent   Int               @default(0)
+  lastReminderAt  DateTime?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  noShowAt        DateTime?
+  /** Stripe refund id when a refund was issued. */
+  stripeRefundId  String?
+  refundedAt      DateTime?
+  refundAmount    Float?
+  /** Optional fee retained on no-show refunds. */
+  noShowFee       Float             @default(0)
+  /** Unguessable token for the customer/partner pickup-confirmation page & QR. */
+  pickupToken     String            @unique @default(cuid())
+  notes           String            @default("")
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([status])
+  @@index([locationId])
+  @@index([collectBy])
+}
+
+// ---------------------------------------------------------------------------
+// Growth tracking & molting — the specimen changes, its identity doesn't
+// ---------------------------------------------------------------------------
+
+enum GrowthSource {
+  intake
+  manual
+  molt
+  audit
+}
+
+/** Point-in-time size measurement. Current size lives on Specimen.sizeCm. */
+model GrowthRecord {
+  id         String       @id @default(cuid())
+  specimenId String
+  specimen   Specimen     @relation(fields: [specimenId], references: [id], onDelete: Cascade)
+  measuredAt DateTime     @default(now())
+  sizeCm     Float
+  source     GrowthSource @default(manual)
+  notes      String       @default("")
+  createdAt  DateTime     @default(now())
+
+  @@index([specimenId, measuredAt])
+}
+
+/** Biological molt event — updates current size, never specimen identity. */
+model MoltEvent {
+  id                String   @id @default(cuid())
+  specimenId        String
+  specimen          Specimen @relation(fields: [specimenId], references: [id], onDelete: Cascade)
+  moltedAt          DateTime @default(now())
+  previousSizeCm    Float
+  newSizeEstimateCm Float
+  notes             String   @default("")
+  createdAt         DateTime @default(now())
+
+  @@index([specimenId, moltedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Store audits — expected vs actual inventory at partner locations
+// ---------------------------------------------------------------------------
+
+enum AuditItemResult {
+  found
+  missing
+}
+
+model StoreAudit {
+  id         String           @id @default(cuid())
+  locationId String
+  location   StoreLocation    @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  auditedAt  DateTime         @default(now())
+  /** Name of the MSC employee who performed the visit. */
+  employee   String
+  notes      String           @default("")
+  /** Filled on completion — snapshot counts for quick listing. */
+  expectedCount Int           @default(0)
+  foundCount    Int           @default(0)
+  missingCount  Int           @default(0)
+  items      StoreAuditItem[]
+  tasks      OperationsTask[]
+  createdAt  DateTime         @default(now())
+
+  @@index([locationId, auditedAt])
+}
+
+model StoreAuditItem {
+  id          String          @id @default(cuid())
+  auditId     String
+  audit       StoreAudit      @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  specimenId  String
+  specimen    Specimen        @relation(fields: [specimenId], references: [id], onDelete: Cascade)
+  result      AuditItemResult
+  /** Size measured during the visit (updates the specimen's current size). */
+  sizeCm      Float?
+  healthNotes String          @default("")
+  notes       String          @default("")
+  photoUrl    String?
+
+  @@unique([auditId, specimenId])
+  @@index([specimenId])
+}
+
+// ---------------------------------------------------------------------------
+// Restock proposals — replacement inventory is never sent automatically
+// ---------------------------------------------------------------------------
+
+enum RestockProposalStatus {
+  draft
+  /** Sent to the partner for confirmation. */
+  sent
+  confirmed
+  declined
+  /** Specimens are on their way to the partner. */
+  in_transit
+  completed
+  cancelled
+}
+
+model RestockProposal {
+  id            String                @id @default(cuid())
+  locationId    String
+  location      StoreLocation         @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  status        RestockProposalStatus @default(draft)
+  reason        String                @default("")
+  preferredDate DateTime?
+  /** Unguessable token for the partner confirmation page. */
+  confirmToken  String                @unique @default(cuid())
+  sentAt        DateTime?
+  confirmedAt   DateTime?
+  declinedAt    DateTime?
+  shippedAt     DateTime?
+  completedAt   DateTime?
+  partnerNotes  String                @default("")
+  items         RestockProposalItem[]
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@index([locationId, status])
+}
+
+model RestockProposalItem {
+  id         String          @id @default(cuid())
+  proposalId String
+  proposal   RestockProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  /** Suggested concrete specimen from the warehouse. */
+  specimenId String
+  specimen   Specimen        @relation(fields: [specimenId], references: [id], onDelete: Cascade)
+  notes      String          @default("")
+
+  @@unique([proposalId, specimenId])
+  @@index([specimenId])
+}
+
+// ---------------------------------------------------------------------------
+// Settlement ledger — partner finances come from records, never from inventory
+// ---------------------------------------------------------------------------
+
+enum SettlementPaymentStatus {
+  pending
+  /** Included in a monthly statement sent to the partner. */
+  invoiced
+  paid
+}
+
+/** One entry per partner sale — the financial source of truth for partner balances. */
+model SettlementEntry {
+  id              String                  @id @default(cuid())
+  locationId      String
+  location        StoreLocation           @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  specimenId      String                  @unique
+  specimen        Specimen                @relation(fields: [specimenId], references: [id], onDelete: Restrict)
+  soldAt          DateTime                @default(now())
+  /** What the partner charged the customer. */
+  salePrice       Float
+  /** What the partner owes MSC for this specimen. */
+  settlementPrice Float
+  /** salePrice − settlementPrice, kept by the partner. */
+  partnerMargin   Float
+  paymentStatus   SettlementPaymentStatus @default(pending)
+  statementId     String?
+  statement       SettlementStatement?    @relation(fields: [statementId], references: [id], onDelete: SetNull)
+  notes           String                  @default("")
+  createdAt       DateTime                @default(now())
+
+  @@index([locationId, paymentStatus])
+  @@index([soldAt])
+}
+
+enum StatementStatus {
+  draft
+  sent
+  paid
+}
+
+/** Monthly partner statement generated from ledger entries. */
+model SettlementStatement {
+  id          String            @id @default(cuid())
+  locationId  String
+  location    StoreLocation     @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  periodStart DateTime
+  periodEnd   DateTime
+  totalSales  Float             @default(0)
+  totalOwed   Float             @default(0)
+  totalMargin Float             @default(0)
+  status      StatementStatus   @default(draft)
+  sentAt      DateTime?
+  paidAt      DateTime?
+  entries     SettlementEntry[]
+  createdAt   DateTime          @default(now())
+
+  @@unique([locationId, periodStart, periodEnd])
+  @@index([locationId])
+}
+
+// ---------------------------------------------------------------------------
+// Internal operations tasks — manual decisions surfaced to the MSC team
+// ---------------------------------------------------------------------------
+
+enum TaskType {
+  /** Decide what to do with a specimen after a no-show (leave at partner / return / transfer). */
+  no_show_disposition
+  /** Investigate a specimen missing during an audit. */
+  audit_investigation
+  inventory_correction
+  restock_approval
+  general
+}
+
+enum TaskStatus {
+  open
+  in_progress
+  done
+  dismissed
+}
+
+model OperationsTask {
+  id         String        @id @default(cuid())
+  type       TaskType      @default(general)
+  status     TaskStatus    @default(open)
+  title      String
+  details    String        @default("")
+  specimenId String?
+  specimen   Specimen?     @relation(fields: [specimenId], references: [id], onDelete: SetNull)
+  locationId String?
+  location   StoreLocation? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  orderId    String?
+  order      Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  auditId    String?
+  audit      StoreAudit?   @relation(fields: [auditId], references: [id], onDelete: SetNull)
+  dueAt      DateTime?
+  resolution String        @default("")
+  resolvedAt DateTime?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([status, type])
+  @@index([locationId])
+}
+
+// ---------------------------------------------------------------------------
+// Notification service — business modules never send email directly
+// ---------------------------------------------------------------------------
+
+enum EmailStatus {
+  sent
+  failed
+  /** Email intentionally not delivered (e.g. Resend not configured, missing recipient). */
+  skipped
+}
+
+/** Audit log of every email the Notification Service attempted. */
+model EmailLog {
+  id         String      @id @default(cuid())
+  /** Template id from the template registry (e.g. "pickup-ready"). */
+  templateId String
+  /** Business event that triggered the send (e.g. "fulfillment.ready"). */
+  event      String      @default("")
+  to         String
+  subject    String
+  status     EmailStatus
+  error      String      @default("")
+  /** Business context: orderId, specimenId, locationId, … */
+  context    Json        @default("{}")
+  createdAt  DateTime    @default(now())
+
+  @@index([templateId])
+  @@index([to])
+  @@index([createdAt])
 }

@@ -3,5 +3,11 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "installCommand": "npm install",
-  "regions": ["yul1"]
+  "regions": ["yul1"],
+  "crons": [
+    {
+      "path": "/api/cron/fulfillment",
+      "schedule": "0 */6 * * *"
+    }
+  ]
 }

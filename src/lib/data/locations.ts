@@ -18,6 +18,11 @@ export interface StoreLocationView {
   active: boolean;
   isPickup: boolean;
   isDistributor: boolean;
+  email: string;
+  contactName: string;
+  whatsapp: string;
+  partnerToken: string;
+  minPricePct: number | null;
 }
 
 /** @deprecated alias */
@@ -40,6 +45,11 @@ function mapLocation(row: DbLocation): StoreLocationView {
     active: row.active,
     isPickup: row.isPickup,
     isDistributor: row.isDistributor,
+    email: row.email,
+    contactName: row.contactName,
+    whatsapp: row.whatsapp,
+    partnerToken: row.partnerToken,
+    minPricePct: row.minPricePct,
   };
 }
 
@@ -55,6 +65,11 @@ function seedView(): StoreLocationView[] {
     active: true,
     isPickup: l.isPickup,
     isDistributor: l.isDistributor,
+    email: "",
+    contactName: "",
+    whatsapp: "",
+    partnerToken: "",
+    minPricePct: null,
   }));
 }
 
@@ -117,6 +132,10 @@ export interface LocationInput {
   active: boolean;
   isPickup: boolean;
   isDistributor: boolean;
+  email?: string;
+  contactName?: string;
+  whatsapp?: string;
+  minPricePct?: number | null;
 }
 
 export interface LocationBulkRow {
@@ -130,6 +149,10 @@ export interface LocationBulkRow {
   isPickup: boolean;
   isDistributor: boolean;
   hours?: WeeklyHours;
+  email?: string;
+  contactName?: string;
+  whatsapp?: string;
+  minPricePct?: number | null;
 }
 
 function requireDb() {
@@ -151,6 +174,10 @@ export async function createLocation(input: LocationInput): Promise<string> {
       active: input.active,
       isPickup: input.isPickup,
       isDistributor: input.isDistributor,
+      email: input.email ?? "",
+      contactName: input.contactName ?? "",
+      whatsapp: input.whatsapp ?? "",
+      minPricePct: input.minPricePct ?? null,
       position: count,
     },
   });
@@ -171,6 +198,10 @@ export async function updateLocation(id: string, input: LocationInput): Promise<
       active: input.active,
       isPickup: input.isPickup,
       isDistributor: input.isDistributor,
+      ...(input.email !== undefined ? { email: input.email } : {}),
+      ...(input.contactName !== undefined ? { contactName: input.contactName } : {}),
+      ...(input.whatsapp !== undefined ? { whatsapp: input.whatsapp } : {}),
+      ...(input.minPricePct !== undefined ? { minPricePct: input.minPricePct } : {}),
     },
   });
 }
@@ -191,6 +222,10 @@ export async function bulkUpdateLocations(rows: LocationBulkRow[]): Promise<void
           isPickup: row.isPickup,
           isDistributor: row.isDistributor,
           ...(row.hours ? { hours: row.hours as unknown as Prisma.InputJsonValue } : {}),
+          ...(row.email !== undefined ? { email: row.email } : {}),
+          ...(row.contactName !== undefined ? { contactName: row.contactName } : {}),
+          ...(row.whatsapp !== undefined ? { whatsapp: row.whatsapp } : {}),
+          ...(row.minPricePct !== undefined ? { minPricePct: row.minPricePct } : {}),
         },
       }),
     ),

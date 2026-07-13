@@ -45,6 +45,35 @@ server). The list below is the single source of truth for what to build next.
 - Staff customer lookup (`/admin/customers`): search customers **by phone number**.
 - ⚙️ Setup: **`SETUP_DATABASE.md`** (Neon database + Cloudinary storage + admin login, ~15 min).
 
+**Operations platform (NEW — inventory, partners, fulfillment, finance)**
+- **Specimen lifecycle**: `available → allocated (paid web order) → sold (physical delivery)`. Status is
+  separate from **physical location** (`warehouse / consignment (partner store) / transit`) — a specimen at a
+  partner is *available at that location*, never a special status. MSC owns every specimen until handover.
+- **Fulfillment module** (`/admin/operations`, `src/lib/fulfillment/`): everything after payment —
+  preparing → ready (starts the pickup window) → completed, plus no-show/cancellation with **automatic Stripe
+  refund**, optional no-show fee, specimen release back to available, and a manual **disposition task**
+  (leave at partner / return to warehouse / transfer). A cron sweep (`/api/cron/fulfillment`, see
+  `vercel.json`) sends reminders, no-show warnings and auto-cancels after the grace period.
+- **Store audits** (`/admin/audits`): record a visit (employee, per-specimen found/missing, health notes,
+  measured size, photos). Missing specimens create investigation tasks; confirmed losses become
+  `correction` inventory movements; measured sizes feed growth history.
+- **Restock proposals** (`/admin/restock`): draft → email to partner → partner confirms via token link →
+  ship (specimens move to *transit*) → delivered (specimens live at the partner). Nothing ships automatically.
+- **Settlement ledger** (`/admin/settlements`): every partner sale writes a ledger entry (sale price,
+  settlement price owed to MSC, partner margin). Monthly statements are generated **from the ledger** —
+  balances never come from inventory counts.
+- **Growth & molting** (`/admin/specimens/[id]`): append-only measurement history + molt events; current
+  size (`sizeCm` + `lastMeasuredAt`) lives on the specimen, identity never changes.
+- **Pricing model per specimen**: unit cost (internal) · settlement price (owed by partner) · MSRP
+  (suggested partner retail, with optional min-price % policy per store) · web price · sale price (immutable).
+- **QR operations** (`/admin/labels` for printable labels, `/q/[token]` hub): each specimen has a unique QR.
+  Partners scan it to **register a walk-in sale** (marks sold + settlement entry + notifications) or report
+  an issue — no partner accounts or dashboards, just email + token links (`/p/pickup/…`, `/p/restock/…`).
+- **Notification service** (`src/lib/notifications/service.ts`): business modules emit events; the service
+  renders bilingual templates, delivers via Resend and records every attempt in the `EmailLog` table.
+- **Operations tasks**: manual decisions (dispositions, audit investigations, below-minimum sales, manual
+  refunds) surface as tasks in `/admin/operations`.
+
 **Accounts & checkout**
 - User accounts: sign in/up, profile, order history, **saved cards & addresses** (in `localStorage`).
 
@@ -129,8 +158,10 @@ See **`SETUP_DATABASE.md`** for Neon + Cloudinary + admin setup.
 | `DATABASE_URL` / `DIRECT_URL` | ✅ (admin + shop) | Neon Postgres via Prisma |
 | `CLOUDINARY_*` | ✅ (admin uploads) | Product image CDN |
 | `ADMIN_PASSWORD` / `AUTH_SECRET` | ✅ | Admin panel login |
-| `STRIPE_*` / `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | ⛔ placeholder | Payments |
-| `RESEND_API_KEY` | ⛔ placeholder | Email / newsletter |
+| `STRIPE_*` / `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | ✅ | Payments (Checkout Sessions + webhook) & automatic refunds |
+| `RESEND_API_KEY` / `RESEND_FROM_EMAIL` | ✅ | All transactional email via the Notification Service |
+| `ORDERS_ADMIN_EMAIL` | optional | Internal staff alerts inbox (defaults to the site email) |
+| `CRON_SECRET` | optional | Bearer token protecting `/api/cron/fulfillment` |
 
 ---
 

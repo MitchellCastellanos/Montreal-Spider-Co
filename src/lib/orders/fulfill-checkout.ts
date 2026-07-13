@@ -1,9 +1,10 @@
 import "server-only";
 import type Stripe from "stripe";
-import type { FulfillmentMethod, OrderStatus, SpecimenSex } from "@prisma/client";
+import type { FulfillmentMethod, SpecimenSex } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { sendOrderConfirmationEmail, sendDistributorSaleAlertEmail } from "@/lib/email";
-import { assignSpecimensFifo, syncAggregateStock, type DistributorPickupLine } from "@/lib/data/specimens";
+import { sendNotification, notifyStaff } from "@/lib/notifications/service";
+import { allocateSpecimensFifo, syncAggregateStock, type DistributorPickupLine } from "@/lib/data/specimens";
+import { createFulfillmentForOrder } from "@/lib/fulfillment/fulfillment";
 import { redeemCoupon } from "@/lib/account/coupons";
 import { grantReferralReward } from "@/lib/account/referral";
 import { saveFulfillmentFromCheckout } from "@/lib/account/preferences";
@@ -12,6 +13,11 @@ function generateOrderNumber(): string {
   return `MSC-${Math.floor(1000 + Math.random() * 9000)}`;
 }
 
+/**
+ * Post-payment order creation. The order becomes PAID and its specimens become
+ * ALLOCATED (reserved, hidden from the storefront). They only become SOLD when
+ * physical delivery is confirmed through the Fulfillment module.
+ */
 export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
   if (!prisma) throw new Error("Database not configured.");
 
@@ -50,9 +56,13 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
     md.customerId ||
     (email ? (await prisma.customer.findUnique({ where: { email }, select: { id: true } }))?.id : null) ||
     null;
-  const status: OrderStatus = method === "pickup" ? "ready" : "processing";
 
-  let distributorAlerts: DistributorPickupLine[] = [];
+  const paymentIntentId =
+    typeof session.payment_intent === "string"
+      ? session.payment_intent
+      : session.payment_intent?.id ?? null;
+
+  const distributorAlerts: DistributorPickupLine[] = [];
 
   const { order } = await prisma.$transaction(async (tx) => {
     for (const item of orderItems) {
@@ -63,6 +73,7 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
           sex: item.sex,
           price: item.price,
           status: { in: ["available", "consignment"] },
+          locationType: { not: "transit" },
         },
       });
       if (available < item.qty) {
@@ -74,12 +85,13 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
       data: {
         orderNumber,
         stripeSessionId: session.id,
+        stripePaymentIntentId: paymentIntentId,
         customerId,
         email,
         name: md.customerName ?? session.customer_details?.name ?? "",
         phone: md.customerPhone ?? session.customer_details?.phone ?? "",
         method,
-        status,
+        status: "paid",
         subtotal: Number(md.subtotal ?? 0),
         discountAmount: Number(md.discountAmount ?? 0),
         couponCode: md.couponCode ?? null,
@@ -119,7 +131,7 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
     });
 
     for (const line of created.lines) {
-      const { distributorPickups } = await assignSpecimensFifo(tx, {
+      const { distributorPickups } = await allocateSpecimensFifo(tx, {
         productId: line.productId,
         sizeCm: line.sizeCm!,
         sex: line.sex!,
@@ -133,6 +145,8 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
       });
       distributorAlerts.push(...distributorPickups);
     }
+
+    await createFulfillmentForOrder(tx, created);
 
     return { order: created };
   });
@@ -177,31 +191,82 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
     }
   }
 
-  try {
-    await sendOrderConfirmationEmail({
-      to: email,
-      locale: (md.locale === "fr" ? "fr" : "en") as "en" | "fr",
-      orderNumber: order.orderNumber,
-      total: order.total,
-      name: order.name,
-    });
-  } catch (e) {
-    console.error("[fulfill-checkout] email failed:", e);
-  }
+  const locale = (md.locale === "fr" ? "fr" : "en") as "en" | "fr";
+  const itemLines = order.lines.map((l) => `${l.qty}× ${l.nameEn} (${l.sizeLabelEn})`).join("\n");
 
+  // All emails go through the Notification Service (rendered, delivered, logged).
+  await sendNotification({
+    templateId: "order-confirmation",
+    event: "order.paid",
+    to: email,
+    locale,
+    data: {
+      name: order.name,
+      orderNumber: order.orderNumber,
+      total: `$${order.total.toFixed(2)} CAD`,
+    },
+    context: { orderId: order.id },
+  });
+
+  await notifyStaff({
+    templateId: "internal-new-order",
+    event: "order.paid",
+    data: {
+      orderNumber: order.orderNumber,
+      customerName: order.name,
+      total: `$${order.total.toFixed(2)} CAD`,
+      method:
+        md.pickupSubtype === "metro_meetup"
+          ? `Metro meetup — ${md.metroStationName ?? ""}`
+          : md.pickupSubtype === "custom_meetup"
+            ? "Custom meetup"
+            : `Pickup point ${md.pickupId ?? ""}`,
+      itemLines: itemLines.replace(/\n/g, "<br />"),
+    },
+    context: { orderId: order.id },
+  });
+
+  // Reserved partner stock: ask each partner to hold the specimen(s).
+  const byLocation = new Map<string, DistributorPickupLine[]>();
+  for (const line of distributorAlerts) {
+    const list = byLocation.get(line.locationId) ?? [];
+    list.push(line);
+    byLocation.set(line.locationId, list);
+  }
+  for (const [locationId, lines] of byLocation) {
+    const partnerEmail = lines[0].distributorEmail;
+    await sendNotification({
+      templateId: "partner-pickup-reservation",
+      event: "order.paid",
+      to: partnerEmail,
+      data: {
+        partnerName: lines[0].distributorName,
+        orderNumber: order.orderNumber,
+        itemLines: lines.map((l) => `${l.productName} (${l.sizeLabel}, ${l.sex})`).join("<br />"),
+      },
+      context: { orderId: order.id, locationId },
+    });
+  }
   if (distributorAlerts.length > 0) {
-    try {
-      await sendDistributorSaleAlertEmail({
+    // Staff still get the legacy "call the distributor" alert — it carries the phone numbers.
+    await notifyStaff({
+      templateId: "distributor-sale-alert",
+      event: "order.paid",
+      data: {
         orderNumber: order.orderNumber,
         customerName: order.name,
         customerEmail: order.email,
         customerPhone: order.phone,
-        total: order.total,
-        lines: distributorAlerts,
-      });
-    } catch (e) {
-      console.error("[fulfill-checkout] distributor alert failed:", e);
-    }
+        total: `$${order.total.toFixed(2)} CAD`,
+        itemLines: distributorAlerts
+          .map(
+            (l) =>
+              `• ${l.productName} (${l.sizeLabel}, ${l.sex}) @ ${l.distributorName} — $${l.price.toFixed(2)}${l.distributorPhone ? ` · ${l.distributorPhone}` : ""}`,
+          )
+          .join("\n"),
+      },
+      context: { orderId: order.id },
+    });
   }
 
   return order;

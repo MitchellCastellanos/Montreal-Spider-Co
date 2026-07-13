@@ -19,6 +19,10 @@ interface RowState {
   isPickup: boolean;
   isDistributor: boolean;
   hours: StoreLocationView["hours"];
+  email: string;
+  contactName: string;
+  whatsapp: string;
+  minPricePct: number | null;
   expanded: boolean;
 }
 
@@ -140,6 +144,47 @@ export default function LocationsEditor({ locations, locale }: { locations: Stor
                             className="input"
                           />
                         </label>
+                        <label className="field">
+                          <span>Partner email (operations)</span>
+                          <input
+                            type="email"
+                            value={row.email}
+                            onChange={(e) => patch(row.id, { email: e.target.value })}
+                            className="input"
+                            placeholder="store@example.com"
+                          />
+                        </label>
+                        <label className="field">
+                          <span>Contact name</span>
+                          <input
+                            value={row.contactName}
+                            onChange={(e) => patch(row.id, { contactName: e.target.value })}
+                            className="input"
+                          />
+                        </label>
+                        <label className="field">
+                          <span>WhatsApp (optional)</span>
+                          <input
+                            value={row.whatsapp}
+                            onChange={(e) => patch(row.id, { whatsapp: e.target.value })}
+                            className="input"
+                            placeholder="+1 514 555 0100"
+                          />
+                        </label>
+                        <label className="field">
+                          <span>Min price policy (% of MSRP)</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={200}
+                            value={row.minPricePct ?? ""}
+                            onChange={(e) =>
+                              patch(row.id, { minPricePct: e.target.value === "" ? null : Number(e.target.value) })
+                            }
+                            className="input"
+                            placeholder="e.g. 100"
+                          />
+                        </label>
                       </div>
                       <div className="mt-4">
                         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gold-deep">Opening hours</p>
@@ -188,6 +233,14 @@ export default function LocationsEditor({ locations, locale }: { locations: Stor
           <label className="field sm:col-span-2">
             <span>Address *</span>
             <input name="address" className="input" required />
+          </label>
+          <label className="field">
+            <span>Partner email</span>
+            <input name="email" type="email" className="input" placeholder="store@example.com" />
+          </label>
+          <label className="field">
+            <span>Contact name</span>
+            <input name="contactName" className="input" />
           </label>
           <label className="flex items-center gap-2 text-sm text-bone">
             <input type="checkbox" name="isPickup" defaultChecked className="accent-[var(--gold)]" />

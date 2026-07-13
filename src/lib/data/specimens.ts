@@ -21,6 +21,22 @@ export type {
   InventoryMovementType,
 };
 
+/**
+ * Status and physical location are separate concepts:
+ * - status answers "can this specimen be sold?" (available / allocated / sold / written_off)
+ * - locationType/locationId answer "where is it physically?" (warehouse / partner store / transit)
+ *
+ * `consignment` remains in the status enum only for legacy rows (backfilled to
+ * `available`); reads keep accepting it so nothing breaks mid-migration.
+ */
+export const IN_STOCK_STATUSES: SpecimenStatus[] = ["available", "consignment"];
+
+/** In stock AND physically somewhere a customer can buy from (not in transit). */
+const PURCHASABLE_WHERE = {
+  status: { in: IN_STOCK_STATUSES },
+  locationType: { not: "transit" as SpecimenLocationType },
+} as const;
+
 export interface SpecimenView {
   id: string;
   productId: string;
@@ -40,7 +56,11 @@ export interface SpecimenView {
   locationId: string | null;
   locationName: string | null;
   unitCost: number;
+  settlementPrice: number | null;
+  msrp: number | null;
   purchasedAt: string;
+  lastMeasuredAt: string | null;
+  qrToken: string;
   supplier: string;
   notes: string;
   salePrice: number | null;
@@ -64,6 +84,10 @@ export interface ReceiveBatchRowInput {
   sex: SpecimenSex;
   unitCost: number;
   price: number;
+  /** Amount owed to MSC when a partner sells the specimen. */
+  settlementPrice?: number | null;
+  /** Suggested retail price for partners. */
+  msrp?: number | null;
   photoUrl?: string | null;
   quantity: number;
   purchasedAt: Date;
@@ -71,7 +95,7 @@ export interface ReceiveBatchRowInput {
   notes?: string;
   locationType?: SpecimenLocationType;
   locationId?: string;
-  /** Admin-only wholesale/reminder price at the distributor (not storefront). */
+  /** @deprecated per-product distributor reminder price — superseded by per-specimen settlementPrice. */
   distributorPrice?: number | null;
   /** Single ID when quantity is 1 */
   tarantulAppId?: string;
@@ -148,7 +172,11 @@ function mapSpecimen(
     locationType: SpecimenLocationType;
     locationId: string | null;
     unitCost: number;
+    settlementPrice: number | null;
+    msrp: number | null;
     purchasedAt: Date;
+    lastMeasuredAt: Date | null;
+    qrToken: string;
     supplier: string;
     notes: string;
     salePrice: number | null;
@@ -178,7 +206,11 @@ function mapSpecimen(
     locationId: s.locationId,
     locationName: s.location?.name ?? null,
     unitCost: s.unitCost,
+    settlementPrice: s.settlementPrice,
+    msrp: s.msrp,
     purchasedAt: s.purchasedAt.toISOString().slice(0, 10),
+    lastMeasuredAt: s.lastMeasuredAt?.toISOString().slice(0, 10) ?? null,
+    qrToken: s.qrToken,
     supplier: s.supplier,
     notes: s.notes,
     salePrice: s.salePrice,
@@ -231,7 +263,7 @@ export async function listAvailabilityGroups(productIds?: string[]): Promise<Ava
   const db = requireDb();
   const rows = await db.specimen.findMany({
     where: {
-      status: { in: ["available", "consignment"] },
+      ...PURCHASABLE_WHERE,
       ...(productIds && productIds.length > 0 ? { productId: { in: productIds } } : {}),
     },
     select: {
@@ -249,7 +281,7 @@ export async function listAvailabilityGroups(productIds?: string[]): Promise<Ava
   const groups = new Map<string, AvailabilityGroup>();
   for (const r of rows) {
     const key = `${r.productId}:${r.sizeCm}:${r.sex}:${r.price}`;
-    const isWarehouse = r.status === "available" && r.locationType === "warehouse";
+    const isWarehouse = r.locationType === "warehouse";
     const existing = groups.get(key);
     if (existing) {
       existing.stock += 1;
@@ -313,7 +345,12 @@ export async function syncAggregateStock(productId?: string) {
 
     const consignmentCounts = await tx.specimen.groupBy({
       by: ["productId", "locationId"],
-      where: { ...productFilter, status: "consignment", locationId: { not: null } },
+      where: {
+        ...productFilter,
+        status: { in: IN_STOCK_STATUSES },
+        locationType: "consignment",
+        locationId: { not: null },
+      },
       _count: { _all: true },
     });
 
@@ -385,8 +422,6 @@ export async function receiveSpecimenBatch(rows: ReceiveBatchRowInput[]): Promis
         throw new Error("Number of TarantulApp IDs must match quantity.");
       }
 
-      const status = locationType === "consignment" ? "consignment" : "available";
-
       for (let i = 0; i < qty; i++) {
         const tarantulAppId = tarantulAppIds[i]?.trim() || null;
         if (tarantulAppId) {
@@ -400,18 +435,31 @@ export async function receiveSpecimenBatch(rows: ReceiveBatchRowInput[]): Promis
             sizeCm: row.sizeCm,
             sex: row.sex,
             price: row.price,
+            settlementPrice: row.settlementPrice ?? null,
+            msrp: row.msrp ?? null,
             photoUrl: row.photoUrl || null,
             tarantulAppId,
-            status,
+            status: "available",
             locationType,
             locationId,
             unitCost: row.unitCost,
             purchasedAt: row.purchasedAt,
+            lastMeasuredAt: row.purchasedAt,
             supplier: row.supplier ?? "",
             notes: row.notes ?? "",
           },
         });
         ids.push(created.id);
+
+        await tx.growthRecord.create({
+          data: {
+            specimenId: created.id,
+            measuredAt: row.purchasedAt,
+            sizeCm: row.sizeCm,
+            source: "intake",
+            notes: row.supplier ? `Intake from ${row.supplier}` : "Intake",
+          },
+        });
 
         await recordMovement(tx, {
           specimenId: created.id,
@@ -469,17 +517,18 @@ export async function transferToConsignment(input: TransferInput): Promise<void>
     for (const id of input.specimenIds) {
       const s = await tx.specimen.findUnique({ where: { id } });
       if (!s) throw new Error(`Specimen not found: ${id}`);
-      if (s.status !== "available" && s.status !== "consignment") {
+      if (!IN_STOCK_STATUSES.includes(s.status)) {
         throw new Error(`Cannot transfer specimen ${id} (status: ${s.status}).`);
       }
 
       const fromType = s.locationType;
       const fromId = s.locationId;
 
+      // Location changes; status stays "available" — location is not a status.
       await tx.specimen.update({
         where: { id },
         data: {
-          status: "consignment",
+          status: "available",
           locationType: "consignment",
           locationId: input.locationId,
         },
@@ -527,7 +576,10 @@ export async function transferToWarehouse(specimenIds: string[], notes?: string)
     for (const id of specimenIds) {
       const s = await tx.specimen.findUnique({ where: { id } });
       if (!s) throw new Error(`Specimen not found: ${id}`);
-      if (s.status !== "consignment") throw new Error(`Specimen ${id} is not in consignment.`);
+      if (!IN_STOCK_STATUSES.includes(s.status)) {
+        throw new Error(`Cannot transfer specimen ${id} (status: ${s.status}).`);
+      }
+      if (s.locationType === "warehouse") throw new Error(`Specimen ${id} is already at the warehouse.`);
 
       await tx.specimen.update({
         where: { id },
@@ -541,7 +593,7 @@ export async function transferToWarehouse(specimenIds: string[], notes?: string)
       await recordMovement(tx, {
         specimenId: id,
         type: "transfer",
-        fromLocationType: "consignment",
+        fromLocationType: s.locationType,
         fromLocationId: s.locationId,
         toLocationType: "warehouse",
         toLocationId: null,
@@ -563,7 +615,7 @@ export async function sellSpecimensManual(input: ManualSaleInput): Promise<void>
     for (const id of input.specimenIds) {
       const s = await tx.specimen.findUnique({ where: { id } });
       if (!s) throw new Error(`Specimen not found: ${id}`);
-      if (s.status !== "available" && s.status !== "consignment") {
+      if (!IN_STOCK_STATUSES.includes(s.status)) {
         throw new Error(`Cannot sell specimen ${id} (status: ${s.status}).`);
       }
 
@@ -589,6 +641,23 @@ export async function sellSpecimensManual(input: ManualSaleInput): Promise<void>
         paymentMethod: input.paymentMethod,
         notes: input.notes ?? "",
       });
+
+      // A sale of a specimen physically at a partner store is a partner sale —
+      // record it in the settlement ledger (financial source of truth).
+      if (s.locationType === "consignment" && s.locationId) {
+        const settlementPrice = s.settlementPrice ?? priceEach;
+        await tx.settlementEntry.create({
+          data: {
+            locationId: s.locationId,
+            specimenId: s.id,
+            soldAt,
+            salePrice: priceEach,
+            settlementPrice,
+            partnerMargin: Math.max(0, priceEach - settlementPrice),
+            notes: input.notes ?? "",
+          },
+        });
+      }
     }
   });
 
@@ -605,6 +674,9 @@ export async function writeOffSpecimens(input: WriteOffInput): Promise<void> {
       if (!s) throw new Error(`Specimen not found: ${id}`);
       if (s.status === "sold" || s.status === "written_off") {
         throw new Error(`Cannot write off specimen ${id}.`);
+      }
+      if (s.status === "allocated") {
+        throw new Error(`Specimen ${id} is allocated to a paid order — cancel/refund the order first.`);
       }
 
       await tx.specimen.update({
@@ -630,6 +702,8 @@ export interface UpdateSpecimenInput {
   sex: SpecimenSex;
   unitCost: number;
   price: number;
+  settlementPrice?: number | null;
+  msrp?: number | null;
   locationType: SpecimenLocationType;
   locationId?: string | null;
   notes: string;
@@ -653,6 +727,7 @@ export async function updateSpecimen(specimenId: string, input: UpdateSpecimenIn
     }
 
     const locationChanged = input.locationType !== s.locationType || locationId !== s.locationId;
+    const sizeChanged = input.sizeCm !== s.sizeCm;
 
     await tx.specimen.update({
       where: { id: specimenId },
@@ -661,12 +736,22 @@ export async function updateSpecimen(specimenId: string, input: UpdateSpecimenIn
         sex: input.sex,
         unitCost: Math.max(0, input.unitCost),
         price: Math.max(0, input.price),
+        settlementPrice: input.settlementPrice !== undefined ? input.settlementPrice : s.settlementPrice,
+        msrp: input.msrp !== undefined ? input.msrp : s.msrp,
         notes: input.notes,
         locationType: input.locationType,
         locationId,
-        status: input.locationType === "consignment" ? "consignment" : "available",
+        // Location is not a status — normalize legacy "consignment" status, keep everything else.
+        status: s.status === "consignment" ? "available" : s.status,
+        ...(sizeChanged ? { lastMeasuredAt: new Date() } : {}),
       },
     });
+
+    if (sizeChanged) {
+      await tx.growthRecord.create({
+        data: { specimenId, sizeCm: input.sizeCm, source: "manual", notes: "Inventory quick-edit" },
+      });
+    }
 
     if (locationChanged) {
       await recordMovement(tx, {
@@ -709,22 +794,30 @@ export async function updateTarantulAppId(specimenId: string, tarantulAppId: str
   });
 }
 
-/** FIFO assignment for web orders — warehouse first, then distributor consignment. */
+/** FIFO allocation for web orders — warehouse first, then partner consignment stock. */
 export interface DistributorPickupLine {
   productName: string;
   sizeLabel: string;
   sex: SpecimenSex;
   distributorName: string;
   distributorPhone: string;
+  distributorEmail: string;
+  locationId: string;
   price: number;
 }
 
-export interface AssignSpecimensResult {
+export interface AllocateSpecimensResult {
   ids: string[];
   distributorPickups: DistributorPickupLine[];
 }
 
-export async function assignSpecimensFifo(
+/**
+ * Reserve specimens for a PAID order (available → allocated). They vanish from
+ * the storefront immediately but are NOT sold yet — that only happens on
+ * physical delivery (see `markOrderSpecimensSold`). The sale price is recorded
+ * now (it is the amount actually paid) and never overwritten.
+ */
+export async function allocateSpecimensFifo(
   tx: Prisma.TransactionClient,
   opts: {
     productId: string;
@@ -738,21 +831,22 @@ export async function assignSpecimensFifo(
     salesChannel?: SalesChannel;
     paymentMethod?: PaymentMethod;
   },
-): Promise<AssignSpecimensResult> {
+): Promise<AllocateSpecimensResult> {
   const match = {
     productId: opts.productId,
     sizeCm: opts.sizeCm,
     sex: opts.sex,
     price: opts.price,
+    status: { in: IN_STOCK_STATUSES },
   };
 
   const specimenInclude = {
-    location: { select: { name: true, phone: true } },
+    location: { select: { name: true, phone: true, email: true } },
     product: { select: { commonEn: true, scientific: true } },
   } as const;
 
   const warehouseSpecimens = await tx.specimen.findMany({
-    where: { ...match, status: "available", locationType: "warehouse" },
+    where: { ...match, locationType: "warehouse" },
     include: specimenInclude,
     orderBy: { purchasedAt: "asc" },
     take: opts.qty,
@@ -761,7 +855,7 @@ export async function assignSpecimensFifo(
   let specimens = warehouseSpecimens;
   if (specimens.length < opts.qty) {
     const consignmentSpecimens = await tx.specimen.findMany({
-      where: { ...match, status: "consignment" },
+      where: { ...match, locationType: "consignment" },
       include: specimenInclude,
       orderBy: { purchasedAt: "asc" },
       take: opts.qty - specimens.length,
@@ -773,19 +867,15 @@ export async function assignSpecimensFifo(
     throw new Error(`Insufficient specimens for ${opts.productId}/${opts.sizeCm}cm/${opts.sex}`);
   }
 
-  const soldAt = new Date();
   const ids: string[] = [];
   const distributorPickups: DistributorPickupLine[] = [];
 
   for (const s of specimens) {
-    const wasConsignment = s.status === "consignment";
-
     await tx.specimen.update({
       where: { id: s.id },
       data: {
-        status: "sold",
+        status: "allocated",
         salePrice: opts.salePriceEach,
-        soldAt,
         salesChannel: opts.salesChannel ?? "web",
         paymentMethod: opts.paymentMethod ?? "stripe",
         orderId: opts.orderId,
@@ -798,7 +888,7 @@ export async function assignSpecimensFifo(
 
     await recordMovement(tx, {
       specimenId: s.id,
-      type: "sale",
+      type: "allocation",
       fromLocationType: s.locationType,
       fromLocationId: s.locationId,
       amount: opts.salePriceEach,
@@ -809,19 +899,94 @@ export async function assignSpecimensFifo(
 
     ids.push(s.id);
 
-    if (wasConsignment && s.location) {
+    if (s.locationType === "consignment" && s.location && s.locationId) {
       distributorPickups.push({
         productName: s.product.scientific,
         sizeLabel: formatCmAsInches(s.sizeCm),
         sex: s.sex,
         distributorName: s.location.name,
         distributorPhone: s.location.phone,
+        distributorEmail: s.location.email,
+        locationId: s.locationId,
         price: opts.salePriceEach,
       });
     }
   }
 
   return { ids, distributorPickups };
+}
+
+/** @deprecated renamed — orders now allocate on payment and sell on delivery. */
+export const assignSpecimensFifo = allocateSpecimensFifo;
+
+/**
+ * Complete the sale of an order's allocated specimens (physical delivery
+ * confirmed). Only now do they become SOLD.
+ */
+export async function markOrderSpecimensSold(orderId: string, soldAt = new Date()): Promise<void> {
+  const db = requireDb();
+  await db.$transaction(async (tx) => {
+    const specimens = await tx.specimen.findMany({ where: { orderId } });
+    for (const s of specimens) {
+      if (s.status === "sold") continue;
+      if (s.status !== "allocated") {
+        throw new Error(`Specimen ${s.id} on order ${orderId} is not allocated (status: ${s.status}).`);
+      }
+      await tx.specimen.update({
+        where: { id: s.id },
+        data: { status: "sold", soldAt },
+      });
+      await recordMovement(tx, {
+        specimenId: s.id,
+        type: "sale",
+        fromLocationType: s.locationType,
+        fromLocationId: s.locationId,
+        amount: s.salePrice,
+        salesChannel: s.salesChannel,
+        paymentMethod: s.paymentMethod,
+        notes: `Delivery confirmed — order ${orderId}`,
+      });
+    }
+  });
+  await syncAggregateStock();
+}
+
+/**
+ * Release an order's allocated specimens back to AVAILABLE (cancellation /
+ * no-show). Physical location is untouched — disposition is a separate,
+ * manual decision.
+ */
+export async function releaseOrderSpecimens(orderId: string, notes = ""): Promise<string[]> {
+  const db = requireDb();
+  const released: string[] = [];
+  await db.$transaction(async (tx) => {
+    const specimens = await tx.specimen.findMany({ where: { orderId } });
+    for (const s of specimens) {
+      if (s.status !== "allocated") continue;
+      await tx.orderLineSpecimen.deleteMany({ where: { specimenId: s.id } });
+      await tx.specimen.update({
+        where: { id: s.id },
+        data: {
+          status: "available",
+          orderId: null,
+          salePrice: null,
+          soldAt: null,
+          salesChannel: null,
+          paymentMethod: null,
+        },
+      });
+      await recordMovement(tx, {
+        specimenId: s.id,
+        type: "release",
+        fromLocationType: s.locationType,
+        fromLocationId: s.locationId,
+        notes: notes || `Released from order ${orderId}`,
+      });
+      released.push(s.id);
+    }
+  });
+  await syncAggregateStock();
+  return released;
 }
 
 export async function countAvailableWarehouse(
@@ -832,7 +997,7 @@ export async function countAvailableWarehouse(
 ): Promise<number> {
   const db = requireDb();
   return db.specimen.count({
-    where: { productId, sizeCm, sex, price, status: "available", locationType: "warehouse" },
+    where: { productId, sizeCm, sex, price, status: { in: IN_STOCK_STATUSES }, locationType: "warehouse" },
   });
 }
 
@@ -845,7 +1010,7 @@ export async function countPurchasableStock(
 ): Promise<number> {
   const db = requireDb();
   return db.specimen.count({
-    where: { productId, sizeCm, sex, price, status: { in: ["available", "consignment"] } },
+    where: { productId, sizeCm, sex, price, ...PURCHASABLE_WHERE },
   });
 }
 
@@ -853,8 +1018,8 @@ export async function getFinanceSummary(from?: Date, to?: Date): Promise<Finance
   const db = requireDb();
 
   const inStock = await db.specimen.findMany({
-    where: { status: { in: ["available", "consignment"] } },
-    select: { unitCost: true, status: true },
+    where: { status: { in: [...IN_STOCK_STATUSES, "allocated"] } },
+    select: { unitCost: true, locationType: true },
   });
 
   let inventoryValue = 0;
@@ -862,12 +1027,12 @@ export async function getFinanceSummary(from?: Date, to?: Date): Promise<Finance
   let consignmentValue = 0;
   let consignmentCount = 0;
   for (const s of inStock) {
-    if (s.status === "available") {
-      inventoryValue += s.unitCost;
-      inventoryCount++;
-    } else {
+    if (s.locationType === "consignment") {
       consignmentValue += s.unitCost;
       consignmentCount++;
+    } else {
+      inventoryValue += s.unitCost;
+      inventoryCount++;
     }
   }
 
@@ -977,8 +1142,8 @@ export async function deleteSpecimens(specimenIds: string[]): Promise<void> {
         include: { orderLineLinks: true },
       });
       if (!s) throw new Error(`Specimen not found: ${id}`);
-      if (s.status === "sold") {
-        throw new Error(`Cannot delete sold specimen${s.tarantulAppId ? ` (${s.tarantulAppId})` : ""}.`);
+      if (s.status === "sold" || s.status === "allocated") {
+        throw new Error(`Cannot delete ${s.status} specimen${s.tarantulAppId ? ` (${s.tarantulAppId})` : ""}.`);
       }
       if (s.orderLineLinks.length > 0) {
         throw new Error(`Specimen ${id} is linked to an order.`);

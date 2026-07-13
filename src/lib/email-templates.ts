@@ -91,6 +91,61 @@ function get(data: Record<string, string>, key: string, fallback = ""): string {
   return v == null || v === "" ? fallback : v;
 }
 
+/** Interpolate {token} placeholders from data (falls back to the sample value, then ""). */
+function fill(text: string, data: Record<string, string>, sample: Record<string, string>): string {
+  return text.replace(/\{(\w+)\}/g, (_, key: string) => data[key] ?? sample[key] ?? "");
+}
+
+type SimpleTemplateSpec = {
+  id: string;
+  label: string;
+  description: string;
+  sample: Record<string, string>;
+  /** Subject line with {token} placeholders. `fr` falls back to `en`. */
+  subject: { en: string; fr?: string };
+  /** Paragraphs with {token} placeholders. HTML allowed. `fr` falls back to `en`. */
+  paragraphs: { en: string[]; fr?: string[] };
+  /** Optional CTA button; href comes from the data key given in `hrefKey`. */
+  cta?: { en: string; fr?: string; hrefKey: string };
+};
+
+/**
+ * Compact factory for the operational template catalog (fulfillment, partner ops,
+ * settlements, internal alerts). Keeps each template declarative so the catalog
+ * stays readable as it grows.
+ */
+function simpleTemplate(spec: SimpleTemplateSpec): EmailTemplate {
+  return {
+    id: spec.id,
+    label: spec.label,
+    description: spec.description,
+    sample: spec.sample,
+    render(locale, data) {
+      const isFr = locale === "fr";
+      const subject = fill(isFr ? spec.subject.fr ?? spec.subject.en : spec.subject.en, data, spec.sample);
+      const paragraphs = (isFr ? spec.paragraphs.fr ?? spec.paragraphs.en : spec.paragraphs.en).map((t) =>
+        fill(t, data, spec.sample),
+      );
+      let bodyHtml = paragraphs.map(p).join("");
+      if (spec.cta) {
+        const href = get(data, spec.cta.hrefKey, spec.sample[spec.cta.hrefKey] ?? SITE.url);
+        bodyHtml += button(fill(isFr ? spec.cta.fr ?? spec.cta.en : spec.cta.en, data, spec.sample), href);
+      }
+      bodyHtml += p(isFr ? `— L'équipe ${SITE.name}` : `— The ${SITE.name} team`);
+      const textLines = paragraphs.map((t) => t.replace(/<br\s*\/?>/g, "\n").replace(/<[^>]+>/g, ""));
+      if (spec.cta) {
+        textLines.push(get(data, spec.cta.hrefKey, spec.sample[spec.cta.hrefKey] ?? SITE.url));
+      }
+      textLines.push(`— ${SITE.name}`);
+      return {
+        subject,
+        html: layout({ locale, preview: subject, bodyHtml }),
+        text: textLines.join("\n\n"),
+      };
+    },
+  };
+}
+
 export const EMAIL_TEMPLATES: EmailTemplate[] = [
   {
     id: "order-confirmation",
@@ -249,6 +304,469 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       return { subject, html, text };
     },
   },
+
+  // -------------------------------------------------------------------------
+  // Customer fulfillment lifecycle
+  // -------------------------------------------------------------------------
+  simpleTemplate({
+    id: "preparing-specimen",
+    label: "Preparing your specimen",
+    description: "Sent when MSC starts preparing a paid order for pickup/meetup.",
+    sample: { name: "Alex", orderNumber: "MSC-1042" },
+    subject: {
+      en: "We're preparing your spiders — {orderNumber}",
+      fr: "Nous préparons vos mygales — {orderNumber}",
+    },
+    paragraphs: {
+      en: [
+        "Hi {name},",
+        "Your order <strong>{orderNumber}</strong> is now being prepared. Each spider gets a final health check, a fresh enclosure and travel-safe packing.",
+        "We'll email you the moment it's ready to collect.",
+      ],
+      fr: [
+        "Bonjour {name},",
+        "Votre commande <strong>{orderNumber}</strong> est en préparation. Chaque mygale reçoit un dernier contrôle de santé, un contenant propre et un emballage sécuritaire.",
+        "Nous vous écrirons dès qu'elle sera prête à récupérer.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "pickup-reminder",
+    label: "Pickup reminder",
+    description: "Reminder that an order is waiting to be collected.",
+    sample: { name: "Alex", orderNumber: "MSC-1042", pickupName: "Plateau pickup point", collectBy: "July 18" },
+    subject: {
+      en: "Reminder — your order {orderNumber} is waiting",
+      fr: "Rappel — votre commande {orderNumber} vous attend",
+    },
+    paragraphs: {
+      en: [
+        "Hi {name},",
+        "A friendly reminder that your order <strong>{orderNumber}</strong> is ready at <strong>{pickupName}</strong>.",
+        "Please collect it by <strong>{collectBy}</strong> so your spider spends as little time as possible in transit housing.",
+      ],
+      fr: [
+        "Bonjour {name},",
+        "Petit rappel : votre commande <strong>{orderNumber}</strong> est prête chez <strong>{pickupName}</strong>.",
+        "Merci de la récupérer avant le <strong>{collectBy}</strong> pour que votre mygale passe le moins de temps possible en contenant de transport.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "final-pickup-reminder",
+    label: "Final pickup reminder",
+    description: "Last reminder before the no-show deadline.",
+    sample: { name: "Alex", orderNumber: "MSC-1042", pickupName: "Plateau pickup point", collectBy: "July 18" },
+    subject: {
+      en: "Final reminder — order {orderNumber} must be collected by {collectBy}",
+      fr: "Dernier rappel — commande {orderNumber} à récupérer avant le {collectBy}",
+    },
+    paragraphs: {
+      en: [
+        "Hi {name},",
+        "This is the final reminder for order <strong>{orderNumber}</strong>, ready at <strong>{pickupName}</strong>.",
+        "If it isn't collected by <strong>{collectBy}</strong>, the order will be cancelled and refunded per our pickup policy.",
+        "Need more time or a different arrangement? Just reply to this email — we're flexible when we hear from you.",
+      ],
+      fr: [
+        "Bonjour {name},",
+        "Ceci est le dernier rappel pour la commande <strong>{orderNumber}</strong>, prête chez <strong>{pickupName}</strong>.",
+        "Si elle n'est pas récupérée avant le <strong>{collectBy}</strong>, la commande sera annulée et remboursée selon notre politique de cueillette.",
+        "Besoin de plus de temps ou d'un autre arrangement ? Répondez simplement à ce courriel.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "no-show-warning",
+    label: "No-show warning",
+    description: "Sent when the pickup window has expired, before cancellation.",
+    sample: { name: "Alex", orderNumber: "MSC-1042", graceHours: "24" },
+    subject: {
+      en: "Your pickup window for {orderNumber} has expired",
+      fr: "Le délai de cueillette pour {orderNumber} est expiré",
+    },
+    paragraphs: {
+      en: [
+        "Hi {name},",
+        "The pickup window for order <strong>{orderNumber}</strong> has passed and the order is flagged as uncollected.",
+        "If we don't hear from you within <strong>{graceHours} hours</strong>, the order will be cancelled and refunded (a no-show fee may apply).",
+        "Reply to this email if you still want your spider — we'd love to complete the adoption.",
+      ],
+      fr: [
+        "Bonjour {name},",
+        "Le délai de cueillette de la commande <strong>{orderNumber}</strong> est dépassé et la commande est marquée comme non réclamée.",
+        "Sans nouvelles de votre part d'ici <strong>{graceHours} heures</strong>, la commande sera annulée et remboursée (des frais de non-présentation peuvent s'appliquer).",
+        "Répondez à ce courriel si vous voulez toujours votre mygale — nous serons ravis de finaliser l'adoption.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "order-cancelled",
+    label: "Order cancelled",
+    description: "Confirms an order was cancelled (no-show or manual).",
+    sample: { name: "Alex", orderNumber: "MSC-1042", reason: "the pickup window expired" },
+    subject: {
+      en: "Order {orderNumber} has been cancelled",
+      fr: "Commande {orderNumber} annulée",
+    },
+    paragraphs: {
+      en: [
+        "Hi {name},",
+        "Your order <strong>{orderNumber}</strong> has been cancelled because {reason}.",
+        "If a refund applies, you'll receive a separate confirmation once it's processed.",
+        "The spiders return to our care and to the website — you're always welcome back.",
+      ],
+      fr: [
+        "Bonjour {name},",
+        "Votre commande <strong>{orderNumber}</strong> a été annulée : {reason}.",
+        "Si un remboursement s'applique, vous recevrez une confirmation distincte lorsqu'il sera traité.",
+        "Les mygales retournent à nos soins et sur le site — vous êtes toujours le bienvenu.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "refund-issued",
+    label: "Refund issued",
+    description: "Confirms a Stripe refund was issued to the customer.",
+    sample: { name: "Alex", orderNumber: "MSC-1042", amount: "$129.00 CAD" },
+    subject: {
+      en: "Refund issued for order {orderNumber}",
+      fr: "Remboursement émis pour la commande {orderNumber}",
+    },
+    paragraphs: {
+      en: [
+        "Hi {name},",
+        "We've issued a refund of <strong>{amount}</strong> for order <strong>{orderNumber}</strong>.",
+        "Depending on your bank, it can take 5–10 business days to appear on your statement.",
+      ],
+      fr: [
+        "Bonjour {name},",
+        "Nous avons émis un remboursement de <strong>{amount}</strong> pour la commande <strong>{orderNumber}</strong>.",
+        "Selon votre banque, il peut s'écouler de 5 à 10 jours ouvrables avant qu'il apparaisse sur votre relevé.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "pickup-completed",
+    label: "Pickup completed",
+    description: "Sent after the customer collects their spider — includes care resources.",
+    sample: { name: "Alex", orderNumber: "MSC-1042", careUrl: `${SITE.url}/care` },
+    subject: {
+      en: "Welcome home, little one — {orderNumber} complete",
+      fr: "Bienvenue à la maison — {orderNumber} complétée",
+    },
+    paragraphs: {
+      en: [
+        "Hi {name},",
+        "Order <strong>{orderNumber}</strong> is complete — your spider is officially home. 🕷️",
+        "Give it a quiet 48 hours to settle in before offering food. Our care guides cover everything from humidity to first molts.",
+      ],
+      fr: [
+        "Bonjour {name},",
+        "La commande <strong>{orderNumber}</strong> est complétée — votre mygale est officiellement chez vous. 🕷️",
+        "Laissez-lui 48 heures de calme avant d'offrir de la nourriture. Nos guides couvrent tout, de l'humidité aux premières mues.",
+      ],
+    },
+    cta: { en: "Read the care guides", fr: "Voir les guides de soins", hrefKey: "careUrl" },
+  }),
+
+  // -------------------------------------------------------------------------
+  // Partner operations (partners interact via email + simple links — no dashboards)
+  // -------------------------------------------------------------------------
+  simpleTemplate({
+    id: "partner-pickup-reservation",
+    label: "Partner — pickup reservation received",
+    description: "Tells a partner that a web order reserved specimens held at their store.",
+    sample: {
+      partnerName: "Reptile Concept",
+      orderNumber: "MSC-1042",
+      itemLines: "Grammostola pulchra (2 3/8″, unsexed)",
+    },
+    subject: { en: "Reservation — please hold inventory for order {orderNumber}" },
+    paragraphs: {
+      en: [
+        "Hi {partnerName},",
+        "A Montreal Spider Co. web order just reserved the following specimen(s) currently at your store:",
+        "<strong>{itemLines}</strong>",
+        "Please set them aside — they are no longer for walk-in sale. We'll follow up with pickup details for order <strong>{orderNumber}</strong>.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "partner-customer-arriving",
+    label: "Partner — customer arriving for pickup",
+    description: "Tells the partner an order is ready and who will collect it, with a one-tap confirmation link.",
+    sample: {
+      partnerName: "Reptile Concept",
+      orderNumber: "MSC-1042",
+      customerName: "Alex",
+      itemLines: "Grammostola pulchra (2 3/8″, unsexed)",
+      confirmUrl: `${SITE.url}/en/p/pickup/sample-token`,
+    },
+    subject: { en: "Pickup — {customerName} is collecting order {orderNumber}" },
+    paragraphs: {
+      en: [
+        "Hi {partnerName},",
+        "<strong>{customerName}</strong> will collect order <strong>{orderNumber}</strong>:",
+        "<strong>{itemLines}</strong>",
+        "When you hand it over, tap the button below (or scan the specimen's QR) to confirm delivery — this settles the inventory automatically.",
+      ],
+    },
+    cta: { en: "Confirm handover", hrefKey: "confirmUrl" },
+  }),
+  simpleTemplate({
+    id: "partner-specimen-sold",
+    label: "Partner — walk-in sale registered",
+    description: "Confirms a walk-in sale registered by QR at the partner store.",
+    sample: {
+      partnerName: "Reptile Concept",
+      itemLine: "Grammostola pulchra (2 3/8″, unsexed)",
+      salePrice: "$140.00 CAD",
+      settlementPrice: "$95.00 CAD",
+    },
+    subject: { en: "Sale registered — {itemLine}" },
+    paragraphs: {
+      en: [
+        "Hi {partnerName},",
+        "The walk-in sale of <strong>{itemLine}</strong> was registered successfully.",
+        "Sale price: <strong>{salePrice}</strong> · Owed to MSC: <strong>{settlementPrice}</strong>.",
+        "This entry was added to your settlement ledger and will appear on your next monthly statement.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "partner-no-show-summary",
+    label: "Partner — no-show summary",
+    description: "Tells the partner a reserved order was never collected and what happens next.",
+    sample: { partnerName: "Reptile Concept", orderNumber: "MSC-1042", itemLines: "Grammostola pulchra (2 3/8″)" },
+    subject: { en: "No-show — order {orderNumber} was not collected" },
+    paragraphs: {
+      en: [
+        "Hi {partnerName},",
+        "Order <strong>{orderNumber}</strong> was not collected within the pickup window. The reservation on the following specimen(s) is lifted:",
+        "<strong>{itemLines}</strong>",
+        "Our team will contact you shortly about whether the inventory stays with you, returns to our warehouse, or transfers elsewhere. Nothing to do on your side for now.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "partner-restock-proposal",
+    label: "Partner — restock recommendation",
+    description: "Proposes replacement inventory to a partner; nothing ships until they confirm.",
+    sample: {
+      partnerName: "Reptile Concept",
+      itemLines: "2× Grammostola pulchra (2″) · 1× Caribena versicolor (1.5″)",
+      reason: "Your display sold through faster than expected",
+      preferredDate: "July 22",
+      confirmUrl: `${SITE.url}/en/p/restock/sample-token`,
+    },
+    subject: { en: "Restock proposal for your MSC display" },
+    paragraphs: {
+      en: [
+        "Hi {partnerName},",
+        "{reason} — we'd like to send you the following specimens:",
+        "<strong>{itemLines}</strong>",
+        "Suggested delivery date: <strong>{preferredDate}</strong>.",
+        "Nothing ships until you confirm. Review and approve (or decline) with one tap below.",
+      ],
+    },
+    cta: { en: "Review the proposal", hrefKey: "confirmUrl" },
+  }),
+  simpleTemplate({
+    id: "partner-restock-approved",
+    label: "Partner — restock approved",
+    description: "Confirms a restock proposal was approved and is being scheduled.",
+    sample: { partnerName: "Reptile Concept", itemLines: "2× Grammostola pulchra (2″)", preferredDate: "July 22" },
+    subject: { en: "Restock confirmed — delivery around {preferredDate}" },
+    paragraphs: {
+      en: [
+        "Hi {partnerName},",
+        "Thanks for confirming! We'll deliver:",
+        "<strong>{itemLines}</strong>",
+        "Target date: <strong>{preferredDate}</strong>. You'll get a transfer notice when the specimens are on their way.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "partner-transfer-notice",
+    label: "Partner — inventory transfer notice",
+    description: "Notifies a partner that specimens are in transit to (or from) their store.",
+    sample: { partnerName: "Reptile Concept", direction: "to", itemLines: "2× Grammostola pulchra (2″)" },
+    subject: { en: "Inventory transfer {direction} your store" },
+    paragraphs: {
+      en: [
+        "Hi {partnerName},",
+        "The following MSC inventory is being transferred {direction} your store:",
+        "<strong>{itemLines}</strong>",
+        "Remember: consignment inventory remains the property of Montreal Spider Co. until sold.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "partner-inventory-delivered",
+    label: "Partner — inventory delivered",
+    description: "Confirms specimens arrived at the partner store and are live for sale.",
+    sample: { partnerName: "Reptile Concept", itemLines: "2× Grammostola pulchra (2″)" },
+    subject: { en: "Inventory delivered — your display is restocked" },
+    paragraphs: {
+      en: [
+        "Hi {partnerName},",
+        "The following specimens were delivered to your store and are now active in your display:",
+        "<strong>{itemLines}</strong>",
+        "Each enclosure carries a QR label — scan it to register a walk-in sale in seconds.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "partner-audit-completed",
+    label: "Partner — audit completed",
+    description: "Summary sent to the partner after an MSC store audit visit.",
+    sample: {
+      partnerName: "Reptile Concept",
+      auditDate: "July 12",
+      foundCount: "7",
+      missingCount: "1",
+      notes: "All animals in great shape; one enclosure needs a substrate refresh.",
+    },
+    subject: { en: "Audit completed — your MSC display on {auditDate}" },
+    paragraphs: {
+      en: [
+        "Hi {partnerName},",
+        "We visited your store on <strong>{auditDate}</strong>. Summary: <strong>{foundCount}</strong> specimens verified, <strong>{missingCount}</strong> unaccounted for.",
+        "{notes}",
+        "If anything needs following up, our team will reach out separately.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "partner-monthly-statement",
+    label: "Partner — monthly settlement statement",
+    description: "Monthly statement generated from the settlement ledger.",
+    sample: {
+      partnerName: "Reptile Concept",
+      period: "June 2026",
+      salesCount: "4",
+      totalSales: "$540.00 CAD",
+      totalOwed: "$360.00 CAD",
+      totalMargin: "$180.00 CAD",
+    },
+    subject: { en: "Your MSC settlement statement — {period}" },
+    paragraphs: {
+      en: [
+        "Hi {partnerName},",
+        "Here's your settlement statement for <strong>{period}</strong>:",
+        "Sales registered: <strong>{salesCount}</strong><br />Total sales: <strong>{totalSales}</strong><br />Amount owed to MSC: <strong>{totalOwed}</strong><br />Your margin: <strong>{totalMargin}</strong>",
+        "Payment is due within 15 days. Reply to this email with any questions about individual entries.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "partner-payment-received",
+    label: "Partner — payment received",
+    description: "Confirms a settlement payment was received from the partner.",
+    sample: { partnerName: "Reptile Concept", period: "June 2026", amount: "$360.00 CAD" },
+    subject: { en: "Payment received — {period} statement settled" },
+    paragraphs: {
+      en: [
+        "Hi {partnerName},",
+        "We received your payment of <strong>{amount}</strong> for the <strong>{period}</strong> statement. Your ledger is settled — thank you!",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "partner-invitation",
+    label: "Partner — new partner invitation",
+    description: "Invites a prospective store to host an MSC display (sales outreach).",
+    sample: { contactName: "Marie", storeName: "Reptile Concept" },
+    subject: { en: "Partner with Montreal Spider Co. — a living display for {storeName}" },
+    paragraphs: {
+      en: [
+        "Hi {contactName},",
+        `${SITE.name} places curated, fully-maintained tarantula displays in select Montréal shops. We handle the animals, husbandry visits, restocks and marketing — you earn a margin on every sale with zero inventory risk.`,
+        "Interested? Reply to this email and we'll set up a quick visit.",
+      ],
+    },
+  }),
+
+  // -------------------------------------------------------------------------
+  // Internal (MSC staff)
+  // -------------------------------------------------------------------------
+  simpleTemplate({
+    id: "internal-new-order",
+    label: "Internal — new paid order",
+    description: "Staff alert for every new paid web order.",
+    sample: {
+      orderNumber: "MSC-1042",
+      customerName: "Alex",
+      total: "$129.00 CAD",
+      method: "Pickup — Plateau pickup point",
+      itemLines: "Grammostola pulchra (2 3/8″, unsexed)",
+    },
+    subject: { en: "🕷️ New order {orderNumber} — {total}" },
+    paragraphs: {
+      en: [
+        "New paid order <strong>{orderNumber}</strong> from <strong>{customerName}</strong>.",
+        "<strong>Items:</strong><br />{itemLines}",
+        "<strong>Fulfillment:</strong> {method}<br /><strong>Total:</strong> {total}",
+        "Specimens are allocated and hidden from the storefront. Start preparation from Admin → Operations.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "internal-pickup-overdue",
+    label: "Internal — pickup overdue",
+    description: "Staff alert when an order passes its collect-by deadline.",
+    sample: { orderNumber: "MSC-1042", customerName: "Alex", collectBy: "July 18", pickupName: "Plateau pickup point" },
+    subject: { en: "⚠️ Pickup overdue — {orderNumber}" },
+    paragraphs: {
+      en: [
+        "Order <strong>{orderNumber}</strong> ({customerName}) was not collected by <strong>{collectBy}</strong> at {pickupName}.",
+        "The customer received a no-show warning. Process the no-show (refund + release) from Admin → Operations, or extend the window after contacting them.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "internal-specimen-issue",
+    label: "Internal — specimen issue reported",
+    description: "Staff alert when an issue is reported from a specimen QR page.",
+    sample: { specimenLabel: "Grammostola pulchra (2 3/8″)", locationName: "Reptile Concept", issue: "Enclosure cracked" },
+    subject: { en: "🚨 Specimen issue — {specimenLabel} at {locationName}" },
+    paragraphs: {
+      en: [
+        "An issue was reported for <strong>{specimenLabel}</strong> at <strong>{locationName}</strong>:",
+        "<strong>{issue}</strong>",
+        "A task was created in Admin → Operations.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "internal-restock-awaiting",
+    label: "Internal — restock awaiting confirmation",
+    description: "Staff alert when a restock proposal is sent or a partner responds.",
+    sample: { locationName: "Reptile Concept", status: "confirmed", itemLines: "2× Grammostola pulchra (2″)" },
+    subject: { en: "Restock {status} — {locationName}" },
+    paragraphs: {
+      en: [
+        "Restock proposal for <strong>{locationName}</strong> is now <strong>{status}</strong>.",
+        "<strong>{itemLines}</strong>",
+        "Manage it from Admin → Restock.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "internal-refund-processed",
+    label: "Internal — refund processed",
+    description: "Staff record of an automatic or manual refund.",
+    sample: { orderNumber: "MSC-1042", amount: "$129.00 CAD", reason: "no-show" },
+    subject: { en: "Refund processed — {orderNumber} ({amount})" },
+    paragraphs: {
+      en: [
+        "A refund of <strong>{amount}</strong> was processed for order <strong>{orderNumber}</strong>.",
+        "Reason: {reason}.",
+        "The specimens were released back to available and a disposition task was created if needed.",
+      ],
+    },
+  }),
 ];
 
 export type EmailTemplateMeta = {

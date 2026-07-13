@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { formatDate, formatPrice } from "@/lib/format";
 
-type OrderStatus = "processing" | "ready" | "delivered" | "cancelled";
+type OrderStatus = "paid" | "processing" | "ready" | "delivered" | "cancelled";
 
 interface OrderDetail {
   orderNumber: string;
@@ -107,6 +107,7 @@ export default function AdminOrderPanel({ orderNumber, open }: { orderNumber: st
             <label className="field">
               <span>{ad.orderStatus}</span>
               <select className="input" value={status} onChange={(e) => { setStatus(e.target.value as OrderStatus); setSaved(false); }}>
+                <option value="paid">Paid</option>
                 <option value="processing">{a.statusProcessing}</option>
                 <option value="ready">{a.statusReady}</option>
                 <option value="delivered">{a.statusDelivered}</option>

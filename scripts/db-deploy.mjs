@@ -34,7 +34,11 @@ run("Migrating legacy location tables", "node scripts/migrate-legacy-locations.m
 
 run("Dropping legacy product rating columns", "node scripts/drop-product-ratings.mjs", { fatal: false });
 
-// 2) Sync the schema to the database (additive changes apply automatically;
+// 2) Required unique token columns (qrToken/partnerToken) can't be added to
+//    non-empty tables by db push — pre-create and backfill them first.
+run("Backfilling QR/partner tokens", "node scripts/pre-push-tokens.mjs", { fatal: true });
+
+// 3) Sync the schema to the database (additive changes apply automatically;
 //    destructive changes fail the build so they get reviewed).
 run("Syncing schema (prisma db push)", "prisma db push --skip-generate", { fatal: true });
 
@@ -43,6 +47,8 @@ run("Backfilling size inches on legacy rows", "node scripts/backfill-size-inches
 run("Backfilling specimens from legacy stock counts", "node scripts/backfill-specimens.mjs", { fatal: false });
 
 run("Backfilling size/price on legacy specimens", "node scripts/backfill-specimen-size-price.mjs", { fatal: false });
+
+run("Separating specimen status from location", "node scripts/backfill-status-location.mjs", { fatal: false });
 
 // 3) Seed base data — the seed only fills EMPTY tables, so this is safe to run
 //    on every deploy and won't resurrect rows you deleted in the admin.
