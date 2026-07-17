@@ -6,6 +6,7 @@ import { getStripe, stripeConfigured } from "@/lib/stripe";
 import { getSettings } from "@/lib/data/settings";
 import { markOrderSpecimensSold, releaseOrderSpecimens } from "@/lib/data/specimens";
 import { sendNotification, notifyStaff } from "@/lib/notifications/service";
+import { partnerPickupUrl } from "@/lib/partner/auth";
 
 /**
  * Fulfillment domain — everything that happens AFTER payment until physical
@@ -162,7 +163,7 @@ export async function markReady(fulfillmentId: string, scheduledFor?: Date): Pro
         orderNumber: f.order.orderNumber,
         customerName: f.order.name,
         itemLines: orderItemLines(f.order),
-        confirmUrl: `${SITE.url}/en/p/pickup/${f.pickupToken}`,
+        confirmUrl: partnerPickupUrl(f.pickupToken, f.location.partnerToken),
       },
       context: { orderId: f.orderId, fulfillmentId, locationId: f.location.id },
     });

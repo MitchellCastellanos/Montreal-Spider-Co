@@ -5,6 +5,7 @@ import { formatCmAsInches } from "@/lib/size-inches";
 import { syncAggregateStock } from "@/lib/data/specimens";
 import { sendNotification, notifyStaff } from "@/lib/notifications/service";
 import { createTask } from "@/lib/data/tasks";
+import { assertPartnerTokenForLocation } from "@/lib/partner/auth";
 
 /**
  * Partner QR operations. Partners have no dashboards or accounts — a scanned
@@ -58,9 +59,7 @@ export async function registerWalkInSale(input: WalkInSaleInput): Promise<WalkIn
   if (specimen.locationType !== "consignment" || !specimen.location) {
     throw new Error("This specimen is not at a partner store.");
   }
-  if (specimen.location.partnerToken !== input.partnerToken) {
-    throw new Error("This QR code is not authorized for this store.");
-  }
+  await assertPartnerTokenForLocation(input.partnerToken, specimen.locationId!);
   if (specimen.status === "sold") throw new Error("This specimen is already sold.");
   if (specimen.status === "allocated") {
     throw new Error("This specimen is reserved for a paid web order — contact Montreal Spider Co.");

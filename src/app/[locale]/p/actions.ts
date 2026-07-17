@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { PaymentMethod } from "@prisma/client";
 import { respondToProposal } from "@/lib/data/restock";
 import { getFulfillmentByPickupToken, confirmPickup } from "@/lib/fulfillment/fulfillment";
+import { assertPartnerTokenForLocation } from "@/lib/partner/auth";
 import { registerWalkInSale, reportSpecimenIssue, type WalkInSaleResult } from "@/lib/partner/walk-in";
 
 /**
@@ -43,7 +44,7 @@ export async function respondToProposalAction(
   return { ok: true };
 }
 
-/** Partner (or MSC staff at a meetup) confirms physical handover of an order. */
+/** Partner confirms physical handover of a web order at their pickup point. */
 export async function confirmPickupByTokenAction(
   _prev: PartnerActionState,
   formData: FormData,
@@ -51,6 +52,10 @@ export async function confirmPickupByTokenAction(
   try {
     const f = await getFulfillmentByPickupToken(str(formData, "token"));
     if (!f) return { error: "Order not found." };
+    if (!f.locationId) {
+      return { error: "This order must be confirmed by Montreal Spider Co. staff (meetup / custom pickup)." };
+    }
+    await assertPartnerTokenForLocation(str(formData, "partnerToken"), f.locationId);
     await confirmPickup(f.id);
   } catch (e) {
     return fail(e, "confirm_failed");

@@ -3,7 +3,13 @@
 import { useActionState } from "react";
 import { confirmPickupByTokenAction, type PartnerActionState } from "@/app/[locale]/p/actions";
 
-export default function PickupConfirmForm({ token }: { token: string }) {
+export default function PickupConfirmForm({
+  token,
+  partnerToken,
+}: {
+  token: string;
+  partnerToken: string;
+}) {
   const [state, formAction, pending] = useActionState<PartnerActionState, FormData>(
     confirmPickupByTokenAction,
     {},
@@ -20,6 +26,7 @@ export default function PickupConfirmForm({ token }: { token: string }) {
   return (
     <form action={formAction} className="space-y-4">
       <input type="hidden" name="token" value={token} />
+      <input type="hidden" name="partnerToken" value={partnerToken} />
       {state.error && <p className="text-sm text-danger">{state.error}</p>}
       <button
         disabled={pending}

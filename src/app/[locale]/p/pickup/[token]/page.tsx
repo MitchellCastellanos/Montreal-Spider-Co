@@ -14,14 +14,22 @@ export const metadata: Metadata = {
 
 export default async function PickupConfirmPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ k?: string }>;
 }) {
   const { token } = await params;
+  const { k } = await searchParams;
   if (!hasDatabase) notFound();
 
   const f = await getFulfillmentByPickupToken(token);
   if (!f) notFound();
+
+  const partnerKey = k ?? null;
+  const atPartner = f.locationId != null && f.location != null;
+  const keyMatches = atPartner && partnerKey === f.location!.partnerToken;
+  const canConfirm = f.status === "ready" && keyMatches;
 
   const statusNote: Record<string, string> = {
     completed: "This order was already handed over — nothing else to do.",
@@ -45,8 +53,17 @@ export default async function PickupConfirmPage({
         ))}
       </ul>
       <div className="mt-6">
-        {f.status === "ready" ? (
-          <PickupConfirmForm token={token} />
+        {canConfirm && partnerKey ? (
+          <PickupConfirmForm token={token} partnerToken={partnerKey} />
+        ) : f.status === "ready" && atPartner && !keyMatches ? (
+          <p className="rounded-xl border border-line bg-ink p-4 text-sm text-muted">
+            This handover link is missing your store authorization key. Open the link from the Montreal Spider Co.
+            email sent to your store — do not share it with customers.
+          </p>
+        ) : f.status === "ready" && !atPartner ? (
+          <p className="rounded-xl border border-line bg-ink p-4 text-sm text-muted">
+            This meetup order must be confirmed by Montreal Spider Co. staff at handover — not via this partner link.
+          </p>
         ) : (
           <p className="rounded-xl border border-line bg-ink p-4 text-sm text-muted">
             {statusNote[f.status]}
