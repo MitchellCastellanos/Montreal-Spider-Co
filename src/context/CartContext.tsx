@@ -20,6 +20,8 @@ export interface CartSnapshot {
   image?: string;
   sizeLabel: string;
   price: number;
+  /** Stock for this unit at the time it was added, used to cap cart quantity. */
+  stock?: number;
 }
 
 export interface CartLine {
@@ -67,7 +69,17 @@ export function snapshotFromProduct(product: Product, unit: AvailableUnit): Cart
     image: product.image,
     sizeLabel: unit.sizeLabel,
     price: unit.price,
+    stock: unit.stock,
   };
+}
+
+/** Best-effort stock lookup for a cart line — used to cap quantity so it can
+ *  never exceed what's actually purchasable. Falls back to the static product
+ *  seed when no snapshot stock is available (e.g. legacy/pre-fix cart lines). */
+function resolveStock(productId: string, unitKey: string, snap?: CartSnapshot): number | undefined {
+  if (snap && typeof snap.stock === "number") return snap.stock;
+  const product = PRODUCTS.find((p) => p.id === productId);
+  return product?.availability.find((u) => u.key === unitKey)?.stock;
 }
 
 interface CartCtx {
@@ -107,15 +119,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             parsed.map((line) => {
               if (!line || typeof line !== "object") return null;
               const l = line as CartLine;
-              if (!l.snap) return l;
-              return {
-                ...l,
-                snap: {
-                  ...l.snap,
-                  common: asL(l.snap.common),
-                  sizeLabel: typeof l.snap.sizeLabel === "string" ? l.snap.sizeLabel : String(l.snap.sizeLabel ?? ""),
-                },
+              if (!l.snap) {
+                const stock = resolveStock(l.productId, l.unitKey);
+                return stock != null ? { ...l, qty: Math.min(l.qty, stock) } : l;
+              }
+              const snap: CartSnapshot = {
+                ...l.snap,
+                common: asL(l.snap.common),
+                sizeLabel: typeof l.snap.sizeLabel === "string" ? l.snap.sizeLabel : String(l.snap.sizeLabel ?? ""),
               };
+              const stock = resolveStock(l.productId, l.unitKey, snap);
+              return { ...l, qty: stock != null ? Math.min(l.qty, stock) : l.qty, snap };
             }).filter((l): l is CartLine => l !== null),
           );
         }
@@ -138,13 +152,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const data = (await res.json()) as { lines?: CartLine[] };
         const serverLines = Array.isArray(data.lines) ? data.lines : [];
         setLines((local) => {
+          // Reconcile, don't accumulate: local and server are two views of the
+          // same synced cart, not separate additions. Summing them here would
+          // double the quantity on every rehydration (local + server, then
+          // synced back as the new local *and* server, doubling again next time).
           const merged = [...local];
           for (const sl of serverLines) {
             const idx = merged.findIndex((l) => l.productId === sl.productId && l.unitKey === sl.unitKey);
             if (idx >= 0) {
-              merged[idx] = { ...merged[idx], qty: merged[idx].qty + sl.qty, snap: merged[idx].snap ?? sl.snap };
+              const snap = merged[idx].snap ?? sl.snap;
+              const qty = Math.max(merged[idx].qty, sl.qty);
+              const stock = resolveStock(sl.productId, sl.unitKey, snap);
+              merged[idx] = { ...merged[idx], qty: stock != null ? Math.min(qty, stock) : qty, snap };
             } else {
-              merged.push(sl);
+              const stock = resolveStock(sl.productId, sl.unitKey, sl.snap);
+              merged.push(stock != null ? { ...sl, qty: Math.min(sl.qty, stock) } : sl);
             }
           }
           return merged;
@@ -184,11 +206,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setLines((prev) => {
       const existing = prev.find((l) => l.productId === productId && l.unitKey === unitKey);
       if (existing) {
+        const nextSnap = snap ?? existing.snap;
+        const stock = resolveStock(productId, unitKey, nextSnap);
+        const nextQty = existing.qty + qty;
         return prev.map((l) =>
-          l.productId === productId && l.unitKey === unitKey ? { ...l, qty: l.qty + qty, snap: snap ?? l.snap } : l
+          l.productId === productId && l.unitKey === unitKey
+            ? { ...l, qty: stock != null ? Math.min(nextQty, stock) : nextQty, snap: nextSnap }
+            : l
         );
       }
-      return [...prev, { productId, unitKey, qty, snap }];
+      const stock = resolveStock(productId, unitKey, snap);
+      return [...prev, { productId, unitKey, qty: stock != null ? Math.min(qty, stock) : qty, snap }];
     });
     setLastAdded(`${productId}:${unitKey}`);
     setOpen(true);
@@ -198,9 +226,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setLines((prev) =>
       qty <= 0
         ? prev.filter((l) => !(l.productId === productId && l.unitKey === unitKey))
-        : prev.map((l) =>
-            l.productId === productId && l.unitKey === unitKey ? { ...l, qty } : l
-          )
+        : prev.map((l) => {
+            if (l.productId !== productId || l.unitKey !== unitKey) return l;
+            const stock = resolveStock(productId, unitKey, l.snap);
+            return { ...l, qty: stock != null ? Math.min(qty, stock) : qty };
+          })
     );
   }, []);
 
