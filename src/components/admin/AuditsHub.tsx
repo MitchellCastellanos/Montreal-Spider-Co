@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { createAuditAction } from "@/app/[locale]/admin/ops-actions";
 import type { ActionState } from "@/app/[locale]/admin/actions";
 import type { Locale } from "@/i18n/config";
-import { PAYMENT_LABELS, PAYMENT_METHODS } from "@/lib/inventory-labels";
+import { PAYMENT_LABELS, PAYMENT_METHODS, suggestedSalePrice } from "@/lib/inventory-labels";
 
 export interface AuditRow {
   id: string;
@@ -47,11 +47,6 @@ interface ItemState {
   paymentMethod: string;
 }
 
-/** What we already stipulated for this specimen at this distributor — same logic as the walk-in sale flow. */
-function suggestedSalePrice(s: ExpectedSpecimen): number {
-  return s.settlementPrice ?? s.msrp ?? s.price;
-}
-
 export default function AuditsHub({
   audits,
   locations,
@@ -86,7 +81,7 @@ export default function AuditsHub({
     const current = items[s.id];
     setItem(s.id, {
       result,
-      salePrice: result === "sold" && !current.salePrice ? String(suggestedSalePrice(s)) : current.salePrice,
+      salePrice: result === "sold" && !current.salePrice ? String(suggestedSalePrice(s, "distributor")) : current.salePrice,
     });
   }
 
@@ -224,7 +219,7 @@ export default function AuditsHub({
                               value={item.salePrice}
                               disabled={item.result !== "sold"}
                               onChange={(e) => setItem(s.id, { salePrice: e.target.value })}
-                              placeholder={suggestedSalePrice(s).toFixed(2)}
+                              placeholder={suggestedSalePrice(s, "distributor").toFixed(2)}
                               className="w-24 rounded-lg border border-line bg-ink p-1.5 text-sm text-cream disabled:opacity-40"
                             />
                           </td>

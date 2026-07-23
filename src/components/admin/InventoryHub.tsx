@@ -25,6 +25,7 @@ import {
   PAYMENT_METHODS,
   SALES_CHANNELS,
   STATUS_LABELS,
+  suggestedSalePrice,
 } from "@/lib/inventory-labels";
 import type { Locale } from "@/i18n/config";
 import { formatPrice } from "@/lib/format";
@@ -1524,12 +1525,6 @@ function TransferForm({
       </form>
     </section>
   );
-}
-
-/** What we already stipulated for this specimen — same logic as the walk-in / audit sale flows. */
-function suggestedSalePrice(s: SpecimenView, channel: SalesChannel): number {
-  if (channel === "distributor") return s.settlementPrice ?? s.msrp ?? s.price;
-  return s.price;
 }
 
 function SellForm({

@@ -1,5 +1,5 @@
 import "server-only";
-import type { TaskStatus, TaskType } from "@prisma/client";
+import type { SpecimenLocationType, TaskStatus, TaskType } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 /** Internal operations tasks — manual decisions surfaced to the MSC team. */
@@ -9,6 +9,17 @@ function requireDb() {
   return prisma;
 }
 
+/** Enough of the linked specimen to resolve a task straight into a sale (price prefill, channel guard). */
+export interface TaskSpecimenView {
+  id: string;
+  scientific: string;
+  status: string;
+  locationType: SpecimenLocationType;
+  price: number;
+  msrp: number | null;
+  settlementPrice: number | null;
+}
+
 export interface TaskView {
   id: string;
   type: TaskType;
@@ -16,6 +27,7 @@ export interface TaskView {
   title: string;
   details: string;
   specimenId: string | null;
+  specimen: TaskSpecimenView | null;
   locationName: string | null;
   orderNumber: string | null;
   dueAt: string | null;
@@ -30,6 +42,7 @@ export async function listTasks(statuses: TaskStatus[] = ["open", "in_progress"]
     include: {
       location: { select: { name: true } },
       order: { select: { orderNumber: true } },
+      specimen: { include: { product: { select: { scientific: true } } } },
     },
     orderBy: { createdAt: "desc" },
     take: 200,
@@ -41,6 +54,17 @@ export async function listTasks(statuses: TaskStatus[] = ["open", "in_progress"]
     title: t.title,
     details: t.details,
     specimenId: t.specimenId,
+    specimen: t.specimen
+      ? {
+          id: t.specimen.id,
+          scientific: t.specimen.product.scientific,
+          status: t.specimen.status,
+          locationType: t.specimen.locationType,
+          price: t.specimen.price,
+          msrp: t.specimen.msrp,
+          settlementPrice: t.specimen.settlementPrice,
+        }
+      : null,
     locationName: t.location?.name ?? null,
     orderNumber: t.order?.orderNumber ?? null,
     dueAt: t.dueAt?.toISOString().slice(0, 10) ?? null,

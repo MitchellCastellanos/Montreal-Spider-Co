@@ -34,3 +34,17 @@ export const PAYMENT_LABELS: Record<string, string> = {
 
 export const SALES_CHANNELS = Object.keys(CHANNEL_LABELS);
 export const PAYMENT_METHODS = Object.keys(PAYMENT_LABELS);
+
+/**
+ * What we already stipulated for a specimen at a given sales channel — same
+ * logic across the walk-in, audit and manual sale flows: distributor sales
+ * default to the settlement price we agreed with the partner (falling back to
+ * MSRP, then the listed price); every other channel just uses the listed price.
+ */
+export function suggestedSalePrice(
+  s: { price: number; msrp: number | null; settlementPrice: number | null },
+  channel: string,
+): number {
+  if (channel === "distributor") return s.settlementPrice ?? s.msrp ?? s.price;
+  return s.price;
+}

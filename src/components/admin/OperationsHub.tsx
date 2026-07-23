@@ -5,10 +5,20 @@ import Link from "next/link";
 import {
   fulfillmentTransitionAction,
   resolveTaskAction,
+  resolveTaskAsSoldAction,
 } from "@/app/[locale]/admin/ops-actions";
 import type { ActionState } from "@/app/[locale]/admin/actions";
 import type { Locale } from "@/i18n/config";
+import type { TaskSpecimenView } from "@/lib/data/tasks";
+import type { SalesChannel } from "@/lib/data/specimens";
 import { localeHref } from "@/lib/href";
+import {
+  CHANNEL_LABELS,
+  PAYMENT_LABELS,
+  PAYMENT_METHODS,
+  SALES_CHANNELS,
+  suggestedSalePrice,
+} from "@/lib/inventory-labels";
 
 export interface FulfillmentRow {
   id: string;
@@ -35,6 +45,7 @@ export interface TaskRow {
   title: string;
   details: string;
   specimenId: string | null;
+  specimen: TaskSpecimenView | null;
   locationName: string | null;
   orderNumber: string | null;
   createdAt: string;
@@ -157,9 +168,91 @@ function FulfillmentCard({ f }: { f: FulfillmentRow }) {
   );
 }
 
+function MarkSoldForm({ t, specimen }: { t: TaskRow; specimen: TaskSpecimenView }) {
+  const [state, formAction, pending] = useActionState<ActionState, FormData>(resolveTaskAsSoldAction, {});
+  const isConsignment = specimen.locationType === "consignment";
+
+  const [salesChannel, setSalesChannel] = useState<SalesChannel>(isConsignment ? "distributor" : "other");
+  const [manualPrice, setManualPrice] = useState("");
+  const [priceTouched, setPriceTouched] = useState(false);
+
+  const suggested = suggestedSalePrice(specimen, salesChannel);
+  const salePrice = priceTouched ? manualPrice : suggested > 0 ? suggested.toFixed(2) : "";
+
+  return (
+    <form action={formAction} className="mt-3 space-y-2 rounded-lg border border-gold/30 bg-ink p-3">
+      <input type="hidden" name="taskId" value={t.id} />
+      <input type="hidden" name="specimenId" value={specimen.id} />
+      <div className="grid gap-2 sm:grid-cols-3">
+        <label className="text-xs text-bone">
+          Sale price ($)
+          <input
+            name="salePrice"
+            type="number"
+            step="0.01"
+            min={0}
+            required
+            value={salePrice}
+            onChange={(e) => {
+              setPriceTouched(true);
+              setManualPrice(e.target.value);
+            }}
+            className="mt-1 w-full rounded-lg border border-line bg-ink-soft p-2 text-sm text-cream"
+          />
+        </label>
+        <label className="text-xs text-bone">
+          Channel
+          <select
+            name="salesChannel"
+            value={salesChannel}
+            onChange={(e) => setSalesChannel(e.target.value as SalesChannel)}
+            className="mt-1 w-full rounded-lg border border-line bg-ink-soft p-2 text-sm text-cream"
+          >
+            {SALES_CHANNELS.map((c) => (
+              <option key={c} value={c}>{CHANNEL_LABELS[c]}</option>
+            ))}
+          </select>
+        </label>
+        <label className="text-xs text-bone">
+          Payment
+          <select
+            name="paymentMethod"
+            defaultValue="cash"
+            className="mt-1 w-full rounded-lg border border-line bg-ink-soft p-2 text-sm text-cream"
+          >
+            {PAYMENT_METHODS.map((m) => (
+              <option key={m} value={m}>{PAYMENT_LABELS[m]}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+      {salesChannel === "distributor" && !isConsignment && (
+        <p className="text-xs text-danger">
+          This specimen isn&rsquo;t at a partner store — pick a different channel or this will be rejected.
+        </p>
+      )}
+      <input
+        type="text"
+        name="notes"
+        placeholder="Notes (e.g. confirmed with partner by phone)"
+        className="w-full rounded-lg border border-line bg-ink-soft p-2 text-sm text-cream"
+      />
+      {state.error && <p className="text-xs text-danger">{state.error}</p>}
+      <button
+        disabled={pending}
+        className="rounded-lg bg-gold/15 px-3 py-1.5 text-xs text-gold-bright ring-1 ring-gold/40 disabled:opacity-50"
+      >
+        {pending ? "Recording…" : "Confirm sold"}
+      </button>
+    </form>
+  );
+}
+
 function TaskCard({ t, locale }: { t: TaskRow; locale: Locale }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(resolveTaskAction, {});
   const [open, setOpen] = useState(false);
+  const [sellOpen, setSellOpen] = useState(false);
+  const canMarkSold = t.specimen && t.specimen.status !== "sold" && t.specimen.status !== "written_off";
 
   return (
     <div className="rounded-xl border border-line bg-ink-soft/40 p-4">
@@ -183,7 +276,10 @@ function TaskCard({ t, locale }: { t: TaskRow; locale: Locale }) {
           </Link>
         )}
       </p>
-      {open ? (
+
+      {sellOpen && t.specimen ? (
+        <MarkSoldForm t={t} specimen={t.specimen} />
+      ) : open ? (
         <form action={formAction} className="mt-3 space-y-2">
           <input type="hidden" name="taskId" value={t.id} />
           <input
@@ -211,12 +307,22 @@ function TaskCard({ t, locale }: { t: TaskRow; locale: Locale }) {
           </div>
         </form>
       ) : (
-        <button
-          onClick={() => setOpen(true)}
-          className="mt-3 rounded-lg border border-line px-3 py-1.5 text-xs text-bone transition hover:text-gold-bright"
-        >
-          Resolve…
-        </button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {canMarkSold && (
+            <button
+              onClick={() => setSellOpen(true)}
+              className="rounded-lg border border-gold/40 px-3 py-1.5 text-xs text-gold-bright transition hover:bg-gold/10"
+            >
+              Mark sold…
+            </button>
+          )}
+          <button
+            onClick={() => setOpen(true)}
+            className="rounded-lg border border-line px-3 py-1.5 text-xs text-bone transition hover:text-gold-bright"
+          >
+            Resolve…
+          </button>
+        </div>
       )}
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { PaymentMethod, TaskType } from "@prisma/client";
+import type { PaymentMethod, SalesChannel, TaskType } from "@prisma/client";
 import { isAdminAuthed } from "@/lib/auth";
 import {
   markPreparing,
@@ -27,6 +27,7 @@ import {
 } from "@/lib/data/settlement";
 import { recordMolt, recordMeasurement } from "@/lib/data/growth";
 import { createTask, resolveTask } from "@/lib/data/tasks";
+import { sellSpecimensManual } from "@/lib/data/specimens";
 import { registerWalkInSale } from "@/lib/partner/walk-in";
 import type { ActionState } from "./actions";
 
@@ -323,6 +324,41 @@ export async function resolveTaskAction(_prev: ActionState, formData: FormData):
     );
   } catch (e) {
     return fail(e, "task_failed");
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/**
+ * Resolve a task by discovering its linked specimen was actually sold (e.g. an
+ * audit "missing" investigation where the partner confirms it was sold, just
+ * never registered). Runs the exact same sale processing as the manual sale
+ * form — inventory movement, settlement entry if it's at a partner store,
+ * Finance visibility — then closes the task out.
+ */
+export async function resolveTaskAsSoldAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const denied = await guard();
+  if (denied) return denied;
+
+  const taskId = str(formData, "taskId");
+  const specimenId = str(formData, "specimenId");
+  if (!taskId || !specimenId) return { error: "missing_fields" };
+
+  const salesChannel = (str(formData, "salesChannel") || "distributor") as SalesChannel;
+  const notes = str(formData, "notes");
+
+  try {
+    await sellSpecimensManual({
+      specimenIds: [specimenId],
+      salePrice: num(formData, "salePrice"),
+      salesChannel,
+      paymentMethod: (str(formData, "paymentMethod") || "cash") as PaymentMethod,
+      notes,
+    });
+    await resolveTask(taskId, notes || `Confirmed sold via ${salesChannel} — resolved from this task.`);
+  } catch (e) {
+    return fail(e, "sale_failed");
   }
 
   revalidatePath("/", "layout");

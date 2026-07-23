@@ -64,6 +64,7 @@ export default async function AdminOperationsPage({ params }: { params: Promise<
         title: t.title,
         details: t.details,
         specimenId: t.specimenId,
+        specimen: t.specimen,
         locationName: t.locationName,
         orderNumber: t.orderNumber,
         createdAt: t.createdAt,
