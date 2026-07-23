@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import { useI18n } from "@/i18n/I18nProvider";
-import { VerifiedOriginLink } from "@/lib/verified-origin-links";
 import LocaleLink from "@/components/LocaleLink";
 
 export default function HeroStats() {
@@ -11,7 +10,7 @@ export default function HeroStats() {
 
   const stats = [
     { value: "18+", label: h.statSpecies },
-    { value: "100%", label: h.statVerified, link: true },
+    { value: "100%", label: h.statGuarantee },
     { value: "MTL", label: h.statDelivery },
   ];
 
@@ -28,13 +27,7 @@ export default function HeroStats() {
             className="text-center sm:text-left"
           >
             <p className="font-display text-2xl font-bold text-gold-bright sm:text-3xl">{s.value}</p>
-            <p className="mt-1 text-[11px] uppercase tracking-wide text-muted">
-              {"link" in s && s.link ? (
-                <VerifiedOriginLink className="text-muted hover:text-gold-bright">{s.label}</VerifiedOriginLink>
-              ) : (
-                s.label
-              )}
-            </p>
+            <p className="mt-1 text-[11px] uppercase tracking-wide text-muted">{s.label}</p>
           </motion.div>
         ))}
         <motion.div
