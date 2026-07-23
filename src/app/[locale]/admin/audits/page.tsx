@@ -33,6 +33,9 @@ export default async function AdminAuditsPage({ params }: { params: Promise<{ lo
         sizeCm: s.sizeCm,
         sex: s.sex,
         status: s.status,
+        price: s.price,
+        msrp: s.msrp,
+        settlementPrice: s.settlementPrice,
       })),
     })),
   );

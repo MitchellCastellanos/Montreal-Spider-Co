@@ -715,6 +715,8 @@ model MoltEvent {
 enum AuditItemResult {
   found
   missing
+  /** Not physically present because the partner already sold it without registering the sale. */
+  sold
 }
 
 model StoreAudit {
@@ -729,6 +731,8 @@ model StoreAudit {
   expectedCount Int           @default(0)
   foundCount    Int           @default(0)
   missingCount  Int           @default(0)
+  /** Discovered sold during the visit — inventory + settlement already applied, not an open investigation. */
+  soldCount     Int           @default(0)
   items      StoreAuditItem[]
   tasks      OperationsTask[]
   createdAt  DateTime         @default(now())
@@ -748,6 +752,9 @@ model StoreAuditItem {
   healthNotes String          @default("")
   notes       String          @default("")
   photoUrl    String?
+  /** Price the partner reported for a `sold` result — mirrors the specimen's recorded salePrice. */
+  salePrice     Float?
+  paymentMethod PaymentMethod?
 
   @@unique([auditId, specimenId])
   @@index([specimenId])

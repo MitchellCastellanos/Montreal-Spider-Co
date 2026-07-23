@@ -626,13 +626,14 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       auditDate: "July 12",
       foundCount: "7",
       missingCount: "1",
+      soldCount: "1",
       notes: "All animals in great shape; one enclosure needs a substrate refresh.",
     },
     subject: { en: "Audit completed — your MSC display on {auditDate}" },
     paragraphs: {
       en: [
         "Hi {partnerName},",
-        "We visited your store on <strong>{auditDate}</strong>. Summary: <strong>{foundCount}</strong> specimens verified, <strong>{missingCount}</strong> unaccounted for.",
+        "We visited your store on <strong>{auditDate}</strong>. Summary: <strong>{foundCount}</strong> specimens verified, <strong>{soldCount}</strong> logged as sold on the spot, <strong>{missingCount}</strong> unaccounted for.",
         "{notes}",
         "If anything needs following up, our team will reach out separately.",
       ],

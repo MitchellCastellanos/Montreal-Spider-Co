@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { createAuditAction } from "@/app/[locale]/admin/ops-actions";
 import type { ActionState } from "@/app/[locale]/admin/actions";
 import type { Locale } from "@/i18n/config";
+import { PAYMENT_LABELS, PAYMENT_METHODS } from "@/lib/inventory-labels";
 
 export interface AuditRow {
   id: string;
@@ -13,6 +14,7 @@ export interface AuditRow {
   expectedCount: number;
   foundCount: number;
   missingCount: number;
+  soldCount: number;
   notes: string;
 }
 
@@ -24,6 +26,9 @@ export interface ExpectedSpecimen {
   sizeCm: number;
   sex: string;
   status: string;
+  price: number;
+  msrp: number | null;
+  settlementPrice: number | null;
 }
 
 export interface AuditLocation {
@@ -32,10 +37,19 @@ export interface AuditLocation {
   specimens: ExpectedSpecimen[];
 }
 
+type AuditResult = "found" | "missing" | "sold";
+
 interface ItemState {
-  result: "found" | "missing";
+  result: AuditResult;
   sizeCm: string;
   healthNotes: string;
+  salePrice: string;
+  paymentMethod: string;
+}
+
+/** What we already stipulated for this specimen at this distributor — same logic as the walk-in sale flow. */
+function suggestedSalePrice(s: ExpectedSpecimen): number {
+  return s.settlementPrice ?? s.msrp ?? s.price;
 }
 
 export default function AuditsHub({
@@ -58,7 +72,7 @@ export default function AuditsHub({
     const loc = locations.find((l) => l.id === id);
     const initial: Record<string, ItemState> = {};
     for (const s of loc?.specimens ?? []) {
-      initial[s.id] = { result: "found", sizeCm: "", healthNotes: "" };
+      initial[s.id] = { result: "found", sizeCm: "", healthNotes: "", salePrice: "", paymentMethod: "cash" };
     }
     setItems(initial);
   }
@@ -67,12 +81,23 @@ export default function AuditsHub({
     setItems((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
   }
 
+  /** Switching a row to "sold" prefills the stipulated price — still editable, since the partner may have sold above/below it. */
+  function setResult(s: ExpectedSpecimen, result: AuditResult) {
+    const current = items[s.id];
+    setItem(s.id, {
+      result,
+      salePrice: result === "sold" && !current.salePrice ? String(suggestedSalePrice(s)) : current.salePrice,
+    });
+  }
+
   const itemsJson = JSON.stringify(
     Object.entries(items).map(([specimenId, i]) => ({
       specimenId,
       result: i.result,
       sizeCm: i.sizeCm ? Number(i.sizeCm) : null,
       healthNotes: i.healthNotes,
+      salePrice: i.result === "sold" && i.salePrice ? Number(i.salePrice) : null,
+      paymentMethod: i.result === "sold" ? i.paymentMethod : null,
     })),
   );
 
@@ -80,8 +105,11 @@ export default function AuditsHub({
     <div>
       <h1 className="font-display text-2xl font-bold text-cream">Store audits</h1>
       <p className="mt-1 text-sm text-muted">
-        Verify expected vs actual inventory at partner stores. Missing specimens create investigation
-        tasks; new measurements update growth history.
+        Verify expected vs actual inventory at partner stores. Mark a specimen <strong>Sold</strong> when
+        the partner already sold it but never registered it (e.g. you only notice on the count) —
+        it&rsquo;s recorded as a distributor sale immediately, at the price we stipulated unless you adjust it.
+        Mark <strong>Missing</strong> only when it&rsquo;s genuinely unaccounted for (escape, theft, miscount) —
+        that opens an investigation task instead. New measurements update growth history.
       </p>
 
       <div className="mt-6 rounded-2xl border border-line bg-ink-soft/40 p-5">
@@ -140,6 +168,8 @@ export default function AuditsHub({
                       <th className="py-2 pr-3">Expected size</th>
                       <th className="py-2 pr-3">Result</th>
                       <th className="py-2 pr-3">Measured (cm)</th>
+                      <th className="py-2 pr-3">Sale price ($)</th>
+                      <th className="py-2 pr-3">Payment</th>
                       <th className="py-2">Health / notes</th>
                     </tr>
                   </thead>
@@ -147,6 +177,12 @@ export default function AuditsHub({
                     {location.specimens.map((s) => {
                       const item = items[s.id];
                       if (!item) return null;
+                      const resultColor =
+                        item.result === "missing"
+                          ? "text-danger"
+                          : item.result === "sold"
+                            ? "text-gold-bright"
+                            : "text-cream";
                       return (
                         <tr key={s.id} className="border-b border-line/50">
                           <td className="py-2 pr-3 text-cream">
@@ -160,10 +196,11 @@ export default function AuditsHub({
                           <td className="py-2 pr-3">
                             <select
                               value={item.result}
-                              onChange={(e) => setItem(s.id, { result: e.target.value as "found" | "missing" })}
-                              className={`rounded-lg border border-line bg-ink p-1.5 text-sm ${item.result === "missing" ? "text-danger" : "text-cream"}`}
+                              onChange={(e) => setResult(s, e.target.value as AuditResult)}
+                              className={`rounded-lg border border-line bg-ink p-1.5 text-sm ${resultColor}`}
                             >
                               <option value="found">Found</option>
+                              <option value="sold">Sold (unregistered)</option>
                               <option value="missing">Missing</option>
                             </select>
                           </td>
@@ -173,11 +210,37 @@ export default function AuditsHub({
                               step="0.1"
                               min="0"
                               value={item.sizeCm}
-                              disabled={item.result === "missing"}
+                              disabled={item.result !== "found"}
                               onChange={(e) => setItem(s.id, { sizeCm: e.target.value })}
                               placeholder={s.sizeCm.toFixed(1)}
                               className="w-24 rounded-lg border border-line bg-ink p-1.5 text-sm text-cream disabled:opacity-40"
                             />
+                          </td>
+                          <td className="py-2 pr-3">
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={item.salePrice}
+                              disabled={item.result !== "sold"}
+                              onChange={(e) => setItem(s.id, { salePrice: e.target.value })}
+                              placeholder={suggestedSalePrice(s).toFixed(2)}
+                              className="w-24 rounded-lg border border-line bg-ink p-1.5 text-sm text-cream disabled:opacity-40"
+                            />
+                          </td>
+                          <td className="py-2 pr-3">
+                            <select
+                              value={item.paymentMethod}
+                              disabled={item.result !== "sold"}
+                              onChange={(e) => setItem(s.id, { paymentMethod: e.target.value })}
+                              className="rounded-lg border border-line bg-ink p-1.5 text-sm text-cream disabled:opacity-40"
+                            >
+                              {PAYMENT_METHODS.filter((m) => m !== "stripe").map((m) => (
+                                <option key={m} value={m}>
+                                  {PAYMENT_LABELS[m]}
+                                </option>
+                              ))}
+                            </select>
                           </td>
                           <td className="py-2">
                             <input
@@ -227,6 +290,7 @@ export default function AuditsHub({
               <th className="p-3">Employee</th>
               <th className="p-3">Expected</th>
               <th className="p-3">Found</th>
+              <th className="p-3">Sold</th>
               <th className="p-3">Missing</th>
               <th className="p-3">Notes</th>
             </tr>
@@ -234,7 +298,7 @@ export default function AuditsHub({
           <tbody>
             {audits.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-4 text-muted">
+                <td colSpan={8} className="p-4 text-muted">
                   No audits yet.
                 </td>
               </tr>
@@ -246,6 +310,7 @@ export default function AuditsHub({
                 <td className="p-3 text-bone">{a.employee}</td>
                 <td className="p-3 text-bone">{a.expectedCount}</td>
                 <td className="p-3 text-emerald-300">{a.foundCount}</td>
+                <td className={`p-3 ${a.soldCount > 0 ? "text-gold-bright" : "text-bone"}`}>{a.soldCount}</td>
                 <td className={`p-3 ${a.missingCount > 0 ? "text-danger" : "text-bone"}`}>{a.missingCount}</td>
                 <td className="p-3 text-muted">{a.notes}</td>
               </tr>

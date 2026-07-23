@@ -1,8 +1,10 @@
 import "server-only";
+import type { PaymentMethod } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { formatCmAsInches } from "@/lib/size-inches";
-import { IN_STOCK_STATUSES } from "@/lib/data/specimens";
+import { IN_STOCK_STATUSES, syncAggregateStock } from "@/lib/data/specimens";
 import { sendNotification } from "@/lib/notifications/service";
+import { createTask } from "@/lib/data/tasks";
 
 /**
  * Store audits — verify expected inventory against actual inventory at a
@@ -17,12 +19,15 @@ function requireDb() {
 
 export interface AuditItemInput {
   specimenId: string;
-  result: "found" | "missing";
+  result: "found" | "missing" | "sold";
   /** Size measured during the visit — updates the specimen's current size. */
   sizeCm?: number | null;
   healthNotes?: string;
   notes?: string;
   photoUrl?: string | null;
+  /** Required when result is "sold" — what the partner says the customer paid. */
+  salePrice?: number | null;
+  paymentMethod?: PaymentMethod | null;
 }
 
 export interface CreateAuditInput {
@@ -41,6 +46,7 @@ export interface AuditListView {
   expectedCount: number;
   foundCount: number;
   missingCount: number;
+  soldCount: number;
   notes: string;
 }
 
@@ -48,11 +54,13 @@ export interface AuditDetailItem {
   specimenId: string;
   scientific: string;
   sizeLabel: string;
-  result: "found" | "missing";
+  result: "found" | "missing" | "sold";
   sizeCm: number | null;
   healthNotes: string;
   notes: string;
   photoUrl: string | null;
+  salePrice: number | null;
+  paymentMethod: PaymentMethod | null;
 }
 
 export interface AuditDetailView extends AuditListView {
@@ -82,15 +90,20 @@ export async function listExpectedSpecimensAt(locationId: string) {
     status: s.status,
     price: s.price,
     msrp: s.msrp,
+    settlementPrice: s.settlementPrice,
     qrToken: s.qrToken,
   }));
 }
 
 /**
  * Record a completed audit visit. Found specimens with a new measurement get a
- * growth record + current-size update; missing specimens generate
- * investigation tasks. Never mutates inventory automatically beyond sizes —
- * corrections are explicit follow-ups.
+ * growth record + current-size update. Missing specimens (truly unaccounted
+ * for) generate investigation tasks — never mutated automatically, since
+ * "missing" can mean escape, theft or miscount, not just an unregistered sale.
+ * Specimens the partner confirms were sold (discovered during the count, not
+ * registered as a walk-in sale) are processed exactly like a walk-in sale:
+ * marked sold, settlement entry booked at the specimen's stipulated
+ * settlement price, inventory movement recorded.
  */
 export async function createAudit(input: CreateAuditInput): Promise<string> {
   const db = requireDb();
@@ -98,8 +111,20 @@ export async function createAudit(input: CreateAuditInput): Promise<string> {
   if (!input.items.length) throw new Error("An audit needs at least one specimen result.");
   const auditedAt = input.auditedAt ?? new Date();
 
+  for (const item of input.items) {
+    if (item.result === "sold" && !(item.salePrice && item.salePrice > 0)) {
+      throw new Error("Enter a sale price for every specimen marked sold.");
+    }
+  }
+
+  const location = await db.storeLocation.findUnique({ where: { id: input.locationId } });
+  if (!location) throw new Error("Store location not found.");
+
   const foundCount = input.items.filter((i) => i.result === "found").length;
-  const missingCount = input.items.length - foundCount;
+  const missingCount = input.items.filter((i) => i.result === "missing").length;
+  const soldCount = input.items.filter((i) => i.result === "sold").length;
+
+  const belowMinimumAlerts: { label: string; salePrice: number; minPrice: number; msrp: number }[] = [];
 
   const auditId = await db.$transaction(async (tx) => {
     const audit = await tx.storeAudit.create({
@@ -111,12 +136,17 @@ export async function createAudit(input: CreateAuditInput): Promise<string> {
         expectedCount: input.items.length,
         foundCount,
         missingCount,
+        soldCount,
       },
     });
 
     for (const item of input.items) {
-      const s = await tx.specimen.findUnique({ where: { id: item.specimenId } });
+      const s = await tx.specimen.findUnique({
+        where: { id: item.specimenId },
+        include: { product: { select: { scientific: true } } },
+      });
       if (!s) throw new Error(`Specimen not found: ${item.specimenId}`);
+      const label = `${s.product.scientific} (${item.specimenId})`;
 
       await tx.storeAuditItem.create({
         data: {
@@ -127,6 +157,8 @@ export async function createAudit(input: CreateAuditInput): Promise<string> {
           healthNotes: item.healthNotes ?? "",
           notes: item.notes ?? "",
           photoUrl: item.photoUrl ?? null,
+          salePrice: item.result === "sold" ? item.salePrice : null,
+          paymentMethod: item.result === "sold" ? item.paymentMethod ?? "cash" : null,
         },
       });
 
@@ -152,7 +184,7 @@ export async function createAudit(input: CreateAuditInput): Promise<string> {
             type: "audit_investigation",
             title: `Missing specimen — audit at ${auditedAt.toISOString().slice(0, 10)}`,
             details:
-              `Specimen ${item.specimenId} was not found during the store audit. ` +
+              `${label} was not found during the store audit. ` +
               `Investigate (unregistered sale, escape, misplacement) and apply an inventory correction if needed.`,
             specimenId: item.specimenId,
             locationId: input.locationId,
@@ -160,14 +192,82 @@ export async function createAudit(input: CreateAuditInput): Promise<string> {
           },
         });
       }
+
+      if (item.result === "sold") {
+        if (s.status === "sold" || s.status === "written_off") {
+          throw new Error(`Cannot mark ${label} sold — it is already ${s.status}.`);
+        }
+        if (s.status === "allocated") {
+          throw new Error(`Cannot mark ${label} sold — it is reserved for a paid web order.`);
+        }
+        const salePrice = item.salePrice!;
+        const paymentMethod: PaymentMethod = item.paymentMethod ?? "cash";
+        const settlementPrice = s.settlementPrice ?? salePrice;
+        const partnerMargin = Math.max(0, salePrice - settlementPrice);
+
+        await tx.specimen.update({
+          where: { id: item.specimenId },
+          data: {
+            status: "sold",
+            salePrice,
+            soldAt: auditedAt,
+            salesChannel: "distributor",
+            paymentMethod,
+            notes: `${s.notes}\nDiscovered sold during store audit${item.notes ? ` — ${item.notes}` : ""}`.trim(),
+          },
+        });
+
+        await tx.inventoryMovement.create({
+          data: {
+            specimenId: item.specimenId,
+            type: "sale",
+            fromLocationType: "consignment",
+            fromLocationId: input.locationId,
+            amount: salePrice,
+            salesChannel: "distributor",
+            paymentMethod,
+            notes: `Discovered during store audit at ${location.name}`,
+          },
+        });
+
+        await tx.settlementEntry.create({
+          data: {
+            locationId: input.locationId,
+            specimenId: item.specimenId,
+            soldAt: auditedAt,
+            salePrice,
+            settlementPrice,
+            partnerMargin,
+            notes: item.notes || "Discovered during store audit",
+          },
+        });
+
+        const minPrice =
+          s.msrp != null && location.minPricePct != null ? (s.msrp * location.minPricePct) / 100 : null;
+        if (minPrice != null && salePrice < minPrice) {
+          belowMinimumAlerts.push({ label, salePrice, minPrice, msrp: s.msrp! });
+        }
+      }
     }
 
     return audit.id;
   });
 
+  if (soldCount > 0) await syncAggregateStock();
+
+  for (const alert of belowMinimumAlerts) {
+    await createTask({
+      type: "general",
+      title: `Below-minimum sale at ${location.name} (audit)`,
+      details:
+        `${alert.label} sold for $${alert.salePrice.toFixed(2)} — minimum policy is ` +
+        `$${alert.minPrice.toFixed(2)} (MSRP $${alert.msrp.toFixed(2)} × ${location.minPricePct}%).`,
+      locationId: input.locationId,
+    });
+  }
+
   // Partner summary email through the notification service.
-  const location = await db.storeLocation.findUnique({ where: { id: input.locationId } });
-  if (location?.email) {
+  if (location.email) {
     await sendNotification({
       templateId: "partner-audit-completed",
       event: "audit.completed",
@@ -177,6 +277,7 @@ export async function createAudit(input: CreateAuditInput): Promise<string> {
         auditDate: auditedAt.toLocaleDateString("en-CA", { month: "long", day: "numeric" }),
         foundCount: String(foundCount),
         missingCount: String(missingCount),
+        soldCount: String(soldCount),
         notes: input.notes ?? "",
       },
       context: { auditId, locationId: input.locationId },
@@ -229,6 +330,7 @@ export async function listAudits(): Promise<AuditListView[]> {
     expectedCount: a.expectedCount,
     foundCount: a.foundCount,
     missingCount: a.missingCount,
+    soldCount: a.soldCount,
     notes: a.notes,
   }));
 }
@@ -252,6 +354,7 @@ export async function getAuditById(id: string): Promise<AuditDetailView | null> 
     expectedCount: a.expectedCount,
     foundCount: a.foundCount,
     missingCount: a.missingCount,
+    soldCount: a.soldCount,
     notes: a.notes,
     items: a.items.map((i) => ({
       specimenId: i.specimenId,
@@ -262,6 +365,8 @@ export async function getAuditById(id: string): Promise<AuditDetailView | null> 
       healthNotes: i.healthNotes,
       notes: i.notes,
       photoUrl: i.photoUrl,
+      salePrice: i.salePrice,
+      paymentMethod: i.paymentMethod,
     })),
   };
 }
