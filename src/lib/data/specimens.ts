@@ -618,6 +618,15 @@ export async function sellSpecimensManual(input: ManualSaleInput): Promise<void>
       if (!IN_STOCK_STATUSES.includes(s.status)) {
         throw new Error(`Cannot sell specimen ${id} (status: ${s.status}).`);
       }
+      // Channel "distributor" implies the settlement ledger owes MSC for this sale —
+      // that only happens for specimens physically at a partner store. Selling a
+      // warehouse specimen under this channel would show up as distributor revenue
+      // in Finance with no matching SettlementEntry, silently breaking reconciliation.
+      if (input.salesChannel === "distributor" && s.locationType !== "consignment") {
+        throw new Error(
+          `Specimen ${id} is not at a partner store — transfer it to a distributor location first, or pick a different sales channel.`,
+        );
+      }
 
       await tx.specimen.update({
         where: { id },

@@ -13,7 +13,7 @@ import {
   type ActionState,
 } from "@/app/[locale]/admin/actions";
 import { localeHref } from "@/lib/href";
-import type { SpecimenView } from "@/lib/data/specimens";
+import type { SpecimenView, SalesChannel } from "@/lib/data/specimens";
 import type { DistributorView } from "@/lib/data/locations";
 import type { LibraryImage } from "@/lib/data/species-library";
 import type { SpeciesProfile } from "@/lib/data/species";
@@ -1526,6 +1526,12 @@ function TransferForm({
   );
 }
 
+/** What we already stipulated for this specimen — same logic as the walk-in / audit sale flows. */
+function suggestedSalePrice(s: SpecimenView, channel: SalesChannel): number {
+  if (channel === "distributor") return s.settlementPrice ?? s.msrp ?? s.price;
+  return s.price;
+}
+
 function SellForm({
   locale,
   selectedIds,
@@ -1537,6 +1543,27 @@ function SellForm({
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(sellSpecimensAction, {});
   const preview = specimens.filter((s) => selectedIds.includes(s.id));
+  const selectionKey = selectedIds.join(",");
+
+  const [salesChannel, setSalesChannel] = useState<SalesChannel>("kijiji");
+  const [manualPrice, setManualPrice] = useState("");
+  const [priceTouched, setPriceTouched] = useState(false);
+  const [prevSelectionKey, setPrevSelectionKey] = useState(selectionKey);
+
+  // New selection — drop any manual edit so the suggested total takes over again.
+  // (Adjusting state during render when a prop changes, per React's guidance;
+  // no effect needed since this doesn't reach outside React.)
+  if (selectionKey !== prevSelectionKey) {
+    setPrevSelectionKey(selectionKey);
+    setPriceTouched(false);
+    setManualPrice("");
+  }
+
+  const suggestedTotal = preview.reduce((sum, s) => sum + suggestedSalePrice(s, salesChannel), 0);
+  const salePrice = priceTouched ? manualPrice : suggestedTotal > 0 ? suggestedTotal.toFixed(2) : "";
+  const distributorPrices = preview.map((s) => suggestedSalePrice(s, "distributor"));
+  const unevenDistributorPrices =
+    salesChannel === "distributor" && distributorPrices.length > 1 && new Set(distributorPrices).size > 1;
 
   return (
     <section className="card-glow max-w-2xl rounded-2xl p-5">
@@ -1564,18 +1591,53 @@ function SellForm({
 
         <label className="field">
           <span>Total sale price ($)</span>
-          <input name="salePrice" type="number" step="0.01" min={0} className="input" required />
-          <span className="text-xs text-muted">Split evenly if multiple specimens selected.</span>
+          <input
+            name="salePrice"
+            type="number"
+            step="0.01"
+            min={0}
+            className="input"
+            required
+            value={salePrice}
+            onChange={(e) => {
+              setPriceTouched(true);
+              setManualPrice(e.target.value);
+            }}
+          />
+          <span className="text-xs text-muted">
+            {salesChannel === "distributor"
+              ? "Prefilled from each specimen's stipulated settlement price / MSRP — adjust if the partner charged differently."
+              : "Prefilled from the listed price."}{" "}
+            Split evenly if multiple specimens selected.
+          </span>
+          {unevenDistributorPrices && (
+            <span className="text-xs text-gold-bright">
+              These specimens have different stipulated prices — an even split across all of them won&rsquo;t
+              match each one&rsquo;s settlement price. Consider recording them one at a time, or via the store
+              audit / walk-in sale flow instead.
+            </span>
+          )}
         </label>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="field">
             <span>Sales channel</span>
-            <select name="salesChannel" className="input" defaultValue="kijiji">
+            <select
+              name="salesChannel"
+              className="input"
+              value={salesChannel}
+              onChange={(e) => setSalesChannel(e.target.value as SalesChannel)}
+            >
               {SALES_CHANNELS.map((c) => (
                 <option key={c} value={c}>{CHANNEL_LABELS[c]}</option>
               ))}
             </select>
+            {salesChannel === "distributor" && preview.some((s) => s.locationType !== "consignment") && (
+              <span className="text-xs text-danger">
+                At least one selected specimen isn&rsquo;t at a partner store — transfer it to a distributor
+                location first, or this will be rejected.
+              </span>
+            )}
           </label>
           <label className="field">
             <span>Payment method</span>

@@ -1,11 +1,14 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 import {
   fulfillmentTransitionAction,
   resolveTaskAction,
 } from "@/app/[locale]/admin/ops-actions";
 import type { ActionState } from "@/app/[locale]/admin/actions";
+import type { Locale } from "@/i18n/config";
+import { localeHref } from "@/lib/href";
 
 export interface FulfillmentRow {
   id: string;
@@ -31,6 +34,7 @@ export interface TaskRow {
   status: string;
   title: string;
   details: string;
+  specimenId: string | null;
   locationName: string | null;
   orderNumber: string | null;
   createdAt: string;
@@ -153,7 +157,7 @@ function FulfillmentCard({ f }: { f: FulfillmentRow }) {
   );
 }
 
-function TaskCard({ t }: { t: TaskRow }) {
+function TaskCard({ t, locale }: { t: TaskRow; locale: Locale }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(resolveTaskAction, {});
   const [open, setOpen] = useState(false);
 
@@ -169,7 +173,15 @@ function TaskCard({ t }: { t: TaskRow }) {
       {t.details && <p className="mt-2 whitespace-pre-line text-sm text-bone">{t.details}</p>}
       <p className="mt-1 text-xs text-muted">
         {t.locationName && <>Location: {t.locationName} · </>}
-        {t.orderNumber && <>Order: {t.orderNumber}</>}
+        {t.orderNumber && <>Order: {t.orderNumber} · </>}
+        {t.specimenId && (
+          <Link
+            href={localeHref(locale, `/admin/specimens/${t.specimenId}`)}
+            className="text-gold-bright hover:underline"
+          >
+            View specimen →
+          </Link>
+        )}
       </p>
       {open ? (
         <form action={formAction} className="mt-3 space-y-2">
@@ -214,10 +226,12 @@ export default function OperationsHub({
   active,
   recent,
   tasks,
+  locale,
 }: {
   active: FulfillmentRow[];
   recent: FulfillmentRow[];
   tasks: TaskRow[];
+  locale: Locale;
 }) {
   return (
     <div>
@@ -242,7 +256,7 @@ export default function OperationsHub({
       <div className="mt-3 space-y-3">
         {tasks.length === 0 && <p className="text-sm text-muted">No open tasks.</p>}
         {tasks.map((t) => (
-          <TaskCard key={t.id} t={t} />
+          <TaskCard key={t.id} t={t} locale={locale} />
         ))}
       </div>
 

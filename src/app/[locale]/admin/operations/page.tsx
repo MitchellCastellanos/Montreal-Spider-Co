@@ -1,4 +1,5 @@
 import { hasDatabase } from "@/lib/db";
+import { isLocale, type Locale } from "@/i18n/config";
 import { listFulfillments, type FulfillmentWithOrder } from "@/lib/fulfillment/fulfillment";
 import { listTasks } from "@/lib/data/tasks";
 import OperationsHub, { type FulfillmentRow } from "@/components/admin/OperationsHub";
@@ -32,7 +33,10 @@ function toRow(f: FulfillmentWithOrder): FulfillmentRow {
   };
 }
 
-export default async function AdminOperationsPage() {
+export default async function AdminOperationsPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  const loc: Locale = isLocale(locale) ? locale : "en";
+
   if (!hasDatabase) {
     return (
       <div>
@@ -50,6 +54,7 @@ export default async function AdminOperationsPage() {
 
   return (
     <OperationsHub
+      locale={loc}
       active={activeFulfillments.map(toRow)}
       recent={closedFulfillments.slice(0, 10).map(toRow)}
       tasks={tasks.map((t) => ({
@@ -58,6 +63,7 @@ export default async function AdminOperationsPage() {
         status: t.status,
         title: t.title,
         details: t.details,
+        specimenId: t.specimenId,
         locationName: t.locationName,
         orderNumber: t.orderNumber,
         createdAt: t.createdAt,
