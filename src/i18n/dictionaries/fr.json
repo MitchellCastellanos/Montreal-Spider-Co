@@ -187,7 +187,19 @@
     "fullGuide": "Lire le guide de soins complet",
     "sexUnsexed": "Non sexé",
     "sexMale": "Mâle",
-    "sexFemale": "Femelle"
+    "sexFemale": "Femelle",
+    "specimenFactsEyebrow": "Spécimen scanné",
+    "specimenFactsTitle": "Faits importants sur ce spécimen",
+    "specimenSize": "Taille actuelle",
+    "specimenSex": "Sexe",
+    "specimenMeasured": "Dernière mesure",
+    "specimenLocation": "Emplacement",
+    "specimenLocationHq": "Montreal Spider Co.",
+    "specimenVerifiedId": "ID Origine Vérifiée",
+    "specimenStatusAllocated": "Ce spécimen précis est réservé pour la commande d'un autre client.",
+    "specimenStatusSold": "Ce spécimen a déjà trouvé son foyer — d'autres tailles sont peut-être encore disponibles ci-dessus.",
+    "specimenStatusWrittenOff": "Ce spécimen n'est plus disponible.",
+    "specimenDistributorCta": "Distributeur? Gérer ce spécimen"
   },
   "cart": {
     "title": "Votre panier",

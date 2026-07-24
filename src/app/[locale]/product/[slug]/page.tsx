@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { isLocale, locales, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
+import { Suspense } from "react";
 import { getProductBySlug, getRelated, getStorefrontProducts } from "@/lib/data/products";
 import { productDisplaySubtitle, productDisplayTitle, productImageAlt, productSeoName } from "@/lib/product-display";
 import { t } from "@/lib/types";
@@ -19,6 +20,8 @@ import ProductCard from "@/components/ProductCard";
 import ProductReviews from "@/components/account/ProductReviews";
 import JsonLd from "@/components/JsonLd";
 import Reveal from "@/components/Reveal";
+import SpecimenFactsPanel from "@/components/SpecimenFactsPanel";
+import SpecimenDistributorLink from "@/components/SpecimenDistributorLink";
 
 export const revalidate = 60;
 export const dynamicParams = true;
@@ -112,6 +115,10 @@ export default async function ProductPage({
           <span>/</span>
           <span className="text-bone">{displayTitle}</span>
         </nav>
+
+        <Suspense fallback={null}>
+          <SpecimenFactsPanel slug={slug} />
+        </Suspense>
 
         <div className="grid gap-10 lg:grid-cols-2">
           {/* Visual */}
@@ -208,6 +215,10 @@ export default async function ProductPage({
                 {dict.common.learnMore} →
               </a>
             </section>
+
+            <Suspense fallback={null}>
+              <SpecimenDistributorLink />
+            </Suspense>
           </div>
         </div>
 
