@@ -20,6 +20,8 @@ export interface CartSnapshot {
   image?: string;
   sizeLabel: string;
   price: number;
+  /** This unit is sold bundled with a starter terrarium. */
+  includesEnclosure?: boolean;
   /** Stock for this unit at the time it was added, used to cap cart quantity. */
   stock?: number;
 }
@@ -46,6 +48,7 @@ export interface CartDisplaySize {
   key: string;
   label: string;
   price: number;
+  includesEnclosure?: boolean;
 }
 
 export interface ResolvedLine {
@@ -69,6 +72,7 @@ export function snapshotFromProduct(product: Product, unit: AvailableUnit): Cart
     image: product.image,
     sizeLabel: unit.sizeLabel,
     price: unit.price,
+    includesEnclosure: unit.includesEnclosure,
     stock: unit.stock,
   };
 }
@@ -257,7 +261,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
               accent: l.snap.accent,
               image: l.snap.image,
             },
-            size: { key: l.unitKey, label: l.snap.sizeLabel, price: l.snap.price },
+            size: {
+              key: l.unitKey,
+              label: l.snap.sizeLabel,
+              price: l.snap.price,
+              includesEnclosure: l.snap.includesEnclosure,
+            },
             lineTotal: l.snap.price * l.qty,
             key: `${l.productId}:${l.unitKey}`,
           };
@@ -279,7 +288,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             accent: product.accent,
             image: product.image,
           },
-          size: { key: unit.key, label: unit.sizeLabel, price: unit.price },
+          size: {
+            key: unit.key,
+            label: unit.sizeLabel,
+            price: unit.price,
+            includesEnclosure: unit.includesEnclosure,
+          },
           lineTotal: unit.price * l.qty,
           key: `${l.productId}:${l.unitKey}`,
         };

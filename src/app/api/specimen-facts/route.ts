@@ -27,5 +27,6 @@ export async function GET(request: NextRequest) {
     locationName: specimen.locationType === "consignment" && specimen.location ? specimen.location.name : null,
     tarantulAppId: specimen.tarantulAppId,
     status: specimen.status,
+    includesEnclosure: specimen.includesEnclosure,
   });
 }

@@ -199,7 +199,8 @@
     "specimenStatusAllocated": "Ce spécimen précis est réservé pour la commande d'un autre client.",
     "specimenStatusSold": "Ce spécimen a déjà trouvé son foyer — d'autres tailles sont peut-être encore disponibles ci-dessus.",
     "specimenStatusWrittenOff": "Ce spécimen n'est plus disponible.",
-    "specimenDistributorCta": "Distributeur? Gérer ce spécimen"
+    "specimenDistributorCta": "Distributeur? Gérer ce spécimen",
+    "bundleEnclosure": "Terrarium inclus"
   },
   "cart": {
     "title": "Votre panier",

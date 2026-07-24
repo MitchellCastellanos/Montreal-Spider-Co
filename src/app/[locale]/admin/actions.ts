@@ -324,6 +324,7 @@ interface ReceiveBatchRowForm {
   sex?: string;
   unitCost?: number;
   price?: number;
+  includesEnclosure?: boolean;
   photoUrl?: string | null;
   quantity: number;
   purchasedAt?: string;
@@ -409,6 +410,7 @@ export async function receiveBatchAction(_prev: ActionState, formData: FormData)
       sex: (r.sex === "male" || r.sex === "female" ? r.sex : "unsexed") as SpecimenSex,
       unitCost: Number(r.unitCost) || 0,
       price: Number(r.price) || 0,
+      includesEnclosure: !!r.includesEnclosure,
       photoUrl,
       quantity,
       purchasedAt: r.purchasedAt ? new Date(r.purchasedAt) : new Date(),
@@ -565,6 +567,7 @@ export async function updateSpecimenAction(_prev: ActionState, formData: FormDat
       price: num(formData, "price", 0),
       settlementPrice: settlementRaw === "" ? null : Math.max(0, Number(settlementRaw) || 0),
       msrp: msrpRaw === "" ? null : Math.max(0, Number(msrpRaw) || 0),
+      includesEnclosure: formData.get("includesEnclosure") === "on",
       locationType: str(formData, "locationType") === "consignment" ? "consignment" : "warehouse",
       locationId: str(formData, "locationId") || null,
       notes: str(formData, "notes"),

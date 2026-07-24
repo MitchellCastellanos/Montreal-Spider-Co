@@ -446,6 +446,9 @@ export default function CheckoutView({
                     <p className="truncate text-sm italic text-cream">{productDisplayTitle(l.product)}</p>
                     {subtitle && <p className="truncate text-xs text-muted">{subtitle}</p>}
                     <p className="text-xs text-muted">{l.size.label} × {l.qty}</p>
+                    {l.size.includesEnclosure && (
+                      <p className="text-xs font-semibold text-gold-deep">{dict.product.bundleEnclosure}</p>
+                    )}
                   </div>
                   <span className="text-sm text-bone">{formatPrice(l.lineTotal, locale)}</span>
                 </li>

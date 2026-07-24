@@ -131,6 +131,11 @@ export default function ProductCard({ product }: { product: Product }) {
                         distributorName={distributorName}
                         className="mt-0.5 font-normal normal-case tracking-normal"
                       />
+                      {unit.includesEnclosure && (
+                        <span className="mt-0.5 block font-normal normal-case tracking-normal text-gold-deep">
+                          {dict.product.bundleEnclosure}
+                        </span>
+                      )}
                     </span>
                     <span className="shrink-0 text-sm font-semibold tabular-nums text-gold-bright">
                       {formatPrice(unit.price, locale)}

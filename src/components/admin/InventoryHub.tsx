@@ -508,6 +508,7 @@ function SpecimenRow({
   const [price, setPrice] = useState(s.price);
   const [settlementPrice, setSettlementPrice] = useState(s.settlementPrice != null ? String(s.settlementPrice) : "");
   const [msrp, setMsrp] = useState(s.msrp != null ? String(s.msrp) : "");
+  const [includesEnclosure, setIncludesEnclosure] = useState(s.includesEnclosure);
   const [locationType, setLocationType] = useState(s.locationType);
   const [locationId, setLocationId] = useState(s.locationId ?? "");
   const [notes, setNotes] = useState(s.notes ?? "");
@@ -567,7 +568,10 @@ function SpecimenRow({
         </td>
         <td className="px-3 py-2 text-xs">{location}</td>
         <td className="px-3 py-2">{formatPrice(s.unitCost, locale)}</td>
-        <td className="px-3 py-2">{formatPrice(s.price, locale)}</td>
+        <td className="px-3 py-2">
+          {formatPrice(s.price, locale)}
+          {s.includesEnclosure && <span className="ml-1 text-xs text-gold-deep" title="Includes terrarium">🏺</span>}
+        </td>
         <td className="px-3 py-2 text-xs text-muted">{s.purchasedAt}</td>
         <td className="px-3 py-2">
           <div className="flex gap-1">
@@ -667,6 +671,19 @@ function SpecimenRow({
                 />
               </label>
               <label className="field">
+                <span>Terrarium <InfoHint text="Bundled with a starter terrarium at this price — shown to customers on the storefront." /></span>
+                <span className="flex h-[38px] items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    name="includesEnclosure"
+                    checked={includesEnclosure}
+                    onChange={(e) => setIncludesEnclosure(e.target.checked)}
+                    className="accent-[var(--gold)]"
+                  />
+                  <span className="text-xs text-bone">Included</span>
+                </span>
+              </label>
+              <label className="field">
                 <span>Location</span>
                 <select
                   name="locationType"
@@ -753,6 +770,7 @@ interface RowState {
   sex: "" | "male" | "female";
   unitCost: string;
   price: string;
+  includesEnclosure: boolean;
   quantity: string;
   photoMode: PhotoMode;
   photoPreview: string | null;
@@ -790,6 +808,7 @@ function blankRow(hints?: ReceiveHints): RowState {
     sex: "",
     unitCost: hints?.unitCost ?? "",
     price: hints?.price ?? "",
+    includesEnclosure: false,
     quantity: "1",
     photoMode: "default",
     photoPreview: null,
@@ -1015,6 +1034,7 @@ function ReceiveBatchForm({
             sex: r.sex || "unsexed",
             unitCost: Number(r.unitCost) || 0,
             price: Number(r.price) || 0,
+            includesEnclosure: r.includesEnclosure,
             photoUrl: r.photoMode === "library" ? r.libraryUrl : null,
             quantity: Math.max(1, Math.round(Number(r.quantity) || 1)),
             purchasedAt: b.purchasedAt,
@@ -1323,6 +1343,19 @@ function ReceiveBatchForm({
                             className="input"
                             required
                           />
+                        </label>
+
+                        <label className="field w-32">
+                          <span>Terrarium <InfoHint text="Bundled with a starter terrarium at this price — shown to customers on the storefront." /></span>
+                          <span className="flex h-[38px] items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={row.includesEnclosure}
+                              onChange={(e) => updateRow(block.key, row.key, { includesEnclosure: e.target.checked })}
+                              className="accent-[var(--gold)]"
+                            />
+                            <span className="text-xs text-bone">Included</span>
+                          </span>
                         </label>
 
                         <label className="field w-36">

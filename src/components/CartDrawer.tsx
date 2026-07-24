@@ -74,6 +74,9 @@ export default function CartDrawer() {
                         </LocaleLink>
                         {subtitle && <p className="truncate text-xs text-muted">{subtitle}</p>}
                         <p className="text-xs text-bone">{line.size.label}</p>
+                        {line.size.includesEnclosure && (
+                          <p className="text-xs font-semibold text-gold-deep">{dict.product.bundleEnclosure}</p>
+                        )}
                         <div className="mt-2 flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <button
