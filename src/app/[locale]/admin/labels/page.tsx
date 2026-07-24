@@ -49,7 +49,7 @@ export default async function AdminLabelsPage({
     },
     include: {
       product: { select: { scientific: true, commonEn: true } },
-      location: { select: { name: true, partnerToken: true } },
+      location: { select: { name: true } },
     },
     orderBy: { purchasedAt: "asc" },
     take: 200,
@@ -57,7 +57,7 @@ export default async function AdminLabelsPage({
 
   const labels = await Promise.all(
     specimens.map(async (s) => {
-      const url = `${SITE.url}/q/${s.qrToken}${s.location ? `?k=${s.location.partnerToken}` : ""}`;
+      const url = `${SITE.url}/q/${s.qrToken}`;
       const dataUrl = await QRCode.toDataURL(url, { margin: 1, width: 220 });
       return {
         id: s.id,

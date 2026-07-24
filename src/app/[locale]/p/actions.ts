@@ -1,11 +1,17 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import type { PaymentMethod } from "@prisma/client";
 import { respondToProposal } from "@/lib/data/restock";
 import { getFulfillmentByPickupToken, confirmPickup } from "@/lib/fulfillment/fulfillment";
-import { assertPartnerTokenForLocation } from "@/lib/partner/auth";
-import { registerWalkInSale, reportSpecimenIssue, type WalkInSaleResult } from "@/lib/partner/walk-in";
+import { assertPartnerTokenForLocation, distributorCodeCookie } from "@/lib/partner/auth";
+import {
+  registerWalkInSale,
+  reportSpecimenIssue,
+  verifyDistributorCode,
+  type WalkInSaleResult,
+} from "@/lib/partner/walk-in";
 
 /**
  * Partner-facing server actions. Partners have no accounts — every action is
@@ -89,6 +95,28 @@ export async function walkInSaleAction(
   } catch (e) {
     return fail(e, "sale_failed");
   }
+}
+
+/** Unlocks the distributor screen for one store on this device, once its admin-set code is entered correctly. */
+export async function verifyDistributorCodeAction(
+  _prev: PartnerActionState,
+  formData: FormData,
+): Promise<PartnerActionState> {
+  let locationId: string;
+  try {
+    locationId = await verifyDistributorCode(str(formData, "qrToken"), str(formData, "code"));
+  } catch (e) {
+    return fail(e, "code_invalid");
+  }
+  const jar = await cookies();
+  jar.set(distributorCodeCookie(locationId), "1", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 12,
+    path: "/",
+  });
+  return { ok: true };
 }
 
 /** Anyone with the specimen QR can report an issue (health, enclosure, …). */

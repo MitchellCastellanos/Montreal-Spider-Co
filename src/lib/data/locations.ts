@@ -22,6 +22,7 @@ export interface StoreLocationView {
   contactName: string;
   whatsapp: string;
   partnerToken: string;
+  distributorCode: string;
   minPricePct: number | null;
 }
 
@@ -49,6 +50,7 @@ function mapLocation(row: DbLocation): StoreLocationView {
     contactName: row.contactName,
     whatsapp: row.whatsapp,
     partnerToken: row.partnerToken,
+    distributorCode: row.distributorCode,
     minPricePct: row.minPricePct,
   };
 }
@@ -69,6 +71,7 @@ function seedView(): StoreLocationView[] {
     contactName: "",
     whatsapp: "",
     partnerToken: "",
+    distributorCode: "",
     minPricePct: null,
   }));
 }
@@ -135,6 +138,7 @@ export interface LocationInput {
   email?: string;
   contactName?: string;
   whatsapp?: string;
+  distributorCode?: string;
   minPricePct?: number | null;
 }
 
@@ -152,6 +156,7 @@ export interface LocationBulkRow {
   email?: string;
   contactName?: string;
   whatsapp?: string;
+  distributorCode?: string;
   minPricePct?: number | null;
 }
 
@@ -177,6 +182,7 @@ export async function createLocation(input: LocationInput): Promise<string> {
       email: input.email ?? "",
       contactName: input.contactName ?? "",
       whatsapp: input.whatsapp ?? "",
+      distributorCode: input.distributorCode ?? "",
       minPricePct: input.minPricePct ?? null,
       position: count,
     },
@@ -201,6 +207,7 @@ export async function updateLocation(id: string, input: LocationInput): Promise<
       ...(input.email !== undefined ? { email: input.email } : {}),
       ...(input.contactName !== undefined ? { contactName: input.contactName } : {}),
       ...(input.whatsapp !== undefined ? { whatsapp: input.whatsapp } : {}),
+      ...(input.distributorCode !== undefined ? { distributorCode: input.distributorCode } : {}),
       ...(input.minPricePct !== undefined ? { minPricePct: input.minPricePct } : {}),
     },
   });
@@ -225,6 +232,7 @@ export async function bulkUpdateLocations(rows: LocationBulkRow[]): Promise<void
           ...(row.email !== undefined ? { email: row.email } : {}),
           ...(row.contactName !== undefined ? { contactName: row.contactName } : {}),
           ...(row.whatsapp !== undefined ? { whatsapp: row.whatsapp } : {}),
+          ...(row.distributorCode !== undefined ? { distributorCode: row.distributorCode } : {}),
           ...(row.minPricePct !== undefined ? { minPricePct: row.minPricePct } : {}),
         },
       }),

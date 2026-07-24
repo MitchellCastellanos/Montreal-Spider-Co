@@ -22,6 +22,7 @@ interface RowState {
   email: string;
   contactName: string;
   whatsapp: string;
+  distributorCode: string;
   minPricePct: number | null;
   expanded: boolean;
 }
@@ -172,6 +173,18 @@ export default function LocationsEditor({ locations, locale }: { locations: Stor
                           />
                         </label>
                         <label className="field">
+                          <span>Distributor code</span>
+                          <input
+                            value={row.distributorCode}
+                            onChange={(e) => patch(row.id, { distributorCode: e.target.value })}
+                            className="input"
+                            placeholder="e.g. REPTILE24"
+                          />
+                          <span className="mt-1 block text-xs text-muted">
+                            Share with the partner by email or in person — required before their staff can open the walk-in sale screen.
+                          </span>
+                        </label>
+                        <label className="field">
                           <span>Min price policy (% of MSRP)</span>
                           <input
                             type="number"
@@ -241,6 +254,10 @@ export default function LocationsEditor({ locations, locale }: { locations: Stor
           <label className="field">
             <span>Contact name</span>
             <input name="contactName" className="input" />
+          </label>
+          <label className="field">
+            <span>Distributor code</span>
+            <input name="distributorCode" className="input" placeholder="e.g. REPTILE24" />
           </label>
           <label className="flex items-center gap-2 text-sm text-bone">
             <input type="checkbox" name="isPickup" defaultChecked className="accent-[var(--gold)]" />

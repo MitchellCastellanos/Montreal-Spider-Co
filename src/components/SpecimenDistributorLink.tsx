@@ -8,11 +8,10 @@ import { useI18n } from "@/i18n/I18nProvider";
 export default function SpecimenDistributorLink() {
   const searchParams = useSearchParams();
   const token = searchParams.get("specimen");
-  const k = searchParams.get("k");
   const { locale, dict } = useI18n();
 
   if (!token) return null;
-  const href = `/${locale}/q/${token}/distributor${k ? `?k=${k}` : ""}`;
+  const href = `/${locale}/q/${token}/distributor`;
 
   return (
     <div className="mt-6 text-center">

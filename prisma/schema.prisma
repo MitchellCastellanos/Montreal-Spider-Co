@@ -167,6 +167,8 @@ model StoreLocation {
   whatsapp      String   @default("")
   /** Unguessable token embedded in QR codes / links so partners can use simple confirmation pages without accounts. */
   partnerToken  String   @unique @default(cuid())
+  /** Short admin-set code, shared with the partner by email/in person, that gates the distributor (walk-in sale) screen. */
+  distributorCode String @default("")
   /** Minimum retail price policy (%) relative to MSRP that partners must respect. 100 = never below MSRP. */
   minPricePct   Float?
   createdAt     DateTime @default(now())

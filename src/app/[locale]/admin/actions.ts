@@ -262,6 +262,7 @@ export async function createLocationAction(_prev: ActionState, formData: FormDat
     isDistributor: bool(formData, "isDistributor"),
     email: str(formData, "email"),
     contactName: str(formData, "contactName"),
+    distributorCode: str(formData, "distributorCode"),
   };
 
   if (!input.isPickup && !input.isDistributor) {

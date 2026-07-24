@@ -28,6 +28,25 @@ export async function getSpecimenByQrToken(token: string) {
   return db.specimen.findUnique({ where: { qrToken: token }, include: specimenInclude });
 }
 
+/**
+ * Gate for the distributor (walk-in sale) screen: partner staff must know this
+ * store's short admin-set code (shared by email/in person) — unlike the sale
+ * itself, this is never embedded in the QR label. Returns the location id on
+ * success so the caller can remember it (e.g. a cookie) for this device.
+ */
+export async function verifyDistributorCode(qrToken: string, code: string): Promise<string> {
+  const specimen = await getSpecimenByQrToken(qrToken);
+  if (!specimen || specimen.locationType !== "consignment" || !specimen.location) {
+    throw new Error("This specimen is not at a partner store.");
+  }
+  const entered = code.trim();
+  const expected = specimen.location.distributorCode.trim();
+  if (!expected || entered.toLowerCase() !== expected.toLowerCase()) {
+    throw new Error("Incorrect distributor code.");
+  }
+  return specimen.location.id;
+}
+
 export interface WalkInSaleInput {
   qrToken: string;
   /** Partner token from the QR link — authorizes the sale for that store only. */

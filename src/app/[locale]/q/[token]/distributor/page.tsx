@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { hasDatabase } from "@/lib/db";
 import { getSpecimenByQrToken } from "@/lib/partner/walk-in";
 import { formatCmAsInches } from "@/lib/size-inches";
+import { distributorCodeCookie } from "@/lib/partner/auth";
 import PartnerCard from "@/components/partner/PartnerCard";
 import SpecimenQrActions from "@/components/partner/SpecimenQrActions";
+import DistributorCodeGate from "@/components/partner/DistributorCodeGate";
 
 export const dynamic = "force-dynamic";
 
@@ -22,26 +25,37 @@ const STATUS_NOTE: Record<string, string> = {
 /**
  * Distributor screen for a specimen: partner employees register walk-in
  * sales or report issues here. Reached via the "Distributor" link on the
- * specimen's public product page (which carries the store's partner key).
+ * specimen's public product page. Specimens at a partner store are gated
+ * behind that store's admin-set code (shared by email/in person) — knowing
+ * the QR label alone is no longer enough to open the sale screen.
  */
 export default async function SpecimenDistributorPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ k?: string }>;
 }) {
   const { token } = await params;
-  const { k } = await searchParams;
   if (!hasDatabase) notFound();
 
   const specimen = await getSpecimenByQrToken(token);
   if (!specimen) notFound();
 
-  const partnerToken = k ?? null;
   const atPartner = specimen.locationType === "consignment" && specimen.location != null;
-  const keyMatches = atPartner && partnerToken === specimen.location!.partnerToken;
-  const canSell = keyMatches && specimen.status === "available";
+
+  if (atPartner) {
+    const jar = await cookies();
+    const unlocked = jar.get(distributorCodeCookie(specimen.location!.id))?.value === "1";
+    if (!unlocked) {
+      return (
+        <PartnerCard title={specimen.location!.name} subtitle="Enter your distributor code to continue.">
+          <DistributorCodeGate qrToken={token} />
+        </PartnerCard>
+      );
+    }
+  }
+
+  const partnerToken = atPartner ? specimen.location!.partnerToken : null;
+  const canSell = atPartner && specimen.status === "available";
   const suggestedPrice = specimen.msrp ?? (specimen.price > 0 ? specimen.price : null);
 
   const sexLabel = specimen.sex === "unsexed" ? "Unsexed" : specimen.sex === "male" ? "Male" : "Female";
@@ -68,7 +82,7 @@ export default async function SpecimenDistributorPage({
           <dt className="text-xs text-muted">Location</dt>
           <dd className="text-cream">{specimen.location?.name ?? "MSC warehouse"}</dd>
         </div>
-        {keyMatches && specimen.msrp != null && (
+        {atPartner && specimen.msrp != null && (
           <div className="rounded-lg border border-line bg-ink p-3">
             <dt className="text-xs text-muted">Suggested retail (MSRP)</dt>
             <dd className="text-cream">${specimen.msrp.toFixed(2)}</dd>

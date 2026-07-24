@@ -46,3 +46,8 @@ export function specimenQrUrl(qrToken: string, partnerToken?: string | null): st
   const base = `${SITE.url}/q/${qrToken}`;
   return partnerToken ? `${base}?k=${partnerToken}` : base;
 }
+
+/** Cookie that remembers a verified distributor code for one store, on this device. */
+export function distributorCodeCookie(locationId: string): string {
+  return `dc_${locationId}`;
+}

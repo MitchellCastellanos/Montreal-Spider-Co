@@ -35,7 +35,7 @@ export default async function AdminSpecimenPage({
 
   const [growth, molts] = await Promise.all([getGrowthHistory(id), getMoltHistory(id)]);
 
-  const qrUrl = `${SITE.url}/q/${s.qrToken}${s.location ? `?k=${s.location.partnerToken}` : ""}`;
+  const qrUrl = `${SITE.url}/q/${s.qrToken}`;
   const qrDataUrl = await QRCode.toDataURL(qrUrl, { margin: 1, width: 200 });
 
   const locked = s.status === "sold" || s.status === "written_off";
