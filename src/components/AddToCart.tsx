@@ -58,6 +58,9 @@ export default function AddToCart({ product }: { product: Product }) {
                 <span className="block text-sm font-semibold text-cream">{s.sizeLabel}</span>
                 <span className="block text-xs text-muted">{dict.product[SEX_LABEL_KEY[s.sex]]}</span>
                 <UnitFulfillmentBadge unit={s} distributorName={distributorName} className="mt-0.5" />
+                {s.includesEnclosure && (
+                  <span className="mt-0.5 block text-xs font-semibold text-gold-deep">{dict.product.bundleEnclosure}</span>
+                )}
                 <span className="mt-0.5 block text-xs text-gold-bright">{formatPrice(s.price, locale)}</span>
               </button>
             );

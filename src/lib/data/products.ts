@@ -117,6 +117,7 @@ async function attachAvailability(products: Product[]): Promise<Product[]> {
         sizeLabel: g.sizeLabel,
         sex: g.sex,
         price: g.price,
+        includesEnclosure: g.includesEnclosure,
         stock: g.stock,
         warehouseStock: g.warehouseStock,
         distributorStock: g.distributorStock,

@@ -54,6 +54,8 @@ export interface AvailableUnit {
   sizeLabel: string;
   sex: SpecimenSex;
   price: number;
+  /** Customer-facing: this unit is sold bundled with a starter terrarium. */
+  includesEnclosure?: boolean;
   /** Total purchasable units (warehouse + at distributors). */
   stock: number;
   /** Units at our warehouse (pickup / delivery). */

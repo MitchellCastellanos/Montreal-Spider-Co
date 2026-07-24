@@ -47,6 +47,9 @@ export default function CartView() {
                     </LocaleLink>
                     {subtitle && <p className="text-xs text-muted">{subtitle}</p>}
                     <p className="mt-1 text-sm text-bone">{line.size.label}</p>
+                    {line.size.includesEnclosure && (
+                      <p className="text-xs font-semibold text-gold-deep">{dict.product.bundleEnclosure}</p>
+                    )}
                   </div>
                   <button onClick={() => remove(line.productId, line.unitKey)} className="text-sm text-muted hover:text-danger">{c.remove}</button>
                 </div>

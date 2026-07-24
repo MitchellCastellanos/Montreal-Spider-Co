@@ -11,6 +11,7 @@ type SpecimenFacts = {
   locationName: string | null;
   tarantulAppId: string | null;
   status: string;
+  includesEnclosure: boolean;
 };
 
 /** "Important facts" banner shown when the product page is reached via a specimen QR scan. */
@@ -50,6 +51,9 @@ export default function SpecimenFactsPanel({ slug }: { slug: string }) {
     <section className="mb-8 rounded-2xl border border-gold/30 bg-gold/5 p-5">
       <p className="text-xs uppercase tracking-widest text-gold">{p.specimenFactsEyebrow}</p>
       <h2 className="mt-1 font-display text-lg font-semibold text-cream">{p.specimenFactsTitle}</h2>
+      {facts.includesEnclosure && (
+        <p className="mt-1 text-sm font-semibold text-gold-deep">{p.bundleEnclosure}</p>
+      )}
       {statusNote && <p className="mt-2 text-sm text-cream">{statusNote}</p>}
       <dl className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <div>

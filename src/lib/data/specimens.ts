@@ -58,6 +58,7 @@ export interface SpecimenView {
   unitCost: number;
   settlementPrice: number | null;
   msrp: number | null;
+  includesEnclosure: boolean;
   purchasedAt: string;
   lastMeasuredAt: string | null;
   qrToken: string;
@@ -88,6 +89,8 @@ export interface ReceiveBatchRowInput {
   settlementPrice?: number | null;
   /** Suggested retail price for partners. */
   msrp?: number | null;
+  /** Customer-facing: sold bundled with a starter terrarium. */
+  includesEnclosure?: boolean;
   photoUrl?: string | null;
   quantity: number;
   purchasedAt: Date;
@@ -147,6 +150,7 @@ export interface AvailabilityGroup {
   sizeLabel: string;
   sex: SpecimenSex;
   price: number;
+  includesEnclosure: boolean;
   /** Total purchasable units (warehouse + at distributors). */
   stock: number;
   warehouseStock: number;
@@ -174,6 +178,7 @@ function mapSpecimen(
     unitCost: number;
     settlementPrice: number | null;
     msrp: number | null;
+    includesEnclosure: boolean;
     purchasedAt: Date;
     lastMeasuredAt: Date | null;
     qrToken: string;
@@ -208,6 +213,7 @@ function mapSpecimen(
     unitCost: s.unitCost,
     settlementPrice: s.settlementPrice,
     msrp: s.msrp,
+    includesEnclosure: s.includesEnclosure,
     purchasedAt: s.purchasedAt.toISOString().slice(0, 10),
     lastMeasuredAt: s.lastMeasuredAt?.toISOString().slice(0, 10) ?? null,
     qrToken: s.qrToken,
@@ -274,13 +280,14 @@ export async function listAvailabilityGroups(productIds?: string[]): Promise<Ava
       photoUrl: true,
       status: true,
       locationType: true,
+      includesEnclosure: true,
     },
     orderBy: { purchasedAt: "asc" },
   });
 
   const groups = new Map<string, AvailabilityGroup>();
   for (const r of rows) {
-    const key = `${r.productId}:${r.sizeCm}:${r.sex}:${r.price}`;
+    const key = `${r.productId}:${r.sizeCm}:${r.sex}:${r.price}:${r.includesEnclosure}`;
     const isWarehouse = r.locationType === "warehouse";
     const existing = groups.get(key);
     if (existing) {
@@ -296,6 +303,7 @@ export async function listAvailabilityGroups(productIds?: string[]): Promise<Ava
         sizeLabel: formatCmAsInches(r.sizeCm),
         sex: r.sex,
         price: r.price,
+        includesEnclosure: r.includesEnclosure,
         stock: 1,
         warehouseStock: isWarehouse ? 1 : 0,
         distributorStock: isWarehouse ? 0 : 1,
@@ -437,6 +445,7 @@ export async function receiveSpecimenBatch(rows: ReceiveBatchRowInput[]): Promis
             price: row.price,
             settlementPrice: row.settlementPrice ?? null,
             msrp: row.msrp ?? null,
+            includesEnclosure: row.includesEnclosure ?? false,
             photoUrl: row.photoUrl || null,
             tarantulAppId,
             status: "available",
@@ -713,6 +722,7 @@ export interface UpdateSpecimenInput {
   price: number;
   settlementPrice?: number | null;
   msrp?: number | null;
+  includesEnclosure: boolean;
   locationType: SpecimenLocationType;
   locationId?: string | null;
   notes: string;
@@ -747,6 +757,7 @@ export async function updateSpecimen(specimenId: string, input: UpdateSpecimenIn
         price: Math.max(0, input.price),
         settlementPrice: input.settlementPrice !== undefined ? input.settlementPrice : s.settlementPrice,
         msrp: input.msrp !== undefined ? input.msrp : s.msrp,
+        includesEnclosure: input.includesEnclosure,
         notes: input.notes,
         locationType: input.locationType,
         locationId,

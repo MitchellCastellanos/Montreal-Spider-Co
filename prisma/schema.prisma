@@ -325,6 +325,8 @@ model Specimen {
   settlementPrice Float?
   /** Suggested retail price for partners; they may charge more, subject to the location's min price policy. */
   msrp            Float?
+  /** Customer-facing: this specimen is sold bundled with a starter terrarium (reflected in its price). */
+  includesEnclosure Boolean            @default(false)
   purchasedAt     DateTime             @default(now())
   supplier        String               @default("")
   notes           String               @default("")
