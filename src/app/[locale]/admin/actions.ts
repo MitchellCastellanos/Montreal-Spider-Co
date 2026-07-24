@@ -13,12 +13,7 @@ import {
   type ProductDistributorStockInput,
 } from "@/lib/data/products";
 import { uploadProductImage, hasStorage } from "@/lib/storage";
-import {
-  bulkUpdateLocations,
-  createLocation,
-  type LocationBulkRow,
-  type LocationInput,
-} from "@/lib/data/locations";
+import { createLocation, updateLocation, type LocationInput } from "@/lib/data/locations";
 import { updateSettings } from "@/lib/data/settings";
 import { sendTemplateTestEmail } from "@/lib/email";
 import { addLibraryImage } from "@/lib/data/species-library";
@@ -221,25 +216,46 @@ export async function deleteProductAction(formData: FormData): Promise<void> {
 
 // --- Store locations (pickup + distributor) --------------------------------
 
-export async function bulkSaveLocationsAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+/** Per-location edit — one form, one save, on the Locations admin page. */
+export async function updateLocationAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   if (!(await isAdminAuthed())) return { error: "unauthorized" };
-  const locale = str(formData, "locale") || "en";
+  const id = str(formData, "id");
+  if (!id) return { error: "missing_id" };
+  if (!str(formData, "name") || !str(formData, "address")) return { error: "missing_fields" };
 
-  let rows: LocationBulkRow[] = [];
-  try {
-    rows = JSON.parse(str(formData, "locations") || "[]");
-  } catch {
-    return { error: "locations_invalid" };
+  const hours = parseWeeklyHoursJson(str(formData, "hours"));
+  if (!hours) return { error: "hours_invalid" };
+
+  const minPricePctRaw = str(formData, "minPricePct");
+
+  const input: LocationInput = {
+    name: str(formData, "name"),
+    neighborhood: str(formData, "neighborhood"),
+    address: str(formData, "address"),
+    hours,
+    mapsUrl: str(formData, "mapsUrl"),
+    phone: str(formData, "phone"),
+    active: bool(formData, "active"),
+    isPickup: bool(formData, "isPickup"),
+    isDistributor: bool(formData, "isDistributor"),
+    email: str(formData, "email"),
+    contactName: str(formData, "contactName"),
+    whatsapp: str(formData, "whatsapp"),
+    distributorCode: str(formData, "distributorCode"),
+    minPricePct: minPricePctRaw === "" ? null : Math.max(0, Number(minPricePctRaw) || 0),
+  };
+
+  if (!input.isPickup && !input.isDistributor) {
+    return { error: "Select pickup and/or distributor" };
   }
-  if (!Array.isArray(rows) || rows.length === 0) return { error: "locations_empty" };
 
   try {
-    await bulkUpdateLocations(rows);
+    await updateLocation(id, input);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "save_failed" };
   }
   revalidatePath("/", "layout");
-  redirect(`/${locale}/admin/pickup`);
+  return { ok: true };
 }
 
 export async function createLocationAction(_prev: ActionState, formData: FormData): Promise<ActionState> {

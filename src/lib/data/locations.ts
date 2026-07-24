@@ -142,24 +142,6 @@ export interface LocationInput {
   minPricePct?: number | null;
 }
 
-export interface LocationBulkRow {
-  id: string;
-  name: string;
-  neighborhood: string;
-  address: string;
-  phone: string;
-  mapsUrl: string;
-  active: boolean;
-  isPickup: boolean;
-  isDistributor: boolean;
-  hours?: WeeklyHours;
-  email?: string;
-  contactName?: string;
-  whatsapp?: string;
-  distributorCode?: string;
-  minPricePct?: number | null;
-}
-
 function requireDb() {
   if (!prisma) throw new Error("Database not configured. Set DATABASE_URL to manage locations.");
   return prisma;
@@ -211,33 +193,6 @@ export async function updateLocation(id: string, input: LocationInput): Promise<
       ...(input.minPricePct !== undefined ? { minPricePct: input.minPricePct } : {}),
     },
   });
-}
-
-export async function bulkUpdateLocations(rows: LocationBulkRow[]): Promise<void> {
-  const db = requireDb();
-  await db.$transaction(
-    rows.map((row) =>
-      db.storeLocation.update({
-        where: { id: row.id },
-        data: {
-          name: row.name,
-          neighborhood: row.neighborhood,
-          address: row.address,
-          phone: row.phone,
-          mapsUrl: row.mapsUrl,
-          active: row.active,
-          isPickup: row.isPickup,
-          isDistributor: row.isDistributor,
-          ...(row.hours ? { hours: row.hours as unknown as Prisma.InputJsonValue } : {}),
-          ...(row.email !== undefined ? { email: row.email } : {}),
-          ...(row.contactName !== undefined ? { contactName: row.contactName } : {}),
-          ...(row.whatsapp !== undefined ? { whatsapp: row.whatsapp } : {}),
-          ...(row.distributorCode !== undefined ? { distributorCode: row.distributorCode } : {}),
-          ...(row.minPricePct !== undefined ? { minPricePct: row.minPricePct } : {}),
-        },
-      }),
-    ),
-  );
 }
 
 export async function deleteLocation(id: string): Promise<void> {

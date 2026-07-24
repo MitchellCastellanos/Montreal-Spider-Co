@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   DAY_KEYS,
   EMPTY_WEEKLY_HOURS,
@@ -42,9 +42,16 @@ export default function OpeningHoursEditor({
 }) {
   const [hours, setHours] = useState(() => normalizeHours(initial));
 
+  // Only re-notify when `hours` itself changes — depending on `onChange` too
+  // would re-fire (and loop, if the caller passes a fresh inline function
+  // every render) even though nothing actually changed.
+  const onChangeRef = useRef(onChange);
   useEffect(() => {
-    onChange?.(hours);
-  }, [hours, onChange]);
+    onChangeRef.current = onChange;
+  }, [onChange]);
+  useEffect(() => {
+    onChangeRef.current?.(hours);
+  }, [hours]);
 
   function setDay(day: DayKey, patch: Partial<WeeklyHours[DayKey]>) {
     setHours((prev) => {

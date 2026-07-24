@@ -13,7 +13,7 @@ export default async function AdminLocationsPage({ params }: { params: Promise<{
       <div className="mb-6">
         <h1 className="font-display text-2xl font-bold text-cream">Locations</h1>
         <p className="text-sm text-muted">
-          {locations.length} location(s) — mark each as pickup point, authorized distributor, or both. Edit inline and save all at once.
+          {locations.length} location(s) — mark each as pickup point, authorized distributor, or both. Click &ldquo;Edit&rdquo; on a location to change its details and save.
         </p>
       </div>
 
