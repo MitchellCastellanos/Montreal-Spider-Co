@@ -688,6 +688,25 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       ],
     },
   }),
+  simpleTemplate({
+    id: "partner-distributor-code",
+    label: "Partner — distributor code",
+    description: "Sends a store its distributor code, sent on demand from the Locations admin page.",
+    sample: { partnerName: "Marie", storeName: "Reptile Concept", code: "REPTILE24" },
+    subject: { en: "{storeName}'s distributor code", fr: "Le code distributeur de {storeName}" },
+    paragraphs: {
+      en: [
+        "Hi {partnerName},",
+        "Here's {storeName}'s distributor code: <strong>{code}</strong>",
+        "Whoever's working the floor will need to enter it the first time they scan one of our specimen QR labels that day — it's what unlocks the screen to register a walk-in sale or report an issue with an animal. Keep it somewhere your staff can find it.",
+      ],
+      fr: [
+        "Bonjour {partnerName},",
+        "Voici le code distributeur de {storeName} : <strong>{code}</strong>",
+        "La personne en boutique devra l'entrer la première fois qu'elle scanne une étiquette QR d'un spécimen dans la journée — c'est ce qui débloque l'écran pour enregistrer une vente en boutique ou signaler un problème avec un animal. Gardez-le à portée de votre équipe.",
+      ],
+    },
+  }),
 
   // -------------------------------------------------------------------------
   // Internal (MSC staff)

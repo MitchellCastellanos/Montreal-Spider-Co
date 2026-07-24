@@ -13,9 +13,10 @@ import {
   type ProductDistributorStockInput,
 } from "@/lib/data/products";
 import { uploadProductImage, hasStorage } from "@/lib/storage";
-import { createLocation, updateLocation, type LocationInput } from "@/lib/data/locations";
+import { createLocation, updateLocation, getLocationById, type LocationInput } from "@/lib/data/locations";
 import { updateSettings } from "@/lib/data/settings";
 import { sendTemplateTestEmail } from "@/lib/email";
+import { sendNotification } from "@/lib/notifications/service";
 import { addLibraryImage } from "@/lib/data/species-library";
 import { linkProductToSpecies, upsertSpeciesMinimal, type SpeciesInput } from "@/lib/data/species";
 import {
@@ -255,6 +256,36 @@ export async function updateLocationAction(_prev: ActionState, formData: FormDat
     return { error: e instanceof Error ? e.message : "save_failed" };
   }
   revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** Emails a store's distributor code to its registered partner address, on demand. */
+export async function sendDistributorCodeEmailAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  if (!(await isAdminAuthed())) return { error: "unauthorized" };
+  const locationId = str(formData, "id");
+  if (!locationId) return { error: "missing_id" };
+
+  const location = await getLocationById(locationId);
+  if (!location) return { error: "Location not found." };
+  if (!location.distributorCode.trim()) return { error: "Set a distributor code for this store first." };
+  if (!location.email.trim()) return { error: "This store has no partner email on file." };
+
+  const sent = await sendNotification({
+    templateId: "partner-distributor-code",
+    event: "partner.distributor_code_sent",
+    to: location.email,
+    data: {
+      partnerName: location.contactName || location.name,
+      storeName: location.name,
+      code: location.distributorCode,
+    },
+    context: { locationId: location.id },
+  });
+
+  if (!sent) return { error: "Could not send the email — check that RESEND_API_KEY is configured." };
   return { ok: true };
 }
 

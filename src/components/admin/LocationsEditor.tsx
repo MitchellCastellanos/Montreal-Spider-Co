@@ -1,7 +1,12 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { updateLocationAction, createLocationAction, type ActionState } from "@/app/[locale]/admin/actions";
+import {
+  updateLocationAction,
+  createLocationAction,
+  sendDistributorCodeEmailAction,
+  type ActionState,
+} from "@/app/[locale]/admin/actions";
 import type { Locale } from "@/i18n/config";
 import type { StoreLocationView } from "@/lib/data/locations";
 import { EMPTY_WEEKLY_HOURS } from "@/lib/opening-hours";
@@ -91,6 +96,12 @@ function LocationRow({ location, locale }: { location: StoreLocationView; locale
   const [row, setRow] = useState(location);
   const [expanded, setExpanded] = useState(false);
   const [state, formAction, pending] = useActionState<ActionState, FormData>(updateLocationAction, {});
+  const [emailState, emailAction, emailSending] = useActionState<ActionState, FormData>(
+    sendDistributorCodeEmailAction,
+    {},
+  );
+
+  const canEmailCode = row.distributorCode.trim() !== "" && row.email.trim() !== "";
 
   const patch = (fields: Partial<StoreLocationView>) => setRow((r) => ({ ...r, ...fields }));
 
@@ -208,6 +219,21 @@ function LocationRow({ location, locale }: { location: StoreLocationView; locale
                 <span className="mt-1 block text-xs text-muted">
                   Share with the partner by email or in person — required before their staff can open the walk-in sale screen.
                 </span>
+                <button
+                  type="submit"
+                  formAction={emailAction}
+                  disabled={!canEmailCode || emailSending}
+                  title={
+                    canEmailCode
+                      ? undefined
+                      : "Set a distributor code and a partner email for this store first."
+                  }
+                  className="mt-2 rounded-md border border-line px-2 py-1 text-xs text-bone hover:border-gold hover:text-gold-bright disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {emailSending ? "Sending…" : `Email code to ${row.email.trim() || "partner"}`}
+                </button>
+                {emailState.error && <p className="mt-1 text-xs text-danger">{emailState.error}</p>}
+                {emailState.ok && <p className="mt-1 text-xs text-ok">Sent ✓</p>}
               </label>
               <label className="field">
                 <span>Min price policy (% of MSRP)</span>
