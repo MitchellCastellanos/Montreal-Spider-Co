@@ -1,4 +1,4 @@
-import { formatCareBlock, formatSpecimenMeta } from "@/lib/specimen-label-care";
+import { buildLabelFacts } from "@/lib/specimen-label-care";
 import type { Experience, SpecimenSex, SpiderType, Temperament } from "@/lib/types";
 
 export type SpecimenTerrariumLabelProps = {
@@ -12,11 +12,12 @@ export type SpecimenTerrariumLabelProps = {
   humidity: string;
   temperature: string;
   originEn: string;
+  adultSizeEn: string;
   tarantulAppId: string | null;
   qrDataUrl: string;
 };
 
-/** 6 cm × 4 cm terrarium label — info left, QR right. */
+/** 6 cm × 4 cm terrarium label — listed facts left, QR right. */
 export default function SpecimenTerrariumLabel({
   scientific,
   commonName,
@@ -28,10 +29,14 @@ export default function SpecimenTerrariumLabel({
   humidity,
   temperature,
   originEn,
+  adultSizeEn,
   tarantulAppId,
   qrDataUrl,
 }: SpecimenTerrariumLabelProps) {
-  const careLines = formatCareBlock({
+  const facts = buildLabelFacts({
+    sizeLabel,
+    sex,
+    adultSizeEn,
     type,
     temperament,
     experience,
@@ -49,22 +54,22 @@ export default function SpecimenTerrariumLabel({
           <div className="specimen-terrarium-label__left">
             <div className="specimen-terrarium-label__title-row">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/brand/logo.png" alt="" className="specimen-terrarium-label__mini-logo" />
+              <img src="/brand/logo-bw.png" alt="" className="specimen-terrarium-label__mini-logo" />
 
               <div className="specimen-terrarium-label__identity">
                 <p className="specimen-terrarium-label__scientific">{scientific}</p>
                 <p className="specimen-terrarium-label__common">{commonName}</p>
-                <p className="specimen-terrarium-label__meta">{formatSpecimenMeta(sizeLabel, sex)}</p>
               </div>
             </div>
 
-            <div className="specimen-terrarium-label__care">
-              {careLines.map((line) => (
-                <p key={line} className="specimen-terrarium-label__care-line">
-                  {line}
-                </p>
+            <dl className="specimen-terrarium-label__facts">
+              {facts.map((fact) => (
+                <div key={fact.label} className="specimen-terrarium-label__fact">
+                  <dt>{fact.label}</dt>
+                  <dd>{fact.value}</dd>
+                </div>
               ))}
-            </div>
+            </dl>
 
             <div className="specimen-terrarium-label__site">
               {tarantulAppId && (
@@ -80,7 +85,7 @@ export default function SpecimenTerrariumLabel({
               <img src={qrDataUrl} alt="" className="specimen-terrarium-label__qr" />
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/brand/logo.png"
+                src="/brand/logo-bw.png"
                 alt=""
                 className="specimen-terrarium-label__qr-logo"
                 aria-hidden

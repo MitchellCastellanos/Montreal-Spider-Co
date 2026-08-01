@@ -16,6 +16,7 @@ export type TerrariumLabelRecord = {
   humidity: string;
   temperature: string;
   originEn: string;
+  adultSizeEn: string;
   tarantulAppId: string | null;
   qrUrl: string;
 };
@@ -58,6 +59,7 @@ export async function fetchTerrariumLabels(options?: {
           humidity: true,
           temperature: true,
           originEn: true,
+          adultSizeEn: true,
         },
       },
     },
@@ -77,6 +79,7 @@ export async function fetchTerrariumLabels(options?: {
     humidity: s.product.humidity,
     temperature: s.product.temperature,
     originEn: s.product.originEn,
+    adultSizeEn: s.product.adultSizeEn,
     tarantulAppId: s.tarantulAppId,
     qrUrl: `${SITE.url}/q/${s.qrToken}`,
   }));

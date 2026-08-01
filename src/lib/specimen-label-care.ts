@@ -24,6 +24,11 @@ const SEX_LABEL: Record<SpecimenSex, string> = {
   female: "Female",
 };
 
+export type LabelFact = {
+  label: string;
+  value: string;
+};
+
 /** Short origin for a small label — first segment before a comma or dash. */
 export function shortOrigin(origin: string): string | null {
   const trimmed = origin.trim();
@@ -36,38 +41,39 @@ export function formatSpecimenMeta(sizeLabel: string, sex: SpecimenSex): string 
   return `${sizeLabel} · ${SEX_LABEL[sex]}`;
 }
 
-export function formatCareTags(input: {
-  type: SpiderType;
-  temperament: Temperament;
-  experience: Experience;
-}): string {
-  return [
-    TYPE_LABEL[input.type],
-    TEMPERAMENT_LABEL[input.temperament],
-    EXPERIENCE_LABEL[input.experience],
-  ].join(" · ");
-}
-
-export function formatClimate(humidity: string, temperature: string): string | null {
-  const parts = [humidity.trim(), temperature.trim()].filter(Boolean);
-  if (parts.length === 0) return null;
-  if (parts.length === 2) return `${parts[0]} humidity · ${parts[1]}`;
-  return humidity.trim() ? `${humidity.trim()} humidity` : parts[0] ?? null;
-}
-
-/** Two-line care block for small labels — tags, then climate + origin. */
-export function formatCareBlock(input: {
+/** Left-column fact rows for terrarium labels. */
+export function buildLabelFacts(input: {
+  sizeLabel: string;
+  sex: SpecimenSex;
+  adultSizeEn: string;
   type: SpiderType;
   temperament: Temperament;
   experience: Experience;
   humidity: string;
   temperature: string;
   originEn: string;
-}): string[] {
-  const lines = [formatCareTags(input)];
-  const detail = [formatClimate(input.humidity, input.temperature), shortOrigin(input.originEn)]
-    .filter(Boolean)
-    .join(" · ");
-  if (detail) lines.push(detail);
-  return lines;
+}): LabelFact[] {
+  const facts: LabelFact[] = [
+    { label: "Now", value: formatSpecimenMeta(input.sizeLabel, input.sex) },
+  ];
+
+  const adult = input.adultSizeEn.trim();
+  if (adult) facts.push({ label: "Adult", value: adult });
+
+  facts.push(
+    { label: "Type", value: TYPE_LABEL[input.type] },
+    { label: "Nature", value: TEMPERAMENT_LABEL[input.temperament] },
+    { label: "Level", value: EXPERIENCE_LABEL[input.experience] },
+  );
+
+  const humidity = input.humidity.trim();
+  if (humidity) facts.push({ label: "Hum.", value: humidity });
+
+  const temperature = input.temperature.trim();
+  if (temperature) facts.push({ label: "Heat", value: temperature });
+
+  const origin = shortOrigin(input.originEn);
+  if (origin) facts.push({ label: "From", value: origin });
+
+  return facts;
 }

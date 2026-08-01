@@ -164,26 +164,48 @@
   color: #0a0a0c;
 }
 
-.specimen-terrarium-label__care {
-  margin-top: 0.8mm;
-  padding-top: 0.7mm;
+.specimen-terrarium-label__facts {
+  margin: 0.6mm 0 0;
+  padding-top: 0.6mm;
   border-top: 0.15mm solid #e8dfc8;
 }
 
-.specimen-terrarium-label__care-line {
+.specimen-terrarium-label__fact {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8mm;
   margin: 0;
-  font-family: system-ui, sans-serif;
-  font-size: 5pt;
-  line-height: 1.3;
-  color: #333;
 }
 
-.specimen-terrarium-label__care-line + .specimen-terrarium-label__care-line {
-  margin-top: 0.35mm;
+.specimen-terrarium-label__fact + .specimen-terrarium-label__fact {
+  margin-top: 0.28mm;
+}
+
+.specimen-terrarium-label__fact dt {
+  flex-shrink: 0;
+  width: 7.5mm;
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  font-size: 4.5pt;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.specimen-terrarium-label__fact dd {
+  margin: 0;
+  min-width: 0;
+  flex: 1;
+  font-family: system-ui, sans-serif;
+  font-size: 4.75pt;
+  line-height: 1.25;
+  color: #222;
 }
 
 .specimen-terrarium-label__site {
-  margin-top: 0.6mm;
+  margin-top: 0.45mm;
   flex-shrink: 0;
 }
 

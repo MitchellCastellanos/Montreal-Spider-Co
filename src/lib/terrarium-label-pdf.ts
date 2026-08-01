@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { PDFDocument, StandardFonts, rgb, type PDFImage, type PDFFont, type PDFPage } from "pdf-lib";
-import { formatCareBlock, formatSpecimenMeta } from "@/lib/specimen-label-care";
+import { buildLabelFacts } from "@/lib/specimen-label-care";
 import { terrariumLabelQrPng, type TerrariumLabelRecord } from "@/lib/data/terrarium-labels";
 
 const PT = 72 / 25.4;
@@ -25,11 +25,15 @@ const PAD_Y = mm(1.4);
 const COL_GAP = mm(1.5);
 const LOGO = mm(5.5);
 const QR = mm(13);
+const FACT_LABEL_W = mm(7.5);
+const FACT_SIZE = 4.75;
+const FACT_LABEL_SIZE = 4.5;
 
 const GOLD = rgb(201 / 255, 162 / 255, 75 / 255);
 const GOLD_DEEP = rgb(156 / 255, 122 / 255, 50 / 255);
 const INK = rgb(10 / 255, 10 / 255, 12 / 255);
 const MUTED = rgb(68 / 255, 68 / 255, 68 / 255);
+const LABEL_MUTED = rgb(136 / 255, 136 / 255, 136 / 255);
 const LINE = rgb(232 / 255, 223 / 255, 200 / 255);
 
 function truncateToWidth(text: string, font: PDFFont, size: number, maxWidth: number): string {
@@ -58,6 +62,29 @@ function drawLeft(
     font,
     color,
   });
+}
+
+function drawFactRow(
+  page: PDFPage,
+  leftX: number,
+  leftW: number,
+  y: number,
+  label: string,
+  value: string,
+  fonts: { body: PDFFont; bodyBold: PDFFont },
+): number {
+  drawLeft(page, label.toUpperCase(), leftX, y, FACT_LABEL_W, fonts.bodyBold, FACT_LABEL_SIZE, LABEL_MUTED);
+  drawLeft(
+    page,
+    value,
+    leftX + FACT_LABEL_W + mm(0.4),
+    y,
+    leftW - FACT_LABEL_W - mm(0.4),
+    fonts.body,
+    FACT_SIZE,
+    MUTED,
+  );
+  return y - mm(1.3);
 }
 
 function labelOrigin(index: number): { page: number; col: number; row: number } {
@@ -135,21 +162,10 @@ function drawLabel(
 
   let textY = bodyTop - mm(1.4);
   drawLeft(page, label.scientific, textX, textY, textW, fonts.scientific, 6.5, INK);
-  textY -= mm(2.1);
+  textY -= mm(2);
   drawLeft(page, label.commonName, textX, textY, textW, fonts.body, 5.5, MUTED);
-  textY -= mm(2.1);
-  drawLeft(
-    page,
-    formatSpecimenMeta(label.sizeLabel, label.sex),
-    textX,
-    textY,
-    textW,
-    fonts.bodyBold,
-    5.5,
-    INK,
-  );
 
-  textY -= mm(1.6);
+  textY -= mm(1.4);
   page.drawLine({
     start: { x: leftX, y: textY },
     end: { x: leftX + leftW, y: textY },
@@ -157,14 +173,13 @@ function drawLabel(
     color: LINE,
   });
 
-  textY -= mm(1.7);
-  for (const line of formatCareBlock(label)) {
-    drawLeft(page, line, leftX, textY, leftW, fonts.body, 5, MUTED);
-    textY -= mm(1.55);
+  textY -= mm(1.5);
+  for (const fact of buildLabelFacts(label)) {
+    textY = drawFactRow(page, leftX, leftW, textY, fact.label, fact.value, fonts);
   }
 
   if (label.tarantulAppId) {
-    drawLeft(page, label.tarantulAppId, leftX, bodyBottom + mm(2.3), leftW, fonts.body, 4.5, MUTED);
+    drawLeft(page, label.tarantulAppId, leftX, bodyBottom + mm(2.3), leftW, fonts.body, 4.5, LABEL_MUTED);
   }
   drawLeft(page, "montrealspider.ca", leftX, bodyBottom, leftW, fonts.body, 4.5, GOLD_DEEP);
 }
@@ -172,7 +187,7 @@ function drawLabel(
 /** Build an A4 PDF with 6 × 4 cm terrarium labels (3 columns × 6 rows per page). */
 export async function buildTerrariumLabelsPdf(labels: TerrariumLabelRecord[]): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
-  const logoBytes = await fs.readFile(path.join(process.cwd(), "public/brand/logo.png"));
+  const logoBytes = await fs.readFile(path.join(process.cwd(), "public/brand/logo-bw.png"));
   const logo = await pdf.embedPng(logoBytes);
 
   const scientific = await pdf.embedFont(StandardFonts.TimesRomanBoldItalic);
