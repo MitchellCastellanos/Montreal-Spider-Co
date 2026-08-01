@@ -57,7 +57,18 @@ export default async function AdminLabelsPage({
           : {}),
     },
     include: {
-      product: { select: { scientific: true, commonEn: true } },
+      product: {
+        select: {
+          scientific: true,
+          commonEn: true,
+          type: true,
+          temperament: true,
+          experience: true,
+          humidity: true,
+          temperature: true,
+          originEn: true,
+        },
+      },
       location: { select: { name: true } },
     },
     orderBy: { purchasedAt: "asc" },
@@ -74,6 +85,12 @@ export default async function AdminLabelsPage({
         commonName: s.product.commonEn,
         sizeLabel: formatCmAsInches(s.sizeCm),
         sex: s.sex,
+        type: s.product.type,
+        temperament: s.product.temperament,
+        experience: s.product.experience,
+        humidity: s.product.humidity,
+        temperature: s.product.temperature,
+        originEn: s.product.originEn,
         tarantulAppId: s.tarantulAppId,
         qrDataUrl,
       };
