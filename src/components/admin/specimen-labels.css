@@ -1,4 +1,11 @@
-/* Terrarium label sheet — 60 × 40 mm labels, 3-up on A4 */
+/* Terrarium label sheet — exactly 6 cm wide × 4 cm tall, 3-up on A4 */
+
+:root {
+  --label-w: 6cm;
+  --label-h: 4cm;
+  --label-gap-x: 5mm;
+  --label-gap-y: 3mm;
+}
 
 @media print {
   @page {
@@ -6,7 +13,12 @@
     margin: 5mm;
   }
 
+  html,
   body {
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
     background: #fff !important;
     color: #000 !important;
     print-color-adjust: exact;
@@ -16,34 +28,67 @@
   .container-x {
     padding: 0 !important;
     max-width: none !important;
+    width: auto !important;
+  }
+
+  /* Admin shell: content only, no sidebar column */
+  .container-x > .grid {
+    display: block !important;
+  }
+
+  .container-x > .grid > .min-w-0 {
+    min-width: 0 !important;
+    width: auto !important;
   }
 }
 
 .labels-print-sheet {
   display: grid;
-  grid-template-columns: repeat(3, 60mm);
-  gap: 4mm 5mm;
+  grid-template-columns: repeat(3, var(--label-w));
+  grid-auto-rows: var(--label-h);
+  gap: var(--label-gap-y) var(--label-gap-x);
   justify-content: center;
+  width: fit-content;
+  margin-inline: auto;
 }
 
 @media print {
   .labels-print-sheet {
-    margin: 0;
-    gap: 3mm 5mm;
+    margin: 0 auto;
+    gap: var(--label-gap-y) var(--label-gap-x);
+    transform: none !important;
+    zoom: 1 !important;
   }
 }
 
-/* ── Single label (60 mm × 40 mm) ── */
+/* ── Single label: 6 cm × 4 cm (landscape) ── */
 
 .specimen-terrarium-label {
   box-sizing: border-box;
-  width: 60mm;
-  height: 40mm;
+  width: var(--label-w);
+  height: var(--label-h);
+  min-width: var(--label-w);
+  max-width: var(--label-w);
+  min-height: var(--label-h);
+  max-height: var(--label-h);
+  flex-shrink: 0;
   overflow: hidden;
   background: #fff;
   border: 0.2mm solid #c9a24b;
   break-inside: avoid;
   page-break-inside: avoid;
+}
+
+@media print {
+  .specimen-terrarium-label {
+    width: var(--label-w) !important;
+    height: var(--label-h) !important;
+    min-width: var(--label-w) !important;
+    max-width: var(--label-w) !important;
+    min-height: var(--label-h) !important;
+    max-height: var(--label-h) !important;
+    transform: none !important;
+  }
 }
 
 .specimen-terrarium-label__bar {
@@ -54,20 +99,25 @@
 .specimen-terrarium-label__body {
   display: flex;
   flex-direction: column;
-  height: calc(40mm - 1.8mm);
-  padding: 2mm 2.2mm 1.6mm;
+  box-sizing: border-box;
+  height: calc(var(--label-h) - 1.8mm);
+  max-height: calc(var(--label-h) - 1.8mm);
+  padding: 1.4mm 2.2mm 1.4mm;
+  overflow: hidden;
 }
 
-.specimen-terrarium-label__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 2mm;
+.specimen-terrarium-label__top-logo {
+  display: block;
+  width: 7mm;
+  height: 7mm;
+  margin: 0 auto 0.8mm;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 .specimen-terrarium-label__identity {
   min-width: 0;
-  flex: 1;
+  flex-shrink: 0;
 }
 
 .specimen-terrarium-label__scientific {
@@ -78,55 +128,63 @@
   font-style: italic;
   line-height: 1.2;
   color: #0a0a0c;
+  text-align: center;
 }
 
 .specimen-terrarium-label__common {
-  margin: 0.6mm 0 0;
+  margin: 0.5mm 0 0;
   font-family: system-ui, sans-serif;
   font-size: 5.5pt;
   line-height: 1.25;
   color: #444;
+  text-align: center;
 }
 
 .specimen-terrarium-label__meta {
-  margin: 0.8mm 0 0;
+  margin: 0.6mm 0 0;
   font-family: system-ui, sans-serif;
   font-size: 5.5pt;
   font-weight: 600;
   line-height: 1.2;
   color: #0a0a0c;
+  text-align: center;
 }
 
 .specimen-terrarium-label__care {
-  margin-top: 1.4mm;
-  padding-top: 1.2mm;
+  margin-top: 1mm;
+  padding-top: 1mm;
   border-top: 0.15mm solid #e8dfc8;
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .specimen-terrarium-label__care-line {
   margin: 0;
   font-family: system-ui, sans-serif;
   font-size: 5pt;
-  line-height: 1.35;
+  line-height: 1.3;
   color: #333;
+  text-align: center;
 }
 
 .specimen-terrarium-label__care-line + .specimen-terrarium-label__care-line {
-  margin-top: 0.5mm;
+  margin-top: 0.4mm;
 }
 
 .specimen-terrarium-label__footer {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 2mm;
+  gap: 1.5mm;
   margin-top: auto;
-  padding-top: 0.8mm;
+  padding-top: 0.6mm;
+  flex-shrink: 0;
 }
 
 .specimen-terrarium-label__footer-left {
   min-width: 0;
+  flex: 1;
 }
 
 .specimen-terrarium-label__verified {
@@ -138,7 +196,7 @@
 }
 
 .specimen-terrarium-label__url {
-  margin: 0.3mm 0 0;
+  margin: 0.2mm 0 0;
   font-family: system-ui, sans-serif;
   font-size: 4.5pt;
   line-height: 1;
@@ -146,36 +204,42 @@
   letter-spacing: 0.02em;
 }
 
-.specimen-terrarium-label__footer-logo {
-  width: 5.5mm;
-  height: 5.5mm;
-  flex-shrink: 0;
-  object-fit: contain;
-  opacity: 0.85;
-}
-
 .specimen-terrarium-label__qr-wrap {
   position: relative;
   flex-shrink: 0;
-  width: 15mm;
-  height: 15mm;
+  width: 12.5mm;
+  height: 12.5mm;
 }
 
 .specimen-terrarium-label__qr {
   display: block;
-  width: 15mm;
-  height: 15mm;
+  width: 12.5mm;
+  height: 12.5mm;
 }
 
 .specimen-terrarium-label__qr-logo {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 3.8mm;
-  height: 3.8mm;
+  width: 3.2mm;
+  height: 3.2mm;
   transform: translate(-50%, -50%);
   object-fit: contain;
   background: #fff;
-  border-radius: 0.4mm;
-  padding: 0.25mm;
+  border-radius: 0.35mm;
+  padding: 0.2mm;
+}
+
+/* Screen-only size reference (matches print dimensions) */
+.labels-size-ref {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--label-w);
+  height: var(--label-h);
+  border: 1px dashed #c9a24b;
+  color: #8a8373;
+  font-size: 10px;
+  text-align: center;
+  line-height: 1.35;
 }

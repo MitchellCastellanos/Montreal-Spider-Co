@@ -1,26 +1,19 @@
-import QRCode from "qrcode";
 import Link from "next/link";
 import { isLocale, type Locale } from "@/i18n/config";
 import { hasDatabase, prisma } from "@/lib/db";
-import { SITE } from "@/lib/site";
-import { formatCmAsInches } from "@/lib/size-inches";
+import {
+  fetchTerrariumLabels,
+  terrariumLabelQrDataUrl,
+} from "@/lib/data/terrarium-labels";
 import { localeHref } from "@/lib/href";
-import SpecimenTerrariumLabel from "@/components/admin/SpecimenTerrariumLabel";
+import TerrariumLabelsPicker from "@/components/admin/TerrariumLabelsPicker";
 import "@/components/admin/specimen-labels.css";
 
 export const dynamic = "force-dynamic";
 
-const QR_OPTS = {
-  margin: 0,
-  width: 160,
-  errorCorrectionLevel: "H" as const,
-  color: { dark: "#0a0a0c", light: "#ffffff" },
-};
-
 /**
- * Printable terrarium labels (60 × 40 mm). Each label carries a compact QR that
- * opens the specimen hub — partner stock embeds the store key so walk-in sales
- * work from the terrarium without any partner account.
+ * Printable terrarium labels (6 cm × 4 cm). Each label carries a compact QR that
+ * opens the specimen hub for partner scans, audits and issue reports.
  */
 export default async function AdminLabelsPage({
   params,
@@ -47,54 +40,13 @@ export default async function AdminLabelsPage({
     orderBy: { position: "asc" },
   });
 
-  const specimens = await prisma.specimen.findMany({
-    where: {
-      status: { in: ["available", "consignment", "allocated"] },
-      ...(locationFilter === "warehouse"
-        ? { locationType: "warehouse" }
-        : locationFilter
-          ? { locationId: locationFilter }
-          : {}),
-    },
-    include: {
-      product: {
-        select: {
-          scientific: true,
-          commonEn: true,
-          type: true,
-          temperament: true,
-          experience: true,
-          humidity: true,
-          temperature: true,
-          originEn: true,
-        },
-      },
-      location: { select: { name: true } },
-    },
-    orderBy: { purchasedAt: "asc" },
-    take: 200,
-  });
+  const records = await fetchTerrariumLabels({ locationFilter });
 
   const labels = await Promise.all(
-    specimens.map(async (s) => {
-      const url = `${SITE.url}/q/${s.qrToken}`;
-      const qrDataUrl = await QRCode.toDataURL(url, QR_OPTS);
-      return {
-        id: s.id,
-        scientific: s.product.scientific,
-        commonName: s.product.commonEn,
-        sizeLabel: formatCmAsInches(s.sizeCm),
-        sex: s.sex,
-        type: s.product.type,
-        temperament: s.product.temperament,
-        experience: s.product.experience,
-        humidity: s.product.humidity,
-        temperature: s.product.temperature,
-        originEn: s.product.originEn,
-        tarantulAppId: s.tarantulAppId,
-        qrDataUrl,
-      };
-    }),
+    records.map(async (record) => ({
+      ...record,
+      qrDataUrl: await terrariumLabelQrDataUrl(record.qrUrl),
+    })),
   );
 
   return (
@@ -102,8 +54,8 @@ export default async function AdminLabelsPage({
       <div className="print:hidden">
         <h1 className="font-display text-2xl font-bold text-cream">Terrarium labels</h1>
         <p className="mt-1 text-sm text-muted">
-          60 × 40 mm labels for enclosure glass. Stick one per terrarium — partners scan the QR
-          to register walk-in sales, run audits or report issues.
+          <strong className="text-bone">6 cm wide × 4 cm tall</strong> labels for enclosure glass.
+          Select the specimens you need, then download PDF or print.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Link
@@ -128,21 +80,9 @@ export default async function AdminLabelsPage({
             </Link>
           ))}
         </div>
-        <p className="mt-3 text-xs text-muted">
-          {labels.length} label(s) · Print at <strong className="text-bone">100% scale</strong> (Ctrl/Cmd+P).
-          White vinyl recommended for humid terrariums.
-        </p>
       </div>
 
-      <div className="labels-print-sheet mt-6 print:mt-0">
-        {labels.map((label) => (
-          <SpecimenTerrariumLabel key={label.id} {...label} />
-        ))}
-      </div>
-
-      {labels.length === 0 && (
-        <p className="mt-6 text-sm text-muted print:hidden">No specimens for this filter.</p>
-      )}
+      <TerrariumLabelsPicker labels={labels} locationFilter={locationFilter} />
     </div>
   );
 }

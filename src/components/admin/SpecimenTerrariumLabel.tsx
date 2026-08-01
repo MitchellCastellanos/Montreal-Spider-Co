@@ -21,7 +21,7 @@ export type SpecimenTerrariumLabelProps = {
   qrDataUrl: string;
 };
 
-/** 60 × 40 mm terrarium label — white, species identity + care snapshot + QR. */
+/** 6 cm × 4 cm terrarium label — logo top, care info center, compact QR bottom. */
 export default function SpecimenTerrariumLabel({
   scientific,
   commonName,
@@ -45,25 +45,14 @@ export default function SpecimenTerrariumLabel({
       <div className="specimen-terrarium-label__bar" aria-hidden />
 
       <div className="specimen-terrarium-label__body">
-        <header className="specimen-terrarium-label__header">
-          <div className="specimen-terrarium-label__identity">
-            <p className="specimen-terrarium-label__scientific">{scientific}</p>
-            <p className="specimen-terrarium-label__common">{commonName}</p>
-            <p className="specimen-terrarium-label__meta">{formatSpecimenMeta(sizeLabel, sex)}</p>
-          </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/logo.png" alt="" className="specimen-terrarium-label__top-logo" />
 
-          <div className="specimen-terrarium-label__qr-wrap">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={qrDataUrl} alt="" className="specimen-terrarium-label__qr" />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/brand/logo.png"
-              alt=""
-              className="specimen-terrarium-label__qr-logo"
-              aria-hidden
-            />
-          </div>
-        </header>
+        <div className="specimen-terrarium-label__identity">
+          <p className="specimen-terrarium-label__scientific">{scientific}</p>
+          <p className="specimen-terrarium-label__common">{commonName}</p>
+          <p className="specimen-terrarium-label__meta">{formatSpecimenMeta(sizeLabel, sex)}</p>
+        </div>
 
         <div className="specimen-terrarium-label__care">
           <p className="specimen-terrarium-label__care-line">{careTags}</p>
@@ -78,8 +67,18 @@ export default function SpecimenTerrariumLabel({
             )}
             <p className="specimen-terrarium-label__url">montrealspider.ca</p>
           </div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/logo.png" alt="" className="specimen-terrarium-label__footer-logo" />
+
+          <div className="specimen-terrarium-label__qr-wrap">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={qrDataUrl} alt="" className="specimen-terrarium-label__qr" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/logo.png"
+              alt=""
+              className="specimen-terrarium-label__qr-logo"
+              aria-hidden
+            />
+          </div>
         </footer>
       </div>
     </article>
