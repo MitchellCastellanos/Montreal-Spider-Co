@@ -10,8 +10,8 @@
 
 @media print {
   @page {
-    size: A4 portrait;
-    margin: 5mm;
+    size: letter portrait;
+    margin: 0;
   }
 
   html,

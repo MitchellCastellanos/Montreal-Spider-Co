@@ -41,30 +41,33 @@ export default function TerrariumLabelsPicker({ labels, locationFilter }: Props)
     setSelected(new Set());
   }
 
+  async function fetchPdfBlob(): Promise<Blob | null> {
+    if (selectedCount === 0) return null;
+    const res = await fetch("/api/admin/labels/pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ids: [...selected],
+        location: locationFilter,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(typeof err.error === "string" ? err.error : "PDF generation failed.");
+      return null;
+    }
+    return res.blob();
+  }
+
   async function downloadPdf() {
-    if (selectedCount === 0) return;
     setDownloading(true);
     try {
-      const res = await fetch("/api/admin/labels/pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ids: [...selected],
-          location: locationFilter,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        alert(typeof err.error === "string" ? err.error : "PDF download failed.");
-        return;
-      }
-      const blob = await res.blob();
+      const blob = await fetchPdfBlob();
+      if (!blob) return;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download =
-        res.headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1] ??
-        "terrarium-labels.pdf";
+      a.download = "terrarium-labels.pdf";
       a.click();
       URL.revokeObjectURL(url);
     } finally {
@@ -72,9 +75,32 @@ export default function TerrariumLabelsPicker({ labels, locationFilter }: Props)
     }
   }
 
-  function printSelected() {
-    if (selectedCount === 0) return;
-    window.print();
+  async function printSelected() {
+    setDownloading(true);
+    try {
+      const blob = await fetchPdfBlob();
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "0";
+      iframe.src = url;
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        window.setTimeout(() => {
+          iframe.remove();
+          URL.revokeObjectURL(url);
+        }, 60_000);
+      };
+    } finally {
+      setDownloading(false);
+    }
   }
 
   if (labels.length === 0) {
@@ -136,15 +162,15 @@ export default function TerrariumLabelsPicker({ labels, locationFilter }: Props)
           </button>
           <button
             type="button"
-            onClick={printSelected}
-            disabled={selectedCount === 0}
+            onClick={() => void printSelected()}
+            disabled={selectedCount === 0 || downloading}
             className="btn btn-ghost text-sm disabled:opacity-50"
           >
             Print selected
           </button>
           <p className="text-xs text-muted">
-            PDF and print use only checked labels · 6 × 4 cm · print at{" "}
-            <strong className="text-bone">100% scale</strong>
+            PDF and print use only checked labels · 6 × 4 cm · US Letter sheet · print at{" "}
+            <strong className="text-bone">100% / Actual size</strong>
           </p>
         </div>
 
