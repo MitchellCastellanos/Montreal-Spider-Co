@@ -37,15 +37,18 @@ const GRID_X = (PAGE_W - GRID_W) / 2;
 const GRID_TOP = (PAGE_H + GRID_H) / 2;
 
 const BAR_H = mm(1.8);
-const PAD_X = mm(1.8);
-const PAD_Y = mm(1.4);
-const COL_GAP = mm(1.5);
-const LOGO = mm(5.5);
-const QR = mm(13);
-const FACT_LABEL_W = mm(7.5);
-const FACT_SIZE = 4.75;
-const FACT_LABEL_SIZE = 4.5;
-const FACT_ROW_H = mm(1.3);
+const PAD_X = mm(1.6);
+const PAD_Y = mm(1.2);
+const COL_GAP = mm(1.2);
+const LOGO = mm(6);
+const QR = mm(14);
+const FACT_LABEL_W = mm(8);
+const SCI_SIZE = 7.5;
+const COMMON_SIZE = 6.5;
+const FACT_SIZE = 6.5;
+const FACT_LABEL_SIZE = 5.5;
+const FOOTER_SIZE = 5.5;
+const FOOTER_ZONE = mm(6.5);
 
 const GOLD = rgb(201 / 255, 162 / 255, 75 / 255);
 const GOLD_DEEP = rgb(156 / 255, 122 / 255, 50 / 255);
@@ -105,19 +108,18 @@ function drawFactRow(
   label: string,
   value: string,
   fonts: { body: PDFFont; bodyBold: PDFFont },
-): number {
+) {
   drawLeft(page, label.toUpperCase(), leftX, y, FACT_LABEL_W, fonts.bodyBold, FACT_LABEL_SIZE, LABEL_MUTED);
   drawLeft(
     page,
     value,
-    leftX + FACT_LABEL_W + mm(0.4),
+    leftX + FACT_LABEL_W + mm(0.35),
     y,
-    leftW - FACT_LABEL_W - mm(0.4),
+    leftW - FACT_LABEL_W - mm(0.35),
     fonts.body,
     FACT_SIZE,
-    MUTED,
+    INK,
   );
-  return y - FACT_ROW_H;
 }
 
 function drawLabel(
@@ -160,7 +162,7 @@ function drawLabel(
   const qrY = bodyBottom + (bodyH - QR) / 2;
   page.drawImage(qr, { x: qrX, y: qrY, width: QR, height: QR });
 
-  const logoOnQr = mm(3.2);
+  const logoOnQr = mm(3.5);
   page.drawImage(logo, {
     x: qrX + (QR - logoOnQr) / 2,
     y: qrY + (QR - logoOnQr) / 2,
@@ -170,22 +172,22 @@ function drawLabel(
 
   const leftX = x + PAD_X;
   const leftW = LABEL_W - PAD_X * 2 - QR - COL_GAP;
-  const textX = leftX + LOGO + mm(1);
-  const textW = leftW - LOGO - mm(1);
+  const textX = leftX + LOGO + mm(0.8);
+  const textW = leftW - LOGO - mm(0.8);
 
   page.drawImage(logo, {
     x: leftX,
-    y: bodyTop - LOGO,
+    y: bodyTop - LOGO + mm(0.2),
     width: LOGO,
     height: LOGO,
   });
 
-  let textY = bodyTop - mm(1.4);
-  drawLeft(page, label.scientific, textX, textY, textW, fonts.scientific, 6.5, INK);
-  textY -= mm(2);
-  drawLeft(page, label.commonName, textX, textY, textW, fonts.body, 5.5, MUTED);
+  let textY = bodyTop - mm(1.1);
+  drawLeft(page, label.scientific, textX, textY, textW, fonts.scientific, SCI_SIZE, INK);
+  textY -= mm(2.2);
+  drawLeft(page, label.commonName, textX, textY, textW, fonts.body, COMMON_SIZE, MUTED);
 
-  textY -= mm(1.4);
+  textY -= mm(1.1);
   page.drawLine({
     start: { x: leftX, y: textY },
     end: { x: leftX + leftW, y: textY },
@@ -193,17 +195,29 @@ function drawLabel(
     color: LINE,
   });
 
-  const footerTop = bodyBottom + mm(5.5);
-  textY -= mm(1.5);
-  for (const fact of buildLabelFacts(label)) {
-    if (textY < footerTop) break;
-    textY = drawFactRow(page, leftX, leftW, textY, fact.label, fact.value, fonts);
+  const factsAreaTop = textY - mm(0.6);
+  const factsAreaBottom = bodyBottom + FOOTER_ZONE;
+  const facts = buildLabelFacts(label);
+  const rowStep = facts.length > 0 ? (factsAreaTop - factsAreaBottom) / facts.length : 0;
+
+  for (let i = 0; i < facts.length; i++) {
+    const rowY = factsAreaTop - (i + 0.5) * rowStep - FACT_SIZE * 0.35;
+    drawFactRow(page, leftX, leftW, rowY, facts[i].label, facts[i].value, fonts);
   }
 
   if (label.tarantulAppId) {
-    drawLeft(page, label.tarantulAppId, leftX, bodyBottom + mm(2.3), leftW, fonts.body, 4.5, LABEL_MUTED);
+    drawLeft(
+      page,
+      label.tarantulAppId,
+      leftX,
+      bodyBottom + mm(2.6),
+      leftW,
+      fonts.body,
+      FOOTER_SIZE,
+      LABEL_MUTED,
+    );
   }
-  drawLeft(page, "montrealspider.ca", leftX, bodyBottom, leftW, fonts.body, 4.5, GOLD_DEEP);
+  drawLeft(page, "montrealspider.ca", leftX, bodyBottom + mm(0.4), leftW, fonts.bodyBold, FOOTER_SIZE, GOLD_DEEP);
 }
 
 function setPrintPreferences(pdf: PDFDocument) {
