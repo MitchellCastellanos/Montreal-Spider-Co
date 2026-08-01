@@ -54,3 +54,20 @@ export function formatClimate(humidity: string, temperature: string): string | n
   if (parts.length === 2) return `${parts[0]} humidity · ${parts[1]}`;
   return humidity.trim() ? `${humidity.trim()} humidity` : parts[0] ?? null;
 }
+
+/** Two-line care block for small labels — tags, then climate + origin. */
+export function formatCareBlock(input: {
+  type: SpiderType;
+  temperament: Temperament;
+  experience: Experience;
+  humidity: string;
+  temperature: string;
+  originEn: string;
+}): string[] {
+  const lines = [formatCareTags(input)];
+  const detail = [formatClimate(input.humidity, input.temperature), shortOrigin(input.originEn)]
+    .filter(Boolean)
+    .join(" · ");
+  if (detail) lines.push(detail);
+  return lines;
+}

@@ -1,9 +1,4 @@
-import {
-  formatCareTags,
-  formatClimate,
-  formatSpecimenMeta,
-  shortOrigin,
-} from "@/lib/specimen-label-care";
+import { formatCareBlock, formatSpecimenMeta } from "@/lib/specimen-label-care";
 import type { Experience, SpecimenSex, SpiderType, Temperament } from "@/lib/types";
 
 export type SpecimenTerrariumLabelProps = {
@@ -36,9 +31,14 @@ export default function SpecimenTerrariumLabel({
   tarantulAppId,
   qrDataUrl,
 }: SpecimenTerrariumLabelProps) {
-  const careTags = formatCareTags({ type, temperament, experience });
-  const climate = formatClimate(humidity, temperature);
-  const origin = shortOrigin(originEn);
+  const careLines = formatCareBlock({
+    type,
+    temperament,
+    experience,
+    humidity,
+    temperature,
+    originEn,
+  });
 
   return (
     <article className="specimen-terrarium-label">
@@ -55,12 +55,14 @@ export default function SpecimenTerrariumLabel({
         </div>
 
         <div className="specimen-terrarium-label__care">
-          <p className="specimen-terrarium-label__care-line">{careTags}</p>
-          {climate && <p className="specimen-terrarium-label__care-line">{climate}</p>}
-          {origin && <p className="specimen-terrarium-label__care-line">{origin}</p>}
+          {careLines.map((line) => (
+            <p key={line} className="specimen-terrarium-label__care-line">
+              {line}
+            </p>
+          ))}
         </div>
 
-        <footer className="specimen-terrarium-label__footer">
+        <div className="specimen-terrarium-label__bottom">
           <div className="specimen-terrarium-label__footer-left">
             {tarantulAppId && (
               <p className="specimen-terrarium-label__verified">{tarantulAppId}</p>
@@ -79,7 +81,7 @@ export default function SpecimenTerrariumLabel({
               aria-hidden
             />
           </div>
-        </footer>
+        </div>
       </div>
     </article>
   );

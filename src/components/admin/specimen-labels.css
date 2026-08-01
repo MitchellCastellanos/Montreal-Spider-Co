@@ -102,15 +102,14 @@
   box-sizing: border-box;
   height: calc(var(--label-h) - 1.8mm);
   max-height: calc(var(--label-h) - 1.8mm);
-  padding: 1.4mm 2.2mm 1.4mm;
-  overflow: hidden;
+  padding: 1.2mm 2mm 1.2mm;
 }
 
 .specimen-terrarium-label__top-logo {
   display: block;
-  width: 7mm;
-  height: 7mm;
-  margin: 0 auto 0.8mm;
+  width: 6mm;
+  height: 6mm;
+  margin: 0 auto 0.5mm;
   object-fit: contain;
   flex-shrink: 0;
 }
@@ -132,54 +131,53 @@
 }
 
 .specimen-terrarium-label__common {
-  margin: 0.5mm 0 0;
+  margin: 0.35mm 0 0;
   font-family: system-ui, sans-serif;
   font-size: 5.5pt;
-  line-height: 1.25;
+  line-height: 1.2;
   color: #444;
   text-align: center;
 }
 
 .specimen-terrarium-label__meta {
-  margin: 0.6mm 0 0;
+  margin: 0.4mm 0 0;
   font-family: system-ui, sans-serif;
   font-size: 5.5pt;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.15;
   color: #0a0a0c;
   text-align: center;
 }
 
 .specimen-terrarium-label__care {
-  margin-top: 1mm;
-  padding-top: 1mm;
+  margin-top: 0.7mm;
+  padding-top: 0.7mm;
   border-top: 0.15mm solid #e8dfc8;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
+  flex-shrink: 0;
 }
 
 .specimen-terrarium-label__care-line {
   margin: 0;
   font-family: system-ui, sans-serif;
-  font-size: 5pt;
-  line-height: 1.3;
+  font-size: 4.75pt;
+  line-height: 1.35;
   color: #333;
   text-align: center;
 }
 
 .specimen-terrarium-label__care-line + .specimen-terrarium-label__care-line {
-  margin-top: 0.4mm;
+  margin-top: 0.35mm;
 }
 
-.specimen-terrarium-label__footer {
+.specimen-terrarium-label__bottom {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 1.5mm;
   margin-top: auto;
-  padding-top: 0.6mm;
+  padding-top: 0.5mm;
   flex-shrink: 0;
+  min-height: 11.5mm;
 }
 
 .specimen-terrarium-label__footer-left {
@@ -207,22 +205,22 @@
 .specimen-terrarium-label__qr-wrap {
   position: relative;
   flex-shrink: 0;
-  width: 12.5mm;
-  height: 12.5mm;
+  width: 11.5mm;
+  height: 11.5mm;
 }
 
 .specimen-terrarium-label__qr {
   display: block;
-  width: 12.5mm;
-  height: 12.5mm;
+  width: 11.5mm;
+  height: 11.5mm;
 }
 
 .specimen-terrarium-label__qr-logo {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 3.2mm;
-  height: 3.2mm;
+  width: 2.8mm;
+  height: 2.8mm;
   transform: translate(-50%, -50%);
   object-fit: contain;
   background: #fff;

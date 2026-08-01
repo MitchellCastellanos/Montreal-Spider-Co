@@ -2,10 +2,8 @@ import fs from "fs/promises";
 import path from "path";
 import { PDFDocument, StandardFonts, rgb, type PDFImage, type PDFFont, type PDFPage } from "pdf-lib";
 import {
-  formatCareTags,
-  formatClimate,
+  formatCareBlock,
   formatSpecimenMeta,
-  shortOrigin,
 } from "@/lib/specimen-label-care";
 import { terrariumLabelQrPng, type TerrariumLabelRecord } from "@/lib/data/terrarium-labels";
 
@@ -27,8 +25,9 @@ const PER_PAGE = COLS * ROWS;
 const BAR_H = mm(1.8);
 const PAD_X = mm(2.2);
 const PAD_Y = mm(1.4);
-const LOGO = mm(7);
-const QR = mm(12.5);
+const LOGO = mm(6);
+const QR = mm(11.5);
+const FOOTER_H = QR + mm(1);
 
 const GOLD = rgb(201 / 255, 162 / 255, 75 / 255);
 const GOLD_DEEP = rgb(156 / 255, 122 / 255, 50 / 255);
@@ -122,11 +121,11 @@ async function drawLabel(
     height: LOGO,
   });
 
-  cursorY -= mm(1.2);
+  cursorY -= mm(1);
   drawCentered(page, label.scientific, contentX, contentW, cursorY, fonts.scientific, 6.5, INK);
-  cursorY -= mm(2.4);
+  cursorY -= mm(2.2);
   drawCentered(page, label.commonName, contentX, contentW, cursorY, fonts.body, 5.5, MUTED);
-  cursorY -= mm(2.6);
+  cursorY -= mm(2.3);
   drawCentered(
     page,
     formatSpecimenMeta(label.sizeLabel, label.sex),
@@ -138,7 +137,7 @@ async function drawLabel(
     INK,
   );
 
-  cursorY -= mm(2.2);
+  cursorY -= mm(1.8);
   page.drawLine({
     start: { x: contentX, y: cursorY },
     end: { x: contentX + contentW, y: cursorY },
@@ -146,22 +145,21 @@ async function drawLabel(
     color: LINE,
   });
 
-  const careTags = formatCareTags(label);
-  const climate = formatClimate(label.humidity, label.temperature);
-  const origin = shortOrigin(label.originEn);
-  const careLines = [careTags, climate, origin].filter(Boolean) as string[];
+  const careLines = formatCareBlock(label);
+  const careFloor = bottomY + PAD_Y + FOOTER_H + mm(0.8);
 
-  cursorY -= mm(2);
+  cursorY -= mm(1.6);
   for (const line of careLines) {
-    drawCentered(page, line, contentX, contentW, cursorY, fonts.body, 5, MUTED);
-    cursorY -= mm(1.8);
+    if (cursorY < careFloor) break;
+    drawCentered(page, line, contentX, contentW, cursorY, fonts.body, 4.75, MUTED);
+    cursorY -= mm(1.65);
   }
 
-  const qrX = x + LABEL_W - PAD_X - QR;
   const qrY = bottomY + PAD_Y;
+  const qrX = x + LABEL_W - PAD_X - QR;
   page.drawImage(qr, { x: qrX, y: qrY, width: QR, height: QR });
 
-  const logoOnQr = mm(3.2);
+  const logoOnQr = mm(2.8);
   page.drawImage(logo, {
     x: qrX + (QR - logoOnQr) / 2,
     y: qrY + (QR - logoOnQr) / 2,
