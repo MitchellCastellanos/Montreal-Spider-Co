@@ -5,13 +5,22 @@ import { hasDatabase, prisma } from "@/lib/db";
 import { SITE } from "@/lib/site";
 import { formatCmAsInches } from "@/lib/size-inches";
 import { localeHref } from "@/lib/href";
+import SpecimenTerrariumLabel from "@/components/admin/SpecimenTerrariumLabel";
+import "@/components/admin/specimen-labels.css";
 
 export const dynamic = "force-dynamic";
 
+const QR_OPTS = {
+  margin: 0,
+  width: 160,
+  errorCorrectionLevel: "H" as const,
+  color: { dark: "#0a0a0c", light: "#ffffff" },
+};
+
 /**
- * Printable specimen QR labels. Scanning opens the specimen QR hub; labels for
- * partner stock embed the store's partner key so the walk-in sale action works
- * without any partner account.
+ * Printable terrarium labels (60 × 40 mm). Each label carries a compact QR that
+ * opens the specimen hub — partner stock embeds the store key so walk-in sales
+ * work from the terrarium without any partner account.
  */
 export default async function AdminLabelsPage({
   params,
@@ -27,7 +36,7 @@ export default async function AdminLabelsPage({
   if (!hasDatabase || !prisma) {
     return (
       <div>
-        <h1 className="font-display text-2xl font-bold text-cream">QR labels</h1>
+        <h1 className="font-display text-2xl font-bold text-cream">Terrarium labels</h1>
         <p className="mt-4 text-sm text-muted">Connect a database to print labels.</p>
       </div>
     );
@@ -58,17 +67,15 @@ export default async function AdminLabelsPage({
   const labels = await Promise.all(
     specimens.map(async (s) => {
       const url = `${SITE.url}/q/${s.qrToken}`;
-      const dataUrl = await QRCode.toDataURL(url, { margin: 1, width: 220 });
+      const qrDataUrl = await QRCode.toDataURL(url, QR_OPTS);
       return {
         id: s.id,
         scientific: s.product.scientific,
         commonName: s.product.commonEn,
         sizeLabel: formatCmAsInches(s.sizeCm),
         sex: s.sex,
-        msrp: s.msrp,
-        locationName: s.location?.name ?? "Warehouse",
         tarantulAppId: s.tarantulAppId,
-        dataUrl,
+        qrDataUrl,
       };
     }),
   );
@@ -76,10 +83,10 @@ export default async function AdminLabelsPage({
   return (
     <div>
       <div className="print:hidden">
-        <h1 className="font-display text-2xl font-bold text-cream">QR labels</h1>
+        <h1 className="font-display text-2xl font-bold text-cream">Terrarium labels</h1>
         <p className="mt-1 text-sm text-muted">
-          Print and attach one label per enclosure. Scanning opens the specimen page — partners can
-          register walk-in sales, verify audits and report issues from it.
+          60 × 40 mm labels for enclosure glass. Stick one per terrarium — partners scan the QR
+          to register walk-in sales, run audits or report issues.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Link
@@ -105,35 +112,20 @@ export default async function AdminLabelsPage({
           ))}
         </div>
         <p className="mt-3 text-xs text-muted">
-          {labels.length} label(s) — use your browser&apos;s Print dialog (Ctrl/Cmd+P).
+          {labels.length} label(s) · Print at <strong className="text-bone">100% scale</strong> (Ctrl/Cmd+P).
+          White vinyl recommended for humid terrariums.
         </p>
       </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 print:mt-0 print:grid-cols-3 print:gap-2">
+      <div className="labels-print-sheet mt-6 print:mt-0">
         {labels.map((label) => (
-          <div
-            key={label.id}
-            className="break-inside-avoid rounded-xl border border-line bg-white p-3 text-center text-black print:rounded-none print:border-neutral-300"
-          >
-            {/* QR data URLs are self-contained; next/image adds nothing here. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={label.dataUrl} alt="Specimen QR" className="mx-auto h-auto w-full max-w-[160px]" />
-            <p className="mt-1 text-sm font-semibold italic leading-tight">{label.scientific}</p>
-            <p className="text-xs leading-tight text-neutral-600">{label.commonName}</p>
-            <p className="mt-1 text-xs text-neutral-800">
-              {label.sizeLabel} · {label.sex}
-              {label.msrp != null && ` · MSRP $${label.msrp.toFixed(0)}`}
-            </p>
-            <p className="text-[10px] text-neutral-500">
-              {label.locationName}
-              {label.tarantulAppId && ` · ${label.tarantulAppId}`}
-            </p>
-          </div>
+          <SpecimenTerrariumLabel key={label.id} {...label} />
         ))}
-        {labels.length === 0 && (
-          <p className="col-span-full text-sm text-muted">No specimens for this filter.</p>
-        )}
       </div>
+
+      {labels.length === 0 && (
+        <p className="mt-6 text-sm text-muted print:hidden">No specimens for this filter.</p>
+      )}
     </div>
   );
 }

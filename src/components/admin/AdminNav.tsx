@@ -13,7 +13,7 @@ const NAV = [
   { href: "/admin/audits", label: "Store audits" },
   { href: "/admin/restock", label: "Restock" },
   { href: "/admin/settlements", label: "Settlements" },
-  { href: "/admin/labels", label: "QR labels" },
+  { href: "/admin/labels", label: "Terrarium labels" },
   { href: "/admin/finance", label: "Finance" },
   { href: "/admin/pickup", label: "Locations" },
   { href: "/admin/media", label: "Media & photos" },
@@ -39,7 +39,7 @@ export default function AdminNav({ locale }: { locale: Locale }) {
   const pathname = usePathname();
 
   return (
-    <aside className="lg:sticky lg:top-24 lg:self-start">
+    <aside className="print:hidden lg:sticky lg:top-24 lg:self-start">
       <div className="rounded-2xl border border-line bg-ink-soft/40 p-3">
         <p className="px-2 pb-2 font-display text-sm font-bold text-cream">Admin panel</p>
         <nav className="flex flex-col gap-1">
