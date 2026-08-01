@@ -16,7 +16,7 @@ export type SpecimenTerrariumLabelProps = {
   qrDataUrl: string;
 };
 
-/** 6 cm × 4 cm terrarium label — logo top, care info center, compact QR bottom. */
+/** 6 cm × 4 cm terrarium label — info left, QR right. */
 export default function SpecimenTerrariumLabel({
   scientific,
   commonName,
@@ -45,41 +45,47 @@ export default function SpecimenTerrariumLabel({
       <div className="specimen-terrarium-label__bar" aria-hidden />
 
       <div className="specimen-terrarium-label__body">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand/logo.png" alt="" className="specimen-terrarium-label__top-logo" />
+        <div className="specimen-terrarium-label__columns">
+          <div className="specimen-terrarium-label__left">
+            <div className="specimen-terrarium-label__title-row">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/logo.png" alt="" className="specimen-terrarium-label__mini-logo" />
 
-        <div className="specimen-terrarium-label__identity">
-          <p className="specimen-terrarium-label__scientific">{scientific}</p>
-          <p className="specimen-terrarium-label__common">{commonName}</p>
-          <p className="specimen-terrarium-label__meta">{formatSpecimenMeta(sizeLabel, sex)}</p>
-        </div>
+              <div className="specimen-terrarium-label__identity">
+                <p className="specimen-terrarium-label__scientific">{scientific}</p>
+                <p className="specimen-terrarium-label__common">{commonName}</p>
+                <p className="specimen-terrarium-label__meta">{formatSpecimenMeta(sizeLabel, sex)}</p>
+              </div>
+            </div>
 
-        <div className="specimen-terrarium-label__care">
-          {careLines.map((line) => (
-            <p key={line} className="specimen-terrarium-label__care-line">
-              {line}
-            </p>
-          ))}
-        </div>
+            <div className="specimen-terrarium-label__care">
+              {careLines.map((line) => (
+                <p key={line} className="specimen-terrarium-label__care-line">
+                  {line}
+                </p>
+              ))}
+            </div>
 
-        <div className="specimen-terrarium-label__bottom">
-          <div className="specimen-terrarium-label__footer-left">
-            {tarantulAppId && (
-              <p className="specimen-terrarium-label__verified">{tarantulAppId}</p>
-            )}
-            <p className="specimen-terrarium-label__url">montrealspider.ca</p>
+            <div className="specimen-terrarium-label__site">
+              {tarantulAppId && (
+                <p className="specimen-terrarium-label__verified">{tarantulAppId}</p>
+              )}
+              <p className="specimen-terrarium-label__url">montrealspider.ca</p>
+            </div>
           </div>
 
-          <div className="specimen-terrarium-label__qr-wrap">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={qrDataUrl} alt="" className="specimen-terrarium-label__qr" />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/brand/logo.png"
-              alt=""
-              className="specimen-terrarium-label__qr-logo"
-              aria-hidden
-            />
+          <div className="specimen-terrarium-label__qr-col">
+            <div className="specimen-terrarium-label__qr-wrap">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={qrDataUrl} alt="" className="specimen-terrarium-label__qr" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/brand/logo.png"
+                alt=""
+                className="specimen-terrarium-label__qr-logo"
+                aria-hidden
+              />
+            </div>
           </div>
         </div>
       </div>

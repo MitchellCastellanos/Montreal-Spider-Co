@@ -1,13 +1,10 @@
 import fs from "fs/promises";
 import path from "path";
 import { PDFDocument, StandardFonts, rgb, type PDFImage, type PDFFont, type PDFPage } from "pdf-lib";
-import {
-  formatCareBlock,
-  formatSpecimenMeta,
-} from "@/lib/specimen-label-care";
+import { formatCareBlock, formatSpecimenMeta } from "@/lib/specimen-label-care";
 import { terrariumLabelQrPng, type TerrariumLabelRecord } from "@/lib/data/terrarium-labels";
 
-const PT = 72 / 25.4; // points per mm
+const PT = 72 / 25.4;
 const mm = (value: number) => value * PT;
 const cm = (value: number) => mm(value * 10);
 
@@ -23,11 +20,11 @@ const ROWS = 6;
 const PER_PAGE = COLS * ROWS;
 
 const BAR_H = mm(1.8);
-const PAD_X = mm(2.2);
+const PAD_X = mm(1.8);
 const PAD_Y = mm(1.4);
-const LOGO = mm(6);
-const QR = mm(11.5);
-const FOOTER_H = QR + mm(1);
+const COL_GAP = mm(1.5);
+const LOGO = mm(5.5);
+const QR = mm(13);
 
 const GOLD = rgb(201 / 255, 162 / 255, 75 / 255);
 const GOLD_DEEP = rgb(156 / 255, 122 / 255, 50 / 255);
@@ -44,20 +41,18 @@ function truncateToWidth(text: string, font: PDFFont, size: number, maxWidth: nu
   return `${out}…`;
 }
 
-function drawCentered(
+function drawLeft(
   page: PDFPage,
   text: string,
   x: number,
-  width: number,
   y: number,
+  maxWidth: number,
   font: PDFFont,
   size: number,
   color: ReturnType<typeof rgb>,
 ) {
-  const clipped = truncateToWidth(text, font, size, width);
-  const textW = font.widthOfTextAtSize(clipped, size);
-  page.drawText(clipped, {
-    x: x + (width - textW) / 2,
+  page.drawText(truncateToWidth(text, font, size, maxWidth), {
+    x,
     y,
     size,
     font,
@@ -78,7 +73,7 @@ function labelBox(index: number): { x: number; bottomY: number } {
   return { x, bottomY };
 }
 
-async function drawLabel(
+function drawLabel(
   page: PDFPage,
   label: TerrariumLabelRecord,
   index: number,
@@ -92,8 +87,9 @@ async function drawLabel(
 ) {
   const { x, bottomY } = labelBox(index);
   const topY = bottomY + LABEL_H;
-  const contentW = LABEL_W - PAD_X * 2;
-  const contentX = x + PAD_X;
+  const bodyTop = topY - BAR_H - PAD_Y;
+  const bodyBottom = bottomY + PAD_Y;
+  const bodyH = bodyTop - bodyBottom;
 
   page.drawRectangle({
     x,
@@ -113,53 +109,11 @@ async function drawLabel(
     color: GOLD,
   });
 
-  let cursorY = topY - BAR_H - PAD_Y - LOGO;
-  page.drawImage(logo, {
-    x: x + (LABEL_W - LOGO) / 2,
-    y: cursorY,
-    width: LOGO,
-    height: LOGO,
-  });
-
-  cursorY -= mm(1);
-  drawCentered(page, label.scientific, contentX, contentW, cursorY, fonts.scientific, 6.5, INK);
-  cursorY -= mm(2.2);
-  drawCentered(page, label.commonName, contentX, contentW, cursorY, fonts.body, 5.5, MUTED);
-  cursorY -= mm(2.3);
-  drawCentered(
-    page,
-    formatSpecimenMeta(label.sizeLabel, label.sex),
-    contentX,
-    contentW,
-    cursorY,
-    fonts.bodyBold,
-    5.5,
-    INK,
-  );
-
-  cursorY -= mm(1.8);
-  page.drawLine({
-    start: { x: contentX, y: cursorY },
-    end: { x: contentX + contentW, y: cursorY },
-    thickness: mm(0.15),
-    color: LINE,
-  });
-
-  const careLines = formatCareBlock(label);
-  const careFloor = bottomY + PAD_Y + FOOTER_H + mm(0.8);
-
-  cursorY -= mm(1.6);
-  for (const line of careLines) {
-    if (cursorY < careFloor) break;
-    drawCentered(page, line, contentX, contentW, cursorY, fonts.body, 4.75, MUTED);
-    cursorY -= mm(1.65);
-  }
-
-  const qrY = bottomY + PAD_Y;
   const qrX = x + LABEL_W - PAD_X - QR;
+  const qrY = bodyBottom + (bodyH - QR) / 2;
   page.drawImage(qr, { x: qrX, y: qrY, width: QR, height: QR });
 
-  const logoOnQr = mm(2.8);
+  const logoOnQr = mm(3.2);
   page.drawImage(logo, {
     x: qrX + (QR - logoOnQr) / 2,
     y: qrY + (QR - logoOnQr) / 2,
@@ -167,24 +121,52 @@ async function drawLabel(
     height: logoOnQr,
   });
 
-  const footerX = contentX;
-  let footerY = bottomY + PAD_Y;
-  if (label.tarantulAppId) {
-    page.drawText(truncateToWidth(label.tarantulAppId, fonts.body, 4.5, contentW - QR - mm(2)), {
-      x: footerX,
-      y: footerY + mm(2.2),
-      size: 4.5,
-      font: fonts.body,
-      color: MUTED,
-    });
-  }
-  page.drawText("montrealspider.ca", {
-    x: footerX,
-    y: footerY,
-    size: 4.5,
-    font: fonts.body,
-    color: GOLD_DEEP,
+  const leftX = x + PAD_X;
+  const leftW = LABEL_W - PAD_X * 2 - QR - COL_GAP;
+  const textX = leftX + LOGO + mm(1);
+  const textW = leftW - LOGO - mm(1);
+
+  page.drawImage(logo, {
+    x: leftX,
+    y: bodyTop - LOGO,
+    width: LOGO,
+    height: LOGO,
   });
+
+  let textY = bodyTop - mm(1.4);
+  drawLeft(page, label.scientific, textX, textY, textW, fonts.scientific, 6.5, INK);
+  textY -= mm(2.1);
+  drawLeft(page, label.commonName, textX, textY, textW, fonts.body, 5.5, MUTED);
+  textY -= mm(2.1);
+  drawLeft(
+    page,
+    formatSpecimenMeta(label.sizeLabel, label.sex),
+    textX,
+    textY,
+    textW,
+    fonts.bodyBold,
+    5.5,
+    INK,
+  );
+
+  textY -= mm(1.6);
+  page.drawLine({
+    start: { x: leftX, y: textY },
+    end: { x: leftX + leftW, y: textY },
+    thickness: mm(0.15),
+    color: LINE,
+  });
+
+  textY -= mm(1.7);
+  for (const line of formatCareBlock(label)) {
+    drawLeft(page, line, leftX, textY, leftW, fonts.body, 5, MUTED);
+    textY -= mm(1.55);
+  }
+
+  if (label.tarantulAppId) {
+    drawLeft(page, label.tarantulAppId, leftX, bodyBottom + mm(2.3), leftW, fonts.body, 4.5, MUTED);
+  }
+  drawLeft(page, "montrealspider.ca", leftX, bodyBottom, leftW, fonts.body, 4.5, GOLD_DEEP);
 }
 
 /** Build an A4 PDF with 6 × 4 cm terrarium labels (3 columns × 6 rows per page). */
