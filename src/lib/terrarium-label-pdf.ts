@@ -10,6 +10,7 @@ import {
   type PDFPage,
 } from "pdf-lib";
 import { buildLabelFacts } from "@/lib/specimen-label-care";
+import { toPdfText } from "@/lib/pdf-text";
 import { terrariumLabelQrPng, type TerrariumLabelRecord } from "@/lib/data/terrarium-labels";
 
 /** 72 pt per inch — exact conversion for print dimensions. */
@@ -54,12 +55,14 @@ const LABEL_MUTED = rgb(136 / 255, 136 / 255, 136 / 255);
 const LINE = rgb(232 / 255, 223 / 255, 200 / 255);
 
 function truncateToWidth(text: string, font: PDFFont, size: number, maxWidth: number): string {
-  if (font.widthOfTextAtSize(text, size) <= maxWidth) return text;
-  let out = text;
-  while (out.length > 1 && font.widthOfTextAtSize(`${out}…`, size) > maxWidth) {
+  const safe = toPdfText(text);
+  if (font.widthOfTextAtSize(safe, size) <= maxWidth) return safe;
+  let out = safe;
+  const suffix = "...";
+  while (out.length > 1 && font.widthOfTextAtSize(`${out}${suffix}`, size) > maxWidth) {
     out = out.slice(0, -1);
   }
-  return `${out}…`;
+  return `${out}${suffix}`;
 }
 
 function drawLeft(
@@ -217,7 +220,7 @@ function setPrintPreferences(pdf: PDFDocument) {
 /** Build a US Letter PDF with 6 × 4 cm terrarium labels (3 columns × 6 rows per page). */
 export async function buildTerrariumLabelsPdf(labels: TerrariumLabelRecord[]): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
-  pdf.setTitle("Montreal Spider Co — Terrarium Labels");
+  pdf.setTitle("Montreal Spider Co - Terrarium Labels");
   pdf.setCreator("Montreal Spider Co");
   setPrintPreferences(pdf);
 
