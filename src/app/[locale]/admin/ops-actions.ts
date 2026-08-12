@@ -257,7 +257,11 @@ export async function sendDistributorInventoryReportAction(_prev: ActionState, f
   if (!locationId) return { error: "missing_id" };
 
   try {
-    await sendDistributorInventoryReport(locationId, str(formData, "locale") === "fr" ? "fr" : "en");
+    await sendDistributorInventoryReport(
+      locationId,
+      str(formData, "locale") === "fr" ? "fr" : "en",
+      str(formData, "format") === "csv" ? "csv" : "pdf",
+    );
   } catch (e) {
     return fail(e, "send_failed");
   }

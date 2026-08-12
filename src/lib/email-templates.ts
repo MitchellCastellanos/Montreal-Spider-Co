@@ -720,6 +720,7 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       totalRecommendedValue: "$840.00 CAD",
       totalDistributorValue: "$570.00 CAD",
       outstandingOwed: "$120.00 CAD",
+      attachmentLabel: "PDF",
       itemRows:
         '<tr><td style="padding:8px 10px;border-bottom:1px solid #efe7d4;"><i>Grammostola pulchra</i><br /><span style="color:#8a7b5c;font-size:12px;">2 3/8″ · unsexed</span></td><td style="padding:8px 10px;border-bottom:1px solid #efe7d4;text-align:right;">$140.00</td><td style="padding:8px 10px;border-bottom:1px solid #efe7d4;text-align:right;">$95.00</td></tr>',
     },
@@ -733,6 +734,7 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       const totalDistributorValue = get(data, "totalDistributorValue", "$0.00 CAD");
       const outstandingOwed = get(data, "outstandingOwed", "$0.00 CAD");
       const itemRows = get(data, "itemRows", "");
+      const attachmentLabel = get(data, "attachmentLabel", "PDF");
 
       const subject = isFr
         ? `Inventaire distributeur — ${storeName} (${generatedDate})`
@@ -758,8 +760,8 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
         `${p(isFr ? `Bonjour ${partnerName},` : `Hi ${partnerName},`)}` +
         `${p(
           isFr
-            ? `Voici l'inventaire MSC actuellement chez <strong>${storeName}</strong>, généré le ${generatedDate}.`
-            : `Here's the MSC inventory currently at <strong>${storeName}</strong>, generated on ${generatedDate}.`,
+            ? `Voici l'inventaire MSC actuellement chez <strong>${storeName}</strong>, généré le ${generatedDate}. Une copie ${attachmentLabel} est jointe à ce courriel.`
+            : `Here's the MSC inventory currently at <strong>${storeName}</strong>, generated on ${generatedDate}. A ${attachmentLabel} copy is attached to this email.`,
         )}` +
         table +
         summary +

@@ -5,7 +5,6 @@ import { useActionState } from "react";
 import { sendDistributorInventoryReportAction } from "@/app/[locale]/admin/ops-actions";
 import type { ActionState } from "@/app/[locale]/admin/actions";
 import { STATUS_LABELS } from "@/lib/inventory-labels";
-import { SITE } from "@/lib/site";
 import type { Locale } from "@/i18n/config";
 
 export interface DistributorReportItem {
@@ -32,46 +31,77 @@ export interface DistributorReportRow {
   outstandingOwed: number;
 }
 
+type ReportFormat = "csv" | "pdf";
+
 function money(n: number): string {
   return `$${n.toFixed(2)}`;
 }
 
-function csvCell(value: string): string {
-  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+function FormatToggle({ format, onChange }: { format: ReportFormat; onChange: (f: ReportFormat) => void }) {
+  return (
+    <div className="inline-flex rounded-lg border border-line p-0.5 text-sm">
+      {(["csv", "pdf"] as const).map((f) => (
+        <button
+          key={f}
+          type="button"
+          onClick={() => onChange(f)}
+          className={`rounded-md px-3 py-1.5 uppercase transition ${
+            format === f ? "bg-gold/15 text-gold-bright ring-1 ring-gold/40" : "text-muted hover:text-bone"
+          }`}
+        >
+          {f}
+        </button>
+      ))}
+    </div>
+  );
 }
 
-function buildCsv(report: DistributorReportRow): string {
-  const lines: string[] = [];
-  lines.push(csvCell(`Distributor inventory report — ${report.locationName}`));
-  lines.push(`Generated,${new Date().toLocaleDateString("en-CA")}`);
-  lines.push("");
-  lines.push(["Species", "Common name", "Size", "Sex", "Status", "Recommended price (CAD)", "Distributor price (CAD)"].join(","));
-  for (const item of report.items) {
-    lines.push(
-      [
-        csvCell(item.scientific),
-        csvCell(item.commonName),
-        csvCell(item.sizeLabel),
-        item.sex,
-        STATUS_LABELS[item.status] ?? item.status,
-        item.recommendedPrice.toFixed(2),
-        item.distributorPrice.toFixed(2),
-      ].join(","),
-    );
-  }
-  lines.push("");
-  lines.push("Summary");
-  lines.push(`Items on hand,${report.itemCount}`);
-  lines.push(`Total value at recommended price,${report.totalRecommendedValue.toFixed(2)}`);
-  lines.push(`Total owed to MSC if all sold,${report.totalDistributorValue.toFixed(2)}`);
-  lines.push(`Outstanding balance already owed,${report.outstandingOwed.toFixed(2)}`);
-  lines.push("");
-  lines.push("Contact");
-  lines.push(csvCell(`${SITE.name},${SITE.email},${SITE.url}`));
-  return lines.join("\n");
+function ExportButton({ locationId, format }: { locationId: string; format: ReportFormat }) {
+  const [downloading, setDownloading] = useState(false);
+
+  const download = async () => {
+    setDownloading(true);
+    try {
+      const res = await fetch(`/api/admin/distributor-report?locationId=${encodeURIComponent(locationId)}&format=${format}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(typeof err.error === "string" ? err.error : "Export failed.");
+        return;
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const match = /filename="([^"]+)"/.exec(disposition);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = match?.[1] ?? `distributor-inventory.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <button type="button" onClick={download} disabled={downloading} className="btn btn-ghost text-sm disabled:opacity-50">
+      {downloading ? "Exporting…" : `Export ${format.toUpperCase()}`}
+    </button>
+  );
 }
 
-function EmailReportButton({ locationId, locale, disabled, disabledReason }: { locationId: string; locale: Locale; disabled: boolean; disabledReason: string }) {
+function EmailReportButton({
+  locationId,
+  locale,
+  format,
+  disabled,
+  disabledReason,
+}: {
+  locationId: string;
+  locale: Locale;
+  format: ReportFormat;
+  disabled: boolean;
+  disabledReason: string;
+}) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     sendDistributorInventoryReportAction,
     {},
@@ -80,12 +110,13 @@ function EmailReportButton({ locationId, locale, disabled, disabledReason }: { l
     <form action={formAction} className="flex items-center gap-3">
       <input type="hidden" name="locationId" value={locationId} />
       <input type="hidden" name="locale" value={locale} />
+      <input type="hidden" name="format" value={format} />
       <button
         disabled={disabled || pending}
         title={disabled ? disabledReason : undefined}
         className="btn btn-gold text-sm disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {pending ? "Sending…" : "Email to distributor"}
+        {pending ? "Sending…" : `Email ${format.toUpperCase()} to distributor`}
       </button>
       {disabled && <span className="text-xs text-muted">{disabledReason}</span>}
       {state.error && <span className="text-xs text-danger">{state.error}</span>}
@@ -102,25 +133,15 @@ export default function DistributorInventoryHub({
   locale: Locale;
 }) {
   const [selectedId, setSelectedId] = useState(reports[0]?.locationId ?? "");
+  const [format, setFormat] = useState<ReportFormat>("pdf");
   const report = useMemo(() => reports.find((r) => r.locationId === selectedId) ?? null, [reports, selectedId]);
-
-  const downloadCsv = () => {
-    if (!report) return;
-    const blob = new Blob([buildCsv(report)], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${report.locationName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-inventory-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <div>
       <h1 className="font-display text-2xl font-bold text-cream">Distributor inventory</h1>
       <p className="mt-1 text-sm text-muted">
         Pick a distributor to see what they currently hold on consignment — recommended (website) price alongside
-        what they owe MSC — export it or email it straight to them.
+        what they owe MSC — export it or email it straight to them, as a CSV or a formatted PDF.
       </p>
 
       {reports.length === 0 ? (
@@ -161,12 +182,12 @@ export default function DistributorInventoryHub({
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
-                  <button type="button" onClick={downloadCsv} className="btn btn-ghost text-sm">
-                    Export CSV
-                  </button>
+                  <FormatToggle format={format} onChange={setFormat} />
+                  <ExportButton locationId={report.locationId} format={format} />
                   <EmailReportButton
                     locationId={report.locationId}
                     locale={locale}
+                    format={format}
                     disabled={!report.email.trim()}
                     disabledReason="No partner email on file"
                   />

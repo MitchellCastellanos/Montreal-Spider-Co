@@ -2,9 +2,13 @@ import "server-only";
 import { getLocationById } from "@/lib/data/locations";
 import { listExpectedSpecimensAt } from "@/lib/data/audits";
 import { prisma } from "@/lib/db";
-import { suggestedSalePrice } from "@/lib/inventory-labels";
+import { suggestedSalePrice, STATUS_LABELS } from "@/lib/inventory-labels";
 import { sendNotification } from "@/lib/notifications/service";
+import { buildDistributorInventoryPdf } from "@/lib/distributor-report-pdf";
+import { SITE } from "@/lib/site";
 import type { EmailLocale } from "@/lib/email-templates";
+
+export type DistributorReportFormat = "csv" | "pdf";
 
 /**
  * Per-distributor inventory report — what a partner currently holds on
@@ -83,10 +87,71 @@ export async function getDistributorInventoryReport(locationId: string): Promise
   };
 }
 
-/** Emails the current inventory report (with financial summary) to the partner's address on file. */
-export async function sendDistributorInventoryReport(locationId: string, locale: EmailLocale = "en"): Promise<void> {
+function reportFilenameBase(report: DistributorInventoryReport): string {
+  const slug = report.locationName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return `${slug || "distributor"}-inventory-${new Date().toISOString().slice(0, 10)}`;
+}
+
+function csvCell(value: string): string {
+  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
+/** Plain-text CSV export — item table, financial summary and MSC contact info. */
+export function buildDistributorInventoryCsv(report: DistributorInventoryReport): string {
+  const lines: string[] = [];
+  lines.push(csvCell(`Distributor inventory report — ${report.locationName}`));
+  lines.push(`Generated,${new Date().toISOString().slice(0, 10)}`);
+  lines.push("");
+  lines.push(
+    ["Species", "Common name", "Size", "Sex", "Status", "Recommended price (CAD)", "Distributor price (CAD)"].join(","),
+  );
+  for (const item of report.items) {
+    lines.push(
+      [
+        csvCell(item.scientific),
+        csvCell(item.commonName),
+        csvCell(item.sizeLabel),
+        item.sex,
+        STATUS_LABELS[item.status] ?? item.status,
+        item.recommendedPrice.toFixed(2),
+        item.distributorPrice.toFixed(2),
+      ].join(","),
+    );
+  }
+  lines.push("");
+  lines.push("Summary");
+  lines.push(`Items on hand,${report.itemCount}`);
+  lines.push(`Total value at recommended price,${report.totalRecommendedValue.toFixed(2)}`);
+  lines.push(`Total owed to MSC if all sold,${report.totalDistributorValue.toFixed(2)}`);
+  lines.push(`Outstanding balance already owed,${report.outstandingOwed.toFixed(2)}`);
+  lines.push("");
+  lines.push("Contact");
+  lines.push(csvCell(`${SITE.name},${SITE.email},${SITE.url}`));
+  return lines.join("\n");
+}
+
+/** Emails the current inventory report (with financial summary) to the partner's address on file, attached as CSV or PDF. */
+export async function sendDistributorInventoryReport(
+  locationId: string,
+  locale: EmailLocale = "en",
+  format: DistributorReportFormat = "pdf",
+): Promise<void> {
   const report = await getDistributorInventoryReport(locationId);
   if (!report.email.trim()) throw new Error("This distributor has no contact email on file.");
+
+  const filenameBase = reportFilenameBase(report);
+  const attachment =
+    format === "pdf"
+      ? {
+          filename: `${filenameBase}.pdf`,
+          content: Buffer.from(await buildDistributorInventoryPdf(report)),
+          contentType: "application/pdf",
+        }
+      : {
+          filename: `${filenameBase}.csv`,
+          content: Buffer.from(buildDistributorInventoryCsv(report), "utf-8"),
+          contentType: "text/csv",
+        };
 
   const rowsHtml = report.items
     .map(
@@ -117,7 +182,9 @@ export async function sendDistributorInventoryReport(locationId: string, locale:
       totalDistributorValue: `$${report.totalDistributorValue.toFixed(2)} CAD`,
       outstandingOwed: `$${report.outstandingOwed.toFixed(2)} CAD`,
       itemRows: rowsHtml,
+      attachmentLabel: format.toUpperCase(),
     },
-    context: { locationId },
+    context: { locationId, format },
+    attachments: [attachment],
   });
 }
