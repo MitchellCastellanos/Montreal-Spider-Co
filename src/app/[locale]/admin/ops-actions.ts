@@ -25,6 +25,7 @@ import {
   sendStatement,
   markStatementPaid,
 } from "@/lib/data/settlement";
+import { sendDistributorInventoryReport } from "@/lib/data/distributor-report";
 import { recordMolt, recordMeasurement } from "@/lib/data/growth";
 import { createTask, resolveTask } from "@/lib/data/tasks";
 import { sellSpecimensManual } from "@/lib/data/specimens";
@@ -243,6 +244,24 @@ export async function statementTransitionAction(_prev: ActionState, formData: Fo
   }
 
   revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+// --- Distributor inventory reports --------------------------------------------
+
+export async function sendDistributorInventoryReportAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const denied = await guard();
+  if (denied) return denied;
+
+  const locationId = str(formData, "locationId");
+  if (!locationId) return { error: "missing_id" };
+
+  try {
+    await sendDistributorInventoryReport(locationId, str(formData, "locale") === "fr" ? "fr" : "en");
+  } catch (e) {
+    return fail(e, "send_failed");
+  }
+
   return { ok: true };
 }
 

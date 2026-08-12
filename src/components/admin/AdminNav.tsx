@@ -13,6 +13,7 @@ const NAV = [
   { href: "/admin/audits", label: "Store audits" },
   { href: "/admin/restock", label: "Restock" },
   { href: "/admin/settlements", label: "Settlements" },
+  { href: "/admin/distributors", label: "Distributor inventory" },
   { href: "/admin/labels", label: "Terrarium labels" },
   { href: "/admin/finance", label: "Finance" },
   { href: "/admin/pickup", label: "Locations" },
