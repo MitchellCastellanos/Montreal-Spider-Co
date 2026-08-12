@@ -146,28 +146,26 @@ export async function buildDistributorInventoryPdf(report: DistributorInventoryR
     ["Items on hand", String(report.itemCount)],
     ["Value at recommended price", money(report.totalRecommendedValue)],
     ["Owed to MSC if all sold", money(report.totalDistributorValue)],
-    ["Outstanding balance already owed", money(report.outstandingOwed)],
   ];
   const boxH = 40;
   const summaryTop = y;
   page.drawRectangle({
     x: MARGIN,
-    y: summaryTop - boxH * 2,
+    y: summaryTop - boxH,
     width: CONTENT_W,
-    height: boxH * 2,
+    height: boxH,
     borderColor: LINE,
     borderWidth: 1,
     color: rgb(1, 1, 1),
   });
+  const boxColW = CONTENT_W / summaryItems.length;
   summaryItems.forEach(([lab, val], i) => {
-    const col = i % 2;
-    const row = Math.floor(i / 2);
-    const bx = MARGIN + 14 + col * colW + col * colGap;
-    const by = summaryTop - 16 - row * boxH;
-    label(page, lab.toUpperCase(), bx, by, bold, 6.5, MUTED, "left", colW - 20);
+    const bx = MARGIN + 14 + i * boxColW;
+    const by = summaryTop - 16;
+    label(page, lab.toUpperCase(), bx, by, bold, 6.5, MUTED, "left", boxColW - 20);
     label(page, val, bx, by - 17, bold, 13, INK);
   });
-  y = summaryTop - boxH * 2 - 22;
+  y = summaryTop - boxH - 22;
 
   drawTableHeader(page, y);
   y -= TABLE_HEADER_H;

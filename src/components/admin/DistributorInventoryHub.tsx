@@ -28,7 +28,6 @@ export interface DistributorReportRow {
   itemCount: number;
   totalRecommendedValue: number;
   totalDistributorValue: number;
-  outstandingOwed: number;
 }
 
 type ReportFormat = "csv" | "pdf";
@@ -165,11 +164,10 @@ export default function DistributorInventoryHub({
 
           {report && (
             <>
-              <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
                 <StatCard label="Items on hand" value={String(report.itemCount)} />
                 <StatCard label="Value at recommended price" value={money(report.totalRecommendedValue)} />
                 <StatCard label="Owed to MSC if all sold" value={money(report.totalDistributorValue)} />
-                <StatCard label="Outstanding balance already owed" value={money(report.outstandingOwed)} />
               </div>
 
               <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-ink-soft/40 p-4">

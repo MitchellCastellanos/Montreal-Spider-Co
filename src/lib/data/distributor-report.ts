@@ -1,7 +1,6 @@
 import "server-only";
 import { getLocationById } from "@/lib/data/locations";
 import { listExpectedSpecimensAt } from "@/lib/data/audits";
-import { prisma } from "@/lib/db";
 import { suggestedSalePrice, STATUS_LABELS } from "@/lib/inventory-labels";
 import { sendNotification } from "@/lib/notifications/service";
 import { buildDistributorInventoryPdf } from "@/lib/distributor-report-pdf";
@@ -13,14 +12,9 @@ export type DistributorReportFormat = "csv" | "pdf";
 /**
  * Per-distributor inventory report — what a partner currently holds on
  * consignment, priced two ways: the recommended (website) price and what
- * they owe MSC ("their" price), plus their outstanding settlement balance.
- * Powers the admin Distributors page (view, CSV export, email to partner).
+ * they owe MSC ("their" price). Powers the admin Distributors page (view,
+ * CSV/PDF export, email to partner).
  */
-
-function requireDb() {
-  if (!prisma) throw new Error("Database not configured.");
-  return prisma;
-}
 
 export interface DistributorInventoryRow {
   specimenId: string;
@@ -45,22 +39,13 @@ export interface DistributorInventoryReport {
   itemCount: number;
   totalRecommendedValue: number;
   totalDistributorValue: number;
-  /** Already-sold entries not yet paid (pending + invoiced), from the settlement ledger. */
-  outstandingOwed: number;
 }
 
 export async function getDistributorInventoryReport(locationId: string): Promise<DistributorInventoryReport> {
   const location = await getLocationById(locationId);
   if (!location) throw new Error("Distributor not found.");
 
-  const db = requireDb();
-  const [expected, balanceEntries] = await Promise.all([
-    listExpectedSpecimensAt(locationId),
-    db.settlementEntry.findMany({
-      where: { locationId, paymentStatus: { in: ["pending", "invoiced"] } },
-      select: { settlementPrice: true },
-    }),
-  ]);
+  const expected = await listExpectedSpecimensAt(locationId);
 
   const items: DistributorInventoryRow[] = expected.map((s) => ({
     specimenId: s.id,
@@ -83,7 +68,6 @@ export async function getDistributorInventoryReport(locationId: string): Promise
     itemCount: items.length,
     totalRecommendedValue: items.reduce((sum, i) => sum + i.recommendedPrice, 0),
     totalDistributorValue: items.reduce((sum, i) => sum + i.distributorPrice, 0),
-    outstandingOwed: balanceEntries.reduce((sum, e) => sum + e.settlementPrice, 0),
   };
 }
 
@@ -96,7 +80,7 @@ function csvCell(value: string): string {
   return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
-/** Plain-text CSV export — item table, financial summary and MSC contact info. */
+/** Plain-text CSV export — item table, inventory value summary and MSC contact info. */
 export function buildDistributorInventoryCsv(report: DistributorInventoryReport): string {
   const lines: string[] = [];
   lines.push(csvCell(`Distributor inventory report — ${report.locationName}`));
@@ -123,14 +107,13 @@ export function buildDistributorInventoryCsv(report: DistributorInventoryReport)
   lines.push(`Items on hand,${report.itemCount}`);
   lines.push(`Total value at recommended price,${report.totalRecommendedValue.toFixed(2)}`);
   lines.push(`Total owed to MSC if all sold,${report.totalDistributorValue.toFixed(2)}`);
-  lines.push(`Outstanding balance already owed,${report.outstandingOwed.toFixed(2)}`);
   lines.push("");
   lines.push("Contact");
   lines.push(csvCell(`${SITE.name},${SITE.email},${SITE.url}`));
   return lines.join("\n");
 }
 
-/** Emails the current inventory report (with financial summary) to the partner's address on file, attached as CSV or PDF. */
+/** Emails the current inventory report (with value summary) to the partner's address on file, attached as CSV or PDF. */
 export async function sendDistributorInventoryReport(
   locationId: string,
   locale: EmailLocale = "en",
@@ -180,7 +163,6 @@ export async function sendDistributorInventoryReport(
       itemCount: String(report.itemCount),
       totalRecommendedValue: `$${report.totalRecommendedValue.toFixed(2)} CAD`,
       totalDistributorValue: `$${report.totalDistributorValue.toFixed(2)} CAD`,
-      outstandingOwed: `$${report.outstandingOwed.toFixed(2)} CAD`,
       itemRows: rowsHtml,
       attachmentLabel: format.toUpperCase(),
     },

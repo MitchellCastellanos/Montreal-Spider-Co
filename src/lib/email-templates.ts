@@ -711,7 +711,7 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
     id: "partner-inventory-report",
     label: "Partner — distributor inventory report",
     description:
-      "Full inventory snapshot sent to a distributor: recommended (website) price, their price, and their account balance. Sent on demand from the Distributors admin page.",
+      "Full inventory snapshot sent to a distributor: recommended (website) price and their price for what they currently hold. Sent on demand from the Distributors admin page.",
     sample: {
       partnerName: "Marie",
       storeName: "Reptile Concept",
@@ -719,7 +719,6 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       itemCount: "6",
       totalRecommendedValue: "$840.00 CAD",
       totalDistributorValue: "$570.00 CAD",
-      outstandingOwed: "$120.00 CAD",
       attachmentLabel: "PDF",
       itemRows:
         '<tr><td style="padding:8px 10px;border-bottom:1px solid #efe7d4;"><i>Grammostola pulchra</i><br /><span style="color:#8a7b5c;font-size:12px;">2 3/8″ · unsexed</span></td><td style="padding:8px 10px;border-bottom:1px solid #efe7d4;text-align:right;">$140.00</td><td style="padding:8px 10px;border-bottom:1px solid #efe7d4;text-align:right;">$95.00</td></tr>',
@@ -732,7 +731,6 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       const itemCount = get(data, "itemCount", "0");
       const totalRecommendedValue = get(data, "totalRecommendedValue", "$0.00 CAD");
       const totalDistributorValue = get(data, "totalDistributorValue", "$0.00 CAD");
-      const outstandingOwed = get(data, "outstandingOwed", "$0.00 CAD");
       const itemRows = get(data, "itemRows", "");
       const attachmentLabel = get(data, "attachmentLabel", "PDF");
 
@@ -752,8 +750,7 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       const summary = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 8px;border:1px solid #e7ddc6;border-radius:12px;">
         <tr><td style="padding:12px 16px;border-bottom:1px solid #efe7d4;"><strong>${isFr ? "Articles en stock" : "Items on hand"}:</strong> ${itemCount}</td></tr>
         <tr><td style="padding:12px 16px;border-bottom:1px solid #efe7d4;"><strong>${isFr ? "Valeur au prix suggéré" : "Value at recommended price"}:</strong> ${totalRecommendedValue}</td></tr>
-        <tr><td style="padding:12px 16px;border-bottom:1px solid #efe7d4;"><strong>${isFr ? "Dû à MSC si tout est vendu" : "Owed to MSC if all sold"}:</strong> ${totalDistributorValue}</td></tr>
-        <tr><td style="padding:12px 16px;"><strong>${isFr ? "Solde déjà dû (ventes enregistrées)" : "Balance already owed (registered sales)"}:</strong> ${outstandingOwed}</td></tr>
+        <tr><td style="padding:12px 16px;"><strong>${isFr ? "Dû à MSC si tout est vendu" : "Owed to MSC if all sold"}:</strong> ${totalDistributorValue}</td></tr>
       </table>`;
 
       const body =
@@ -767,8 +764,8 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
         summary +
         `${p(
           isFr
-            ? "Des questions sur un article ou votre solde ? Répondez simplement à ce courriel."
-            : "Questions about an item or your balance? Just reply to this email.",
+            ? "Des questions sur un article ? Répondez simplement à ce courriel."
+            : "Questions about an item? Just reply to this email.",
         )}` +
         `${p(isFr ? "— L'équipe " + SITE.name : "— The " + SITE.name + " team")}`;
 
@@ -777,7 +774,7 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
         isFr ? "Articles en stock" : "Items on hand"
       }: ${itemCount}\n${isFr ? "Valeur au prix suggéré" : "Value at recommended price"}: ${totalRecommendedValue}\n${
         isFr ? "Dû à MSC si tout est vendu" : "Owed to MSC if all sold"
-      }: ${totalDistributorValue}\n${isFr ? "Solde déjà dû" : "Balance already owed"}: ${outstandingOwed}\n\n— ${SITE.name}`;
+      }: ${totalDistributorValue}\n\n— ${SITE.name}`;
       return { subject, html, text };
     },
   },
