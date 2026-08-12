@@ -707,6 +707,80 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       ],
     },
   }),
+  {
+    id: "partner-inventory-report",
+    label: "Partner — distributor inventory report",
+    description:
+      "Full inventory snapshot sent to a distributor: recommended (website) price, their price, and their account balance. Sent on demand from the Distributors admin page.",
+    sample: {
+      partnerName: "Marie",
+      storeName: "Reptile Concept",
+      generatedDate: "August 12, 2026",
+      itemCount: "6",
+      totalRecommendedValue: "$840.00 CAD",
+      totalDistributorValue: "$570.00 CAD",
+      outstandingOwed: "$120.00 CAD",
+      attachmentLabel: "PDF",
+      itemRows:
+        '<tr><td style="padding:8px 10px;border-bottom:1px solid #efe7d4;"><i>Grammostola pulchra</i><br /><span style="color:#8a7b5c;font-size:12px;">2 3/8″ · unsexed</span></td><td style="padding:8px 10px;border-bottom:1px solid #efe7d4;text-align:right;">$140.00</td><td style="padding:8px 10px;border-bottom:1px solid #efe7d4;text-align:right;">$95.00</td></tr>',
+    },
+    render(locale, data) {
+      const isFr = locale === "fr";
+      const partnerName = get(data, "partnerName", "there");
+      const storeName = get(data, "storeName", "your store");
+      const generatedDate = get(data, "generatedDate", "");
+      const itemCount = get(data, "itemCount", "0");
+      const totalRecommendedValue = get(data, "totalRecommendedValue", "$0.00 CAD");
+      const totalDistributorValue = get(data, "totalDistributorValue", "$0.00 CAD");
+      const outstandingOwed = get(data, "outstandingOwed", "$0.00 CAD");
+      const itemRows = get(data, "itemRows", "");
+      const attachmentLabel = get(data, "attachmentLabel", "PDF");
+
+      const subject = isFr
+        ? `Inventaire distributeur — ${storeName} (${generatedDate})`
+        : `Distributor inventory report — ${storeName} (${generatedDate})`;
+
+      const tableHead = isFr
+        ? `<tr><th style="padding:8px 10px;text-align:left;font-size:12px;color:#8a7b5c;">Spécimen</th><th style="padding:8px 10px;text-align:right;font-size:12px;color:#8a7b5c;">Prix suggéré</th><th style="padding:8px 10px;text-align:right;font-size:12px;color:#8a7b5c;">Votre prix</th></tr>`
+        : `<tr><th style="padding:8px 10px;text-align:left;font-size:12px;color:#8a7b5c;">Specimen</th><th style="padding:8px 10px;text-align:right;font-size:12px;color:#8a7b5c;">Recommended price</th><th style="padding:8px 10px;text-align:right;font-size:12px;color:#8a7b5c;">Your price</th></tr>`;
+
+      const table = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;border:1px solid #e7ddc6;border-radius:12px;overflow:hidden;">
+        <thead style="background:#f7f1e3;">${tableHead}</thead>
+        <tbody>${itemRows || `<tr><td colspan="3" style="padding:12px;color:#8a7b5c;">${isFr ? "Aucun article en stock." : "No items currently on hand."}</td></tr>`}</tbody>
+      </table>`;
+
+      const summary = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 8px;border:1px solid #e7ddc6;border-radius:12px;">
+        <tr><td style="padding:12px 16px;border-bottom:1px solid #efe7d4;"><strong>${isFr ? "Articles en stock" : "Items on hand"}:</strong> ${itemCount}</td></tr>
+        <tr><td style="padding:12px 16px;border-bottom:1px solid #efe7d4;"><strong>${isFr ? "Valeur au prix suggéré" : "Value at recommended price"}:</strong> ${totalRecommendedValue}</td></tr>
+        <tr><td style="padding:12px 16px;border-bottom:1px solid #efe7d4;"><strong>${isFr ? "Dû à MSC si tout est vendu" : "Owed to MSC if all sold"}:</strong> ${totalDistributorValue}</td></tr>
+        <tr><td style="padding:12px 16px;"><strong>${isFr ? "Solde déjà dû (ventes enregistrées)" : "Balance already owed (registered sales)"}:</strong> ${outstandingOwed}</td></tr>
+      </table>`;
+
+      const body =
+        `${p(isFr ? `Bonjour ${partnerName},` : `Hi ${partnerName},`)}` +
+        `${p(
+          isFr
+            ? `Voici l'inventaire MSC actuellement chez <strong>${storeName}</strong>, généré le ${generatedDate}. Une copie ${attachmentLabel} est jointe à ce courriel.`
+            : `Here's the MSC inventory currently at <strong>${storeName}</strong>, generated on ${generatedDate}. A ${attachmentLabel} copy is attached to this email.`,
+        )}` +
+        table +
+        summary +
+        `${p(
+          isFr
+            ? "Des questions sur un article ou votre solde ? Répondez simplement à ce courriel."
+            : "Questions about an item or your balance? Just reply to this email.",
+        )}` +
+        `${p(isFr ? "— L'équipe " + SITE.name : "— The " + SITE.name + " team")}`;
+
+      const html = layout({ locale, preview: subject, bodyHtml: body });
+      const text = `${isFr ? "Inventaire" : "Inventory"} — ${storeName} (${generatedDate})\n\n${
+        isFr ? "Articles en stock" : "Items on hand"
+      }: ${itemCount}\n${isFr ? "Valeur au prix suggéré" : "Value at recommended price"}: ${totalRecommendedValue}\n${
+        isFr ? "Dû à MSC si tout est vendu" : "Owed to MSC if all sold"
+      }: ${totalDistributorValue}\n${isFr ? "Solde déjà dû" : "Balance already owed"}: ${outstandingOwed}\n\n— ${SITE.name}`;
+      return { subject, html, text };
+    },
+  },
 
   // -------------------------------------------------------------------------
   // Internal (MSC staff)

@@ -27,6 +27,8 @@ export interface NotificationInput {
   data: Record<string, string>;
   /** Business context stored on the log entry (orderId, specimenId, locationId, …). */
   context?: Record<string, string>;
+  /** Optional file attachments (e.g. a CSV/PDF export sent along with the email). */
+  attachments?: { filename: string; content: Buffer; contentType?: string }[];
 }
 
 async function logEmail(entry: {
@@ -113,6 +115,7 @@ export async function sendNotification(input: NotificationInput): Promise<boolea
       subject: email.subject,
       html: email.html,
       text: email.text,
+      attachments: input.attachments,
     });
     if (error) throw new Error(error.message || "Resend rejected the email");
     await logEmail({
