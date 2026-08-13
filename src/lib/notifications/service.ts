@@ -15,6 +15,12 @@ import { getEmailTemplate, type EmailLocale } from "@/lib/email-templates";
 
 const resendConfigured = Boolean(process.env.RESEND_API_KEY);
 const fromEmail = process.env.RESEND_FROM_EMAIL ?? `orders@${new URL(SITE.url).hostname}`;
+const partnerFromEmail = process.env.RESEND_PARTNER_FROM_EMAIL ?? fromEmail;
+
+/** Partner/distributor-facing templates send from a dedicated address. */
+function resolveFromEmail(templateId: string): string {
+  return templateId.startsWith("partner-") ? partnerFromEmail : fromEmail;
+}
 
 export interface NotificationInput {
   /** Template id from the registry in `email-templates.ts`. */
@@ -110,7 +116,7 @@ export async function sendNotification(input: NotificationInput): Promise<boolea
   try {
     const resend = new Resend(process.env.RESEND_API_KEY);
     const { error } = await resend.emails.send({
-      from: fromEmail,
+      from: resolveFromEmail(input.templateId),
       to: input.to,
       subject: email.subject,
       html: email.html,
