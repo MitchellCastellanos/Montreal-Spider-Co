@@ -219,6 +219,105 @@ export async function markStatementPaid(statementId: string): Promise<void> {
   }
 }
 
+/**
+ * Settle a partner's entire outstanding balance in one step: invoices any
+ * un-invoiced ledger entries (grouped by month, same as generateMonthlyStatement)
+ * and marks every draft/sent statement for the location as paid. This is the
+ * shortcut behind the "Mark paid" button on the partner's balance card — it
+ * skips the manual generate → send → mark-paid statement workflow.
+ */
+export async function settleOutstandingBalance(locationId: string): Promise<{ amount: number; statementCount: number }> {
+  const db = requireDb();
+
+  const paidStatementIds = await db.$transaction(async (tx) => {
+    const pending = await tx.settlementEntry.findMany({
+      where: { locationId, paymentStatus: "pending", statementId: null },
+    });
+
+    const byMonth = new Map<string, typeof pending>();
+    for (const e of pending) {
+      const key = `${e.soldAt.getUTCFullYear()}-${e.soldAt.getUTCMonth()}`;
+      const group = byMonth.get(key) ?? [];
+      group.push(e);
+      byMonth.set(key, group);
+    }
+
+    for (const group of byMonth.values()) {
+      const sample = group[0].soldAt;
+      const periodStart = new Date(Date.UTC(sample.getUTCFullYear(), sample.getUTCMonth(), 1));
+      const periodEnd = new Date(Date.UTC(sample.getUTCFullYear(), sample.getUTCMonth() + 1, 1));
+      const totalSales = group.reduce((sum, e) => sum + e.salePrice, 0);
+      const totalOwed = group.reduce((sum, e) => sum + e.settlementPrice, 0);
+      const totalMargin = group.reduce((sum, e) => sum + e.partnerMargin, 0);
+
+      const statement = await tx.settlementStatement.upsert({
+        where: { locationId_periodStart_periodEnd: { locationId, periodStart, periodEnd } },
+        create: { locationId, periodStart, periodEnd, totalSales, totalOwed, totalMargin },
+        update: {
+          totalSales: { increment: totalSales },
+          totalOwed: { increment: totalOwed },
+          totalMargin: { increment: totalMargin },
+        },
+      });
+
+      await tx.settlementEntry.updateMany({
+        where: { id: { in: group.map((e) => e.id) } },
+        data: { statementId: statement.id, paymentStatus: "invoiced" },
+      });
+    }
+
+    const unpaid = await tx.settlementStatement.findMany({
+      where: { locationId, status: { in: ["draft", "sent"] } },
+      select: { id: true },
+    });
+    const ids = unpaid.map((s) => s.id);
+    if (!ids.length) return ids;
+
+    await tx.settlementStatement.updateMany({
+      where: { id: { in: ids } },
+      data: { status: "paid", paidAt: new Date() },
+    });
+    await tx.settlementEntry.updateMany({
+      where: { statementId: { in: ids } },
+      data: { paymentStatus: "paid" },
+    });
+
+    return ids;
+  });
+
+  if (!paidStatementIds.length) throw new Error("No outstanding balance to settle.");
+
+  const statements = await db.settlementStatement.findMany({
+    where: { id: { in: paidStatementIds } },
+    include: { location: true },
+    orderBy: { periodStart: "asc" },
+  });
+
+  const amount = statements.reduce((sum, s) => sum + s.totalOwed, 0);
+  const location = statements[0].location;
+
+  if (location.email) {
+    const fmt = (d: Date) => d.toLocaleDateString("en-CA", { month: "long", year: "numeric", timeZone: "UTC" });
+    const first = fmt(statements[0].periodStart);
+    const last = fmt(statements[statements.length - 1].periodStart);
+    const period = first === last ? first : `${first} – ${last}`;
+
+    await sendNotification({
+      templateId: "partner-payment-received",
+      event: "settlement.paid",
+      to: location.email,
+      data: {
+        partnerName: location.contactName || location.name,
+        period,
+        amount: `$${amount.toFixed(2)} CAD`,
+      },
+      context: { locationId, statementIds: paidStatementIds.join(",") },
+    });
+  }
+
+  return { amount, statementCount: statements.length };
+}
+
 /** Outstanding balance per partner — always from the ledger, never from inventory. */
 export async function getPartnerBalances(): Promise<
   { locationId: string; locationName: string; pendingOwed: number; invoicedOwed: number; entryCount: number }[]

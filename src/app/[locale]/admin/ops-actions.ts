@@ -24,6 +24,7 @@ import {
   generateMonthlyStatement,
   sendStatement,
   markStatementPaid,
+  settleOutstandingBalance,
 } from "@/lib/data/settlement";
 import { sendDistributorInventoryReport } from "@/lib/data/distributor-report";
 import { recordMolt, recordMeasurement } from "@/lib/data/growth";
@@ -241,6 +242,23 @@ export async function statementTransitionAction(_prev: ActionState, formData: Fo
     else return { error: "unknown_transition" };
   } catch (e) {
     return fail(e, "transition_failed");
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function settleOutstandingBalanceAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const denied = await guard();
+  if (denied) return denied;
+
+  const locationId = str(formData, "locationId");
+  if (!locationId) return { error: "missing_id" };
+
+  try {
+    await settleOutstandingBalance(locationId);
+  } catch (e) {
+    return fail(e, "settle_failed");
   }
 
   revalidatePath("/", "layout");
