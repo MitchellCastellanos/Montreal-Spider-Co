@@ -16,10 +16,11 @@ import { getEmailTemplate, type EmailLocale } from "@/lib/email-templates";
 const resendConfigured = Boolean(process.env.RESEND_API_KEY);
 const fromEmail = process.env.RESEND_FROM_EMAIL ?? `orders@${new URL(SITE.url).hostname}`;
 const partnerFromEmail = process.env.RESEND_PARTNER_FROM_EMAIL ?? fromEmail;
+const partnerFromDisplay = `Partners @ ${SITE.name} <${partnerFromEmail}>`;
 
-/** Partner/distributor-facing templates send from a dedicated address. */
+/** Partner/distributor-facing templates send from a dedicated, named address. */
 function resolveFromEmail(templateId: string): string {
-  return templateId.startsWith("partner-") ? partnerFromEmail : fromEmail;
+  return templateId.startsWith("partner-") ? partnerFromDisplay : fromEmail;
 }
 
 export interface NotificationInput {
