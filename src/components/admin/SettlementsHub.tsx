@@ -1,7 +1,11 @@
 "use client";
 
 import { useActionState } from "react";
-import { generateStatementAction, statementTransitionAction } from "@/app/[locale]/admin/ops-actions";
+import {
+  generateStatementAction,
+  statementTransitionAction,
+  settleOutstandingBalanceAction,
+} from "@/app/[locale]/admin/ops-actions";
 import type { ActionState } from "@/app/[locale]/admin/actions";
 
 export interface BalanceRow {
@@ -87,6 +91,26 @@ function GenerateStatementForm({ locations }: { locations: { id: string; name: s
   );
 }
 
+function SettleBalanceButton({ locationId }: { locationId: string }) {
+  const [state, formAction, pending] = useActionState<ActionState, FormData>(
+    settleOutstandingBalanceAction,
+    {},
+  );
+  return (
+    <form action={formAction} className="mt-3">
+      <input type="hidden" name="locationId" value={locationId} />
+      <button
+        disabled={pending}
+        className="w-full rounded-lg bg-gold/15 px-3 py-1.5 text-xs font-semibold text-gold-bright ring-1 ring-gold/40 transition hover:bg-gold/25 disabled:opacity-50"
+      >
+        {pending ? "…" : "Mark paid"}
+      </button>
+      {state.error && <p className="mt-1 text-xs text-danger">{state.error}</p>}
+      {state.ok && <p className="mt-1 text-xs text-gold-bright">Balance settled.</p>}
+    </form>
+  );
+}
+
 function StatementAction({ id, transition, label }: { id: string; transition: string; label: string }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     statementTransitionAction,
@@ -137,6 +161,7 @@ export default function SettlementsHub({
             <p className="text-xs text-muted">
               {b.entryCount} sales · ${b.pendingOwed.toFixed(2)} un-invoiced · ${b.invoicedOwed.toFixed(2)} invoiced
             </p>
+            <SettleBalanceButton locationId={b.locationId} />
           </div>
         ))}
       </div>
