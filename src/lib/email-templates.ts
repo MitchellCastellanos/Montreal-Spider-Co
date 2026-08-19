@@ -640,23 +640,21 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
     },
   }),
   simpleTemplate({
-    id: "partner-specimen-repriced",
-    label: "Partner — specimen re-measured / re-priced",
+    id: "partner-specimen-sexed",
+    label: "Partner — specimen sexed",
     description:
-      "Sent immediately (not at end-of-visit) when a scan during an audit updates a specimen's size, sex, or pricing — the partner's physical shelf tag is now stale.",
+      "Sent immediately (not at end-of-visit) when a scan during an audit confirms a specimen's sex — the only fact on the terrarium label that ever changes, so a fresh one is coming.",
     sample: {
       partnerName: "Reptile Concept",
-      itemLine: "Grammostola pulchra (2 3/8″, female)",
-      changesLine:
-        "Size: 2″ → 2 3/8″<br />Sex: unsexed → female<br />MSRP: $149.00 CAD → $189.00 CAD<br />Settlement (what you owe us): $95.00 CAD → $120.00 CAD",
+      itemLine: "Grammostola pulchra (Female)",
+      sex: "Female",
     },
-    subject: { en: "Update your price tag — {itemLine}" },
+    subject: { en: "Confirmed {sex} — {itemLine}" },
     paragraphs: {
       en: [
         "Hi {partnerName},",
-        "During today's visit we re-measured/re-sexed a specimen on your display: <strong>{itemLine}</strong>",
-        "{changesLine}",
-        "Please swap the price card on the enclosure to match — the QR label itself is unchanged, only the price/size shown to customers needs updating.",
+        "During today's visit we confirmed the sex of a specimen on your display: <strong>{itemLine}</strong>",
+        "No action needed on your end — we'll bring an updated terrarium label on our next visit. Size and price aren't printed on the label, so nothing else changes; customers always see the current price when they scan the QR.",
       ],
     },
   }),

@@ -37,13 +37,17 @@ export function shortOrigin(origin: string): string | null {
   return cut || trimmed;
 }
 
-export function formatSpecimenMeta(sizeLabel: string, sex: SpecimenSex): string {
-  return `${sizeLabel} · ${SEX_LABEL[sex]}`;
-}
-
-/** Left-column fact rows for terrarium labels. */
+/**
+ * Left-column fact rows for terrarium labels. Deliberately excludes current
+ * size: it changes with every molt, and this label is meant to stay on the
+ * enclosure without a reprint until something that's actually worth a visit
+ * changes — the only per-specimen fact that qualifies is sex, since a
+ * specimen normally goes from unsexed to male/female exactly once (see
+ * `recordSpecimenScan`, which is the only place that triggers a relabel).
+ * Price is never printed here either — customers and partners alike always
+ * see the live, current price by scanning the QR.
+ */
 export function buildLabelFacts(input: {
-  sizeLabel: string;
   sex: SpecimenSex;
   adultSizeEn: string;
   type: SpiderType;
@@ -53,9 +57,7 @@ export function buildLabelFacts(input: {
   temperature: string;
   originEn: string;
 }): LabelFact[] {
-  const facts: LabelFact[] = [
-    { label: "Now", value: formatSpecimenMeta(input.sizeLabel, input.sex) },
-  ];
+  const facts: LabelFact[] = [{ label: "Sex", value: SEX_LABEL[input.sex] }];
 
   const adult = input.adultSizeEn.trim();
   if (adult) facts.push({ label: "Adult", value: adult });

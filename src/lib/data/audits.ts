@@ -405,12 +405,15 @@ export async function getAuditById(id: string): Promise<AuditDetailView | null> 
 // product page) and record found/sold/missing plus any new measurement, sex
 // or pricing right there. Unlike the desk-based checklist above (`createAudit`,
 // filled out from a list after the visit), each scan applies immediately —
-// size/sex/price changes update the specimen, log a growth record / inventory
-// movement, and — because the partner's shelf tag would otherwise go stale —
-// email the partner right away rather than waiting for the visit to end.
-// Multiple scans at the same store on the same day accumulate into one
-// StoreAudit until the employee explicitly closes it with `finishAuditVisit`,
-// which is what sends the partner the end-of-visit summary.
+// size/sex/price changes update the specimen and log a growth record /
+// inventory movement on the spot. Both size and price are irrelevant to the
+// physical terrarium label (see specimen-label-care.ts) — anyone scanning
+// the QR, customer or partner, always sees the live figure — so only a sex
+// change (unsexed → male/female, normally a one-time event) queues a reprint
+// and lets the partner know. Multiple scans at the same store on the same
+// day accumulate into one StoreAudit until the employee explicitly closes it
+// with `finishAuditVisit`, which is what sends the partner the end-of-visit
+// summary.
 // ---------------------------------------------------------------------------
 
 export interface ScanTarget {
@@ -477,7 +480,8 @@ export interface ScanResultInput {
 
 export interface ScanResultView {
   auditId: string;
-  repriced: boolean;
+  /** True when a sex change was recorded — a fresh terrarium label needs printing and swapping in. */
+  relabeled: boolean;
 }
 
 /**
@@ -488,9 +492,10 @@ export interface ScanResultView {
  * audit's "expected" snapshot) the moment it's measured, not after a desk
  * write-up. Every side effect from the desk-based flow still applies (growth
  * history, missing → investigation task, sold → settlement entry + below-
- * minimum alert); repricing additionally emails the partner immediately,
- * since a stale shelf tag is time-sensitive in a way an end-of-visit summary
- * is not.
+ * minimum alert). Size and price changes need nothing further — the QR
+ * always resolves to the live price, nothing physical to update. A sex
+ * change is the exception: it's the one fact printed on the terrarium label,
+ * so it queues an internal reprint task and gives the partner a heads-up.
  */
 export async function recordSpecimenScan(input: ScanResultInput): Promise<ScanResultView> {
   const db = requireDb();
@@ -526,7 +531,13 @@ export async function recordSpecimenScan(input: ScanResultInput): Promise<ScanRe
   const msrpChanged = input.result === "found" && input.msrp !== undefined && input.msrp !== specimen.msrp;
   const settlementChanged =
     input.result === "found" && input.settlementPrice !== undefined && input.settlementPrice !== specimen.settlementPrice;
-  const repriced = sizeChanged || sexChanged || priceChanged || msrpChanged || settlementChanged;
+  const specimenUpdated = sizeChanged || sexChanged || priceChanged || msrpChanged || settlementChanged;
+  // The terrarium label carries only sex (see specimen-label-care.ts) — no
+  // size, no price, since both are always looked up live off the QR scan.
+  // Sex is normally set exactly once, so that's the only change worth a
+  // physical relabel; size/price/MSRP/settlement still apply immediately,
+  // they just don't need anyone visiting the enclosure again.
+  const needsRelabel = sexChanged;
 
   const { auditId, belowMinimumAlert } = await db.$transaction(async (tx) => {
     let belowMinimumAlert: { salePrice: number; minPrice: number; msrp: number } | null = null;
@@ -574,7 +585,7 @@ export async function recordSpecimenScan(input: ScanResultInput): Promise<ScanRe
       });
     }
 
-    if (repriced) {
+    if (specimenUpdated) {
       await tx.specimen.update({
         where: { id: specimen.id },
         data: {
@@ -683,7 +694,7 @@ export async function recordSpecimenScan(input: ScanResultInput): Promise<ScanRe
     return { auditId: audit.id, belowMinimumAlert };
   });
 
-  if (input.result === "sold" || repriced) await syncAggregateStock();
+  if (input.result === "sold" || specimenUpdated) await syncAggregateStock();
 
   if (belowMinimumAlert) {
     await createTask({
@@ -696,42 +707,39 @@ export async function recordSpecimenScan(input: ScanResultInput): Promise<ScanRe
     });
   }
 
-  if (repriced && location.email) {
-    const changesLine = [
-      sizeChanged && `Size: ${formatCmAsInches(specimen.sizeCm)} → ${formatCmAsInches(sizeCm!)}`,
-      sexChanged && `Sex: ${specimen.sex} → ${input.sex}`,
-      priceChanged && `Web price: $${specimen.price.toFixed(2)} CAD → $${input.price!.toFixed(2)} CAD`,
-      msrpChanged &&
-        `MSRP: ${specimen.msrp != null ? `$${specimen.msrp.toFixed(2)} CAD` : "—"} → ${input.msrp != null ? `$${input.msrp.toFixed(2)} CAD` : "—"}`,
-      settlementChanged &&
-        `Settlement (what you owe us): ${specimen.settlementPrice != null ? `$${specimen.settlementPrice.toFixed(2)} CAD` : "—"} → ${input.settlementPrice != null ? `$${input.settlementPrice.toFixed(2)} CAD` : "—"}`,
-    ]
-      .filter(Boolean)
-      .join("<br />");
-
-    await sendNotification({
-      templateId: "partner-specimen-repriced",
-      event: "audit.repriced",
-      to: location.email,
-      data: {
-        partnerName: location.contactName || location.name,
-        itemLine: `${specimen.product.scientific} (${formatCmAsInches(sizeCm ?? specimen.sizeCm)}, ${input.sex ?? specimen.sex})`,
-        changesLine,
-      },
-      context: { specimenId: specimen.id, locationId: location.id, auditId },
-    });
+  // Sex is the only per-specimen fact printed on the terrarium label (see
+  // specimen-label-care.ts) — size and price are always looked up live off
+  // the QR, so only a sex change is worth a physical relabel. MSC prints and
+  // brings labels, not the partner, so that's an internal task; the partner
+  // email is just a courtesy heads-up, no action required on their end.
+  if (needsRelabel) {
+    const sexLabel = `${input.sex!.charAt(0).toUpperCase()}${input.sex!.slice(1)}`;
 
     await createTask({
       type: "general",
-      title: `Update price tag at ${location.name}`,
-      details: `${label} was re-measured/re-priced during today's audit — swap the shelf price tag so it matches the new listing.`,
+      title: `Reprint terrarium label — ${location.name}`,
+      details: `${label} is now confirmed ${sexLabel} (was ${specimen.sex}). Print an updated label and swap it in on the next visit.`,
       specimenId: specimen.id,
       locationId: location.id,
       auditId,
     });
+
+    if (location.email) {
+      await sendNotification({
+        templateId: "partner-specimen-sexed",
+        event: "audit.sexed",
+        to: location.email,
+        data: {
+          partnerName: location.contactName || location.name,
+          itemLine: `${specimen.product.scientific} (${sexLabel})`,
+          sex: sexLabel,
+        },
+        context: { specimenId: specimen.id, locationId: location.id, auditId },
+      });
+    }
   }
 
-  return { auditId, repriced };
+  return { auditId, relabeled: needsRelabel };
 }
 
 /** Closes out a scan-driven visit: sends the partner the end-of-visit summary. Idempotent. */

@@ -37,13 +37,7 @@ export default function ScanAuditForm({ target, locale }: { target: ScanTargetVi
   const [salePrice, setSalePrice] = useState(String(suggestedSalePrice(target, "distributor")));
   const [paymentMethod, setPaymentMethod] = useState("cash");
 
-  const sizeChanged = result === "found" && sizeCm !== "" && Number(sizeCm) !== target.sizeCm;
   const sexChanged = result === "found" && sex !== target.sex;
-  const priceChanged = result === "found" && price !== "" && Number(price) !== target.price;
-  const msrpChanged = result === "found" && (msrp === "" ? null : Number(msrp)) !== target.msrp;
-  const settlementChanged =
-    result === "found" && (settlementPrice === "" ? null : Number(settlementPrice)) !== target.settlementPrice;
-  const willNotifyPartner = sizeChanged || sexChanged || priceChanged || msrpChanged || settlementChanged;
 
   return (
     <div className="mx-auto max-w-lg">
@@ -142,10 +136,14 @@ export default function ScanAuditForm({ target, locale }: { target: ScanTargetVi
                 />
               </label>
             </div>
-            {willNotifyPartner && (
+            <p className="text-xs text-muted">
+              Size and pricing update immediately (storefront, settlement math) — nothing physical to change, the QR
+              always shows the live price.
+            </p>
+            {sexChanged && (
               <p className="text-xs text-gold-bright">
-                Size, sex or pricing changed — saving updates the specimen everywhere (storefront, settlement math),
-                logs it, and emails the partner right away so they can swap the shelf price tag.
+                Sex confirmed — the terrarium label only shows sex, so this queues a reprint and gives the partner a
+                heads-up. No action needed from them.
               </p>
             )}
             <label className="block text-sm text-bone">

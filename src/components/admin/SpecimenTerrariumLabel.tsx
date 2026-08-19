@@ -4,7 +4,6 @@ import type { Experience, SpecimenSex, SpiderType, Temperament } from "@/lib/typ
 export type SpecimenTerrariumLabelProps = {
   scientific: string;
   commonName: string;
-  sizeLabel: string;
   sex: SpecimenSex;
   type: SpiderType;
   temperament: Temperament;
@@ -21,7 +20,6 @@ export type SpecimenTerrariumLabelProps = {
 export default function SpecimenTerrariumLabel({
   scientific,
   commonName,
-  sizeLabel,
   sex,
   type,
   temperament,
@@ -34,7 +32,6 @@ export default function SpecimenTerrariumLabel({
   qrDataUrl,
 }: SpecimenTerrariumLabelProps) {
   const facts = buildLabelFacts({
-    sizeLabel,
     sex,
     adultSizeEn,
     type,
