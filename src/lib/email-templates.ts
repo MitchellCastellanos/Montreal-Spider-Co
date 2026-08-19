@@ -640,6 +640,27 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
     },
   }),
   simpleTemplate({
+    id: "partner-specimen-repriced",
+    label: "Partner — specimen re-measured / re-priced",
+    description:
+      "Sent immediately (not at end-of-visit) when a scan during an audit updates a specimen's size, sex, or pricing — the partner's physical shelf tag is now stale.",
+    sample: {
+      partnerName: "Reptile Concept",
+      itemLine: "Grammostola pulchra (2 3/8″, female)",
+      changesLine:
+        "Size: 2″ → 2 3/8″<br />Sex: unsexed → female<br />MSRP: $149.00 CAD → $189.00 CAD<br />Settlement (what you owe us): $95.00 CAD → $120.00 CAD",
+    },
+    subject: { en: "Update your price tag — {itemLine}" },
+    paragraphs: {
+      en: [
+        "Hi {partnerName},",
+        "During today's visit we re-measured/re-sexed a specimen on your display: <strong>{itemLine}</strong>",
+        "{changesLine}",
+        "Please swap the price card on the enclosure to match — the QR label itself is unchanged, only the price/size shown to customers needs updating.",
+      ],
+    },
+  }),
+  simpleTemplate({
     id: "partner-monthly-statement",
     label: "Partner — monthly settlement statement",
     description: "Monthly statement generated from the settlement ledger.",

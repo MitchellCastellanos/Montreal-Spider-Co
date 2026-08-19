@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { createAuditAction } from "@/app/[locale]/admin/ops-actions";
+import { createAuditAction, finishAuditAction } from "@/app/[locale]/admin/ops-actions";
 import type { ActionState } from "@/app/[locale]/admin/actions";
 import type { Locale } from "@/i18n/config";
 import { PAYMENT_LABELS, PAYMENT_METHODS, suggestedSalePrice } from "@/lib/inventory-labels";
@@ -37,6 +37,25 @@ export interface AuditLocation {
   specimens: ExpectedSpecimen[];
 }
 
+export interface OpenAuditItem {
+  specimenId: string;
+  scientific: string;
+  sizeLabel: string;
+  result: "found" | "missing" | "sold";
+  notes: string;
+}
+
+export interface OpenAudit {
+  id: string;
+  locationName: string;
+  auditedAt: string;
+  employee: string;
+  foundCount: number;
+  missingCount: number;
+  soldCount: number;
+  items: OpenAuditItem[];
+}
+
 type AuditResult = "found" | "missing" | "sold";
 
 interface ItemState {
@@ -50,13 +69,16 @@ interface ItemState {
 export default function AuditsHub({
   audits,
   locations,
+  openAudits,
   locale,
 }: {
   audits: AuditRow[];
   locations: AuditLocation[];
+  openAudits: OpenAudit[];
   locale: Locale;
 }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(createAuditAction, {});
+  const [finishState, finishAction, finishPending] = useActionState<ActionState, FormData>(finishAuditAction, {});
   const [locationId, setLocationId] = useState("");
   const [items, setItems] = useState<Record<string, ItemState>>({});
 
@@ -106,6 +128,51 @@ export default function AuditsHub({
         Mark <strong>Missing</strong> only when it&rsquo;s genuinely unaccounted for (escape, theft, miscount) —
         that opens an investigation task instead. New measurements update growth history.
       </p>
+
+      {openAudits.length > 0 && (
+        <div className="mt-6 space-y-3">
+          <h2 className="font-display text-lg font-bold text-cream">Visits in progress</h2>
+          <p className="text-sm text-muted">
+            Started by scanning specimen QR labels on-site — each scan already applied (re-measures, re-sexing and
+            repricing emailed the partner immediately). Nothing else is sent until you finish the visit below.
+          </p>
+          {openAudits.map((a) => (
+            <div key={a.id} className="rounded-2xl border border-gold/30 bg-gold/5 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="font-semibold text-cream">
+                    {a.locationName} <span className="font-normal text-muted">· {a.employee}</span>
+                  </p>
+                  <p className="text-xs text-muted">
+                    {a.auditedAt} · {a.foundCount} found · {a.soldCount} sold · {a.missingCount} missing
+                  </p>
+                </div>
+                <form action={finishAction}>
+                  <input type="hidden" name="locale" value={locale} />
+                  <input type="hidden" name="auditId" value={a.id} />
+                  <button
+                    disabled={finishPending}
+                    className="rounded-lg bg-gold px-3 py-1.5 text-xs font-semibold text-ink transition hover:bg-gold-bright disabled:opacity-50"
+                  >
+                    {finishPending ? "Finishing…" : "Finish visit (emails partner)"}
+                  </button>
+                </form>
+              </div>
+              {a.items.length > 0 && (
+                <ul className="mt-3 space-y-1 text-xs text-bone">
+                  {a.items.map((i) => (
+                    <li key={i.specimenId}>
+                      <span className="italic">{i.scientific}</span> ({i.sizeLabel}) — {i.result}
+                      {i.notes ? ` · ${i.notes}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+          {finishState.error && <p className="text-sm text-danger">{finishState.error}</p>}
+        </div>
+      )}
 
       <div className="mt-6 rounded-2xl border border-line bg-ink-soft/40 p-5">
         <h2 className="font-display text-lg font-bold text-cream">New audit visit</h2>

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { PaymentMethod, SalesChannel, TaskType } from "@prisma/client";
+import type { PaymentMethod, SalesChannel, SpecimenSex, TaskType } from "@prisma/client";
 import { isAdminAuthed } from "@/lib/auth";
 import {
   markPreparing,
@@ -12,7 +12,13 @@ import {
   processNoShow,
   cancelFulfillment,
 } from "@/lib/fulfillment/fulfillment";
-import { createAudit, applyAuditCorrection, type AuditItemInput } from "@/lib/data/audits";
+import {
+  createAudit,
+  applyAuditCorrection,
+  recordSpecimenScan,
+  finishAuditVisit,
+  type AuditItemInput,
+} from "@/lib/data/audits";
 import {
   createProposal,
   sendProposal,
@@ -122,6 +128,56 @@ export async function createAuditAction(_prev: ActionState, formData: FormData):
     });
   } catch (e) {
     return fail(e, "audit_failed");
+  }
+
+  revalidatePath("/", "layout");
+  redirect(`/${locale}/admin/audits`);
+}
+
+export async function recordScanAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const denied = await guard();
+  if (denied) return denied;
+  const locale = str(formData, "locale") || "en";
+  const result = str(formData, "result");
+  if (result !== "found" && result !== "missing" && result !== "sold") return { error: "result_invalid" };
+
+  const msrpRaw = str(formData, "msrp");
+  const settlementRaw = str(formData, "settlementPrice");
+  const sizeRaw = str(formData, "sizeCm");
+  const priceRaw = str(formData, "price");
+
+  try {
+    await recordSpecimenScan({
+      qrToken: str(formData, "qrToken"),
+      employee: str(formData, "employee"),
+      result,
+      sizeCm: sizeRaw === "" ? null : Number(sizeRaw) || 0,
+      sex: (str(formData, "sex") || null) as SpecimenSex | null,
+      price: priceRaw === "" ? null : Math.max(0, Number(priceRaw) || 0),
+      msrp: msrpRaw === "" ? null : Math.max(0, Number(msrpRaw) || 0),
+      settlementPrice: settlementRaw === "" ? null : Math.max(0, Number(settlementRaw) || 0),
+      healthNotes: str(formData, "healthNotes"),
+      notes: str(formData, "notes"),
+      salePrice: result === "sold" ? num(formData, "salePrice") : null,
+      paymentMethod: result === "sold" ? (str(formData, "paymentMethod") as PaymentMethod) : null,
+    });
+  } catch (e) {
+    return fail(e, "scan_failed");
+  }
+
+  revalidatePath("/", "layout");
+  redirect(`/${locale}/admin/audits`);
+}
+
+export async function finishAuditAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const denied = await guard();
+  if (denied) return denied;
+  const locale = str(formData, "locale") || "en";
+
+  try {
+    await finishAuditVisit(str(formData, "auditId"));
+  } catch (e) {
+    return fail(e, "finish_failed");
   }
 
   revalidatePath("/", "layout");

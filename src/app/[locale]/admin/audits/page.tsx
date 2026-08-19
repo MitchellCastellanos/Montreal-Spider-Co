@@ -1,8 +1,8 @@
 import { isLocale, type Locale } from "@/i18n/config";
 import { hasDatabase } from "@/lib/db";
-import { listAudits, listExpectedSpecimensAt } from "@/lib/data/audits";
+import { listAudits, listExpectedSpecimensAt, listOpenAudits } from "@/lib/data/audits";
 import { getDistributorLocations } from "@/lib/data/locations";
-import AuditsHub, { type AuditLocation } from "@/components/admin/AuditsHub";
+import AuditsHub, { type AuditLocation, type OpenAudit } from "@/components/admin/AuditsHub";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,11 @@ export default async function AdminAuditsPage({ params }: { params: Promise<{ lo
     );
   }
 
-  const [audits, partnerLocations] = await Promise.all([listAudits(), getDistributorLocations()]);
+  const [audits, partnerLocations, openAudits] = await Promise.all([
+    listAudits(),
+    getDistributorLocations(),
+    listOpenAudits(),
+  ]);
 
   const locations: AuditLocation[] = await Promise.all(
     partnerLocations.map(async (l) => ({
@@ -40,5 +44,22 @@ export default async function AdminAuditsPage({ params }: { params: Promise<{ lo
     })),
   );
 
-  return <AuditsHub audits={audits} locations={locations} locale={loc} />;
+  const openAuditViews: OpenAudit[] = openAudits.map((a) => ({
+    id: a.id,
+    locationName: a.locationName,
+    auditedAt: a.auditedAt,
+    employee: a.employee,
+    foundCount: a.foundCount,
+    missingCount: a.missingCount,
+    soldCount: a.soldCount,
+    items: a.items.map((i) => ({
+      specimenId: i.specimenId,
+      scientific: i.scientific,
+      sizeLabel: i.sizeLabel,
+      result: i.result,
+      notes: i.notes,
+    })),
+  }));
+
+  return <AuditsHub audits={audits} locations={locations} openAudits={openAuditViews} locale={loc} />;
 }

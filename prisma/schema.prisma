@@ -737,6 +737,8 @@ model StoreAudit {
   missingCount  Int           @default(0)
   /** Discovered sold during the visit — inventory + settlement already applied, not an open investigation. */
   soldCount     Int           @default(0)
+  /** Set once the visit is closed out and the partner summary email is sent. Null while a scan-driven visit is still in progress. */
+  completedAt   DateTime?
   items      StoreAuditItem[]
   tasks      OperationsTask[]
   createdAt  DateTime         @default(now())
