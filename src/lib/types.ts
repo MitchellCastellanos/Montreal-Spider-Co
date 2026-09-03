@@ -88,6 +88,8 @@ export interface Product {
   id: string;
   slug: string;
   scientific: string;
+  /** Linked species-library profile, if any — drives the photo/description fallback. */
+  speciesId?: string;
   common: L;
   genus: string;
   experience: Experience;

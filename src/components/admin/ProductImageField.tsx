@@ -5,6 +5,8 @@ import type { LibraryImage } from "@/lib/data/species-library";
 
 type Props = {
   storedImage: string | null;
+  /** The linked species' current library photo, if any — the fallback when this listing has no photo of its own. */
+  speciesImage: string | null;
   defaultProductImage: string | null;
   libraryImages: LibraryImage[];
   scientific?: string;
@@ -13,6 +15,7 @@ type Props = {
 
 export default function ProductImageField({
   storedImage,
+  speciesImage,
   defaultProductImage,
   libraryImages,
 }: Props) {
@@ -22,13 +25,16 @@ export default function ProductImageField({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
 
+  // Fallback chain: this listing's own photo, else its species' photo, else the site default.
+  const inheritedImage = speciesImage ?? defaultProductImage;
+
   const displayPreview = useMemo(() => {
-    if (mode === "clear") return defaultProductImage;
+    if (mode === "clear") return inheritedImage;
     if (mode === "library" && libraryUrl) return libraryUrl;
     if (mode === "upload" && preview?.startsWith("blob:")) return preview;
     if (preview) return preview;
-    return defaultProductImage;
-  }, [mode, preview, libraryUrl, defaultProductImage]);
+    return inheritedImage;
+  }, [mode, preview, libraryUrl, inheritedImage]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -66,12 +72,16 @@ export default function ProductImageField({
 
         <div className="flex min-w-[200px] flex-1 flex-col gap-2">
           <p className="text-sm text-bone">
-            {mode === "clear" && "Will use the site default photo on the storefront."}
-            {mode === "library" && libraryUrl && "Using a photo from the species library."}
-            {mode === "upload" && preview?.startsWith("blob:") && "New upload — save to apply."}
-            {mode === "keep" && !storedImage && defaultProductImage && "No species photo — storefront shows the default."}
-            {mode === "keep" && storedImage && "Current species photo."}
-            {mode === "keep" && !storedImage && !defaultProductImage && "No photo — storefront shows generated placeholder."}
+            {mode === "clear" &&
+              (speciesImage
+                ? "Cleared — will use the species photo on the storefront."
+                : "Cleared — will use the site default photo on the storefront.")}
+            {mode === "library" && libraryUrl && "Using a photo picked from the library for this listing only."}
+            {mode === "upload" && preview?.startsWith("blob:") && "New upload for this listing only — save to apply."}
+            {mode === "keep" && storedImage && "This listing has its own photo, overriding the species photo."}
+            {mode === "keep" && !storedImage && speciesImage && "No listing-specific photo — using the species photo."}
+            {mode === "keep" && !storedImage && !speciesImage && defaultProductImage && "No species photo — storefront shows the site default."}
+            {mode === "keep" && !storedImage && !speciesImage && !defaultProductImage && "No photo — storefront shows generated placeholder."}
           </p>
 
           <div className="flex flex-wrap gap-2">
@@ -104,7 +114,7 @@ export default function ProductImageField({
                   setLibraryUrl("");
                 }}
               >
-                Use default
+                {speciesImage ? "Use species photo" : "Use default"}
               </button>
             )}
             {mode !== "keep" && (
