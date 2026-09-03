@@ -123,7 +123,7 @@ export default function ProductForm({
   const [form, setForm] = useState(initial);
   const [slugTouched, setSlugTouched] = useState(!!product);
   const [speciesSearch, setSpeciesSearch] = useState("");
-  const [selectedSpeciesId, setSelectedSpeciesId] = useState("");
+  const [selectedSpeciesId, setSelectedSpeciesId] = useState(product?.speciesId ?? "");
   const [detailsOpen, setDetailsOpen] = useState(!product || isSpeciesContentMissing(initial));
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
@@ -166,6 +166,11 @@ export default function ProductForm({
         s.genus.toLowerCase().includes(q)
     );
   }, [speciesList, speciesSearch]);
+
+  const currentSpeciesImage = useMemo(
+    () => speciesList.find((s) => s.id === selectedSpeciesId)?.image ?? null,
+    [speciesList, selectedSpeciesId]
+  );
 
   const isInCatalog = useMemo(() => {
     const sci = form.scientific.trim().toLowerCase();
@@ -405,8 +410,16 @@ export default function ProductForm({
 
         {/* Photo */}
         <Section title="Photo">
+          <p className="mb-3 text-sm text-bone">
+            By default this listing uses its species&apos; photo from the{" "}
+            <Link href={localeHref(locale, "/admin/species")} className="text-gold-bright hover:underline">
+              species library
+            </Link>
+            . Upload or pick a photo below only if this specific listing needs its own.
+          </p>
           <ProductImageField
             storedImage={product?.image ?? null}
+            speciesImage={currentSpeciesImage}
             defaultProductImage={defaultProductImage}
             libraryImages={libraryImages}
             scientific={form.scientific}

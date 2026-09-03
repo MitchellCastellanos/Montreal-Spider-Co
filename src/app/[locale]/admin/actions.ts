@@ -38,7 +38,13 @@ import { deriveGenus } from "@/lib/species-utils";
 
 export type ActionState = { error?: string; ok?: boolean };
 
-function speciesInputFromForm(formData: FormData, image: string | null): SpeciesInput {
+/**
+ * Builds the species-profile fields to save from the listing form. `image` is
+ * intentionally omitted: a listing's photo (whether kept, uploaded, or cleared) is
+ * specific to that listing and must never silently overwrite the species' own photo,
+ * which is managed separately in the species library.
+ */
+function speciesInputFromForm(formData: FormData): SpeciesInput {
   return {
     scientific: str(formData, "scientific"),
     commonEn: str(formData, "commonEn"),
@@ -49,7 +55,6 @@ function speciesInputFromForm(formData: FormData, image: string | null): Species
     temperament: (str(formData, "temperament") || "docile") as SpeciesInput["temperament"],
     hue: Math.round(num(formData, "hue", 36)),
     accent: str(formData, "accent") || "#c9a24b",
-    image,
     adultSizeEn: str(formData, "adultSizeEn"),
     adultSizeFr: str(formData, "adultSizeFr"),
     growthEn: str(formData, "growthEn"),
@@ -193,7 +198,7 @@ export async function saveProductAction(_prev: ActionState, formData: FormData):
     }
 
     if (bool(formData, "saveSpeciesTemplate") && productId) {
-      await linkProductToSpecies(productId, speciesInputFromForm(formData, image));
+      await linkProductToSpecies(productId, speciesInputFromForm(formData));
     }
     await syncAggregateStock(productId);
   } catch (e) {

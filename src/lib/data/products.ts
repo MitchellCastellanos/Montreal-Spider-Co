@@ -16,10 +16,12 @@ export type { Product };
 
 type DbProductFull = DbProduct & {
   distributorStocks?: (DbDistStock & { location?: DbLocation })[];
+  species?: { image: string | null } | null;
 };
 
 const productInclude = {
   distributorStocks: { include: { location: true } },
+  species: { select: { image: true } },
 } as const;
 
 function mapDistributorSnippet(d: DbLocation): DistributorSnippet {
@@ -34,8 +36,13 @@ function mapDistributorSnippet(d: DbLocation): DistributorSnippet {
   };
 }
 
-function mapProduct(p: DbProductFull, defaultImage?: string | null): Product {
-  const image = p.image ?? defaultImage ?? undefined;
+/**
+ * Photo fallback chain: this listing's own photo, else its species' library photo,
+ * else the site-wide default. `opts` is omitted for admin edit views, which need the
+ * raw stored value only (so the form can tell "no photo set" apart from "inherited").
+ */
+function mapProduct(p: DbProductFull, opts?: { speciesImage?: string | null; defaultImage?: string | null }): Product {
+  const image = p.image ?? opts?.speciesImage ?? opts?.defaultImage ?? undefined;
   const distributorStocks: ProductDistributorStock[] = (p.distributorStocks ?? []).map((ds) => ({
     distributorId: ds.locationId,
     stock: ds.stock,
@@ -49,6 +56,7 @@ function mapProduct(p: DbProductFull, defaultImage?: string | null): Product {
     id: p.id,
     slug: p.slug,
     scientific: p.scientific,
+    speciesId: p.speciesId ?? undefined,
     common: asL(p.commonEn, p.commonFr),
     genus: p.genus,
     experience: p.experience,
@@ -145,7 +153,9 @@ export async function getAllProducts(): Promise<Product[]> {
         prisma.product.findMany({ include: productInclude, orderBy: { arrived: "desc" } }),
         getDefaultProductImage(),
       ]);
-      const withDistributors = await attachDistributorDetails(rows.map((p) => mapProduct(p, defaultImage)));
+      const withDistributors = await attachDistributorDetails(
+        rows.map((p) => mapProduct(p, { speciesImage: p.species?.image, defaultImage }))
+      );
       return attachAvailability(withDistributors);
     } catch (e) {
       logDbFallback("getAllProducts", e);
@@ -162,7 +172,7 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
         getDefaultProductImage(),
       ]);
       if (!row) return null;
-      const mapped = mapProduct(row, defaultImage);
+      const mapped = mapProduct(row, { speciesImage: row.species?.image, defaultImage });
       const [withDistributors] = await attachDistributorDetails([mapped]);
       return (await attachAvailability([withDistributors]))[0];
     } catch (e) {
@@ -182,7 +192,7 @@ export async function getProductById(id: string): Promise<Product | null> {
         getDefaultProductImage(),
       ]);
       if (!row) return null;
-      const mapped = mapProduct(row, defaultImage);
+      const mapped = mapProduct(row, { speciesImage: row.species?.image, defaultImage });
       const [withDistributors] = await attachDistributorDetails([mapped]);
       return (await attachAvailability([withDistributors]))[0];
     } catch (e) {
@@ -194,13 +204,13 @@ export async function getProductById(id: string): Promise<Product | null> {
   return (await attachDistributorDetails([found]))[0];
 }
 
-/** Admin edit form — returns the stored image only (no site default fallback). */
+/** Admin edit form — returns the stored image only (no species/site fallback applied). */
 export async function getProductByIdForAdmin(id: string): Promise<Product | null> {
   if (prisma) {
     try {
       const row = await prisma.product.findUnique({ where: { id }, include: productInclude });
       if (!row) return null;
-      return (await attachAvailability([mapProduct(row, null)]))[0];
+      return (await attachAvailability([mapProduct(row)]))[0];
     } catch (e) {
       logDbFallback("getProductByIdForAdmin", e);
     }
@@ -375,7 +385,9 @@ function speciesProfileToProductInput(
     hideWhenSoldOut: false,
     hue: species.hue,
     accent: species.accent,
-    image: species.image,
+    // Leave null so the listing always inherits the species' current photo (see mapProduct)
+    // instead of freezing a copy that goes stale if the species photo changes later.
+    image: null,
     adultSizeEn: species.adultSizeEn,
     adultSizeFr: species.adultSizeFr,
     growthEn: species.growthEn,

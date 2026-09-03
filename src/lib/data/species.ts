@@ -36,7 +36,12 @@ export type SpeciesProfile = {
   careGuide: string | null;
 };
 
-export type SpeciesInput = Omit<SpeciesProfile, "id">;
+/**
+ * `image` is optional here (unlike SpeciesProfile): omitting it leaves the species'
+ * current photo untouched, so saving a listing's other fields never clobbers the
+ * species' canonical photo. Pass a URL or `null` to explicitly set/clear it.
+ */
+export type SpeciesInput = Omit<SpeciesProfile, "id" | "image"> & { image?: string | null };
 
 function mapSpecies(s: DbSpecies): SpeciesProfile {
   return {
@@ -148,12 +153,15 @@ export async function upsertSpecies(input: SpeciesInput): Promise<string> {
   const scientific = input.scientific.trim();
   if (!scientific) throw new Error("Scientific name required.");
 
-  const data = {
-    ...input,
+  const { image, ...rest } = input;
+  const shared = {
+    ...rest,
     scientific,
     genus: input.genus.trim() || deriveGenus(scientific),
     commonFr: input.commonFr.trim() || input.commonEn,
   };
+  // Omit `image` entirely when not provided so Prisma leaves the existing photo alone on update.
+  const data = image === undefined ? shared : { ...shared, image };
 
   const row = await db.species.upsert({
     where: { scientific },
@@ -161,6 +169,12 @@ export async function upsertSpecies(input: SpeciesInput): Promise<string> {
     update: data,
   });
   return row.id;
+}
+
+/** Update just the species' canonical photo (used by the species library's photo manager). */
+export async function updateSpeciesImage(id: string, image: string | null): Promise<void> {
+  const db = requireDb();
+  await db.species.update({ where: { id }, data: { image } });
 }
 
 /** Create or update a minimal species profile (e.g. when receiving stock for a new species). */
@@ -185,7 +199,6 @@ export async function upsertSpeciesMinimal(
     temperament: "docile",
     hue: deriveHue(sci),
     accent: deriveAccent(sci),
-    image: null,
     adultSizeEn: "",
     adultSizeFr: "",
     growthEn: "",
