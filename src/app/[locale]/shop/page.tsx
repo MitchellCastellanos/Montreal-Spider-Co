@@ -22,10 +22,22 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   };
 }
 
-export default async function ShopPage() {
+export default async function ShopPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  const loc: Locale = isLocale(locale) ? locale : "en";
+  const dict = await getDictionary(loc);
   const [products, genera] = await Promise.all([getStorefrontProducts(), getGenera()]);
   return (
-    <Suspense fallback={<div className="container-x py-20 text-muted">Loading…</div>}>
+    <Suspense
+      fallback={
+        <div className="container-x py-10 md:py-14">
+          <div className="mb-8">
+            <h1 className="font-display text-4xl font-bold text-cream md:text-5xl">{dict.shop.title}</h1>
+            <p className="mt-2 max-w-2xl text-bone">{dict.shop.subtitle}</p>
+          </div>
+        </div>
+      }
+    >
       <ShopClient products={products} genera={genera} />
     </Suspense>
   );
