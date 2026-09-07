@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { getFeatured } from "@/lib/data/products";
@@ -8,18 +9,53 @@ import ProductCard from "@/components/ProductCard";
 import Reveal from "@/components/Reveal";
 import Newsletter from "@/components/Newsletter";
 import VerifiedBadge from "@/components/VerifiedBadge";
+import FaqAccordion from "@/components/FaqAccordion";
+import JsonLd from "@/components/JsonLd";
 import { withVerifiedOriginLinks } from "@/lib/verified-origin-links";
 import { SITE } from "@/lib/site";
+import { faqSchema } from "@/lib/seo";
 import Image from "next/image";
 import Link from "next/link";
 
 export const revalidate = 60;
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const loc: Locale = isLocale(locale) ? locale : "en";
+  const dict = await getDictionary(loc);
+  const title = dict.meta.homeTitle;
+  const description = dict.meta.homeDescription;
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: localeHref(loc, "/"),
+      languages: { en: "/en", fr: "/fr", "x-default": "/en" },
+    },
+    openGraph: {
+      type: "website",
+      siteName: dict.meta.siteName,
+      title,
+      description,
+      url: localeHref(loc, "/"),
+      locale: loc === "fr" ? "fr_CA" : "en_CA",
+      images: [{ url: "/og/og-image.png", width: 1200, height: 630, alt: dict.meta.ogAlt }],
+    },
+    twitter: { card: "summary_large_image", title, description, images: ["/og/og-image.png"] },
+  };
+}
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   const loc: Locale = isLocale(locale) ? locale : "en";
   const dict = await getDictionary(loc);
   const h = dict.home;
+
+  const seoFaq = [
+    { q: h.seoFaqQ1, a: h.seoFaqA1 },
+    { q: h.seoFaqQ2, a: h.seoFaqA2 },
+    { q: h.seoFaqQ3, a: h.seoFaqA3 },
+  ];
 
   const featured = await getFeatured(4);
 
@@ -47,6 +83,19 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     <>
       <Hero />
       <HeroStats />
+
+      {/* SEO content — "tarantula for sale in Montreal" topical relevance + FAQ rich snippet */}
+      <section className="container-x py-16 md:py-20">
+        <JsonLd data={faqSchema(seoFaq)} />
+        <Reveal className="mx-auto max-w-3xl text-center">
+          <p className="badge mb-3">{h.seoKicker}</p>
+          <h2 className="font-display text-3xl font-bold text-cream sm:text-4xl">{h.seoTitle}</h2>
+          <p className="mt-4 text-bone">{h.seoBody}</p>
+        </Reveal>
+        <Reveal className="mt-10">
+          <FaqAccordion items={seoFaq} />
+        </Reveal>
+      </section>
 
       {/* Featured */}
       <section className="container-x py-16 md:py-24">

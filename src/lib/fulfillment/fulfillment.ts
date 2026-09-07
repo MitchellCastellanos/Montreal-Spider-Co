@@ -404,22 +404,26 @@ export async function processNoShow(fulfillmentId: string, noShowFee = 0): Promi
 const HOUR = 60 * 60 * 1000;
 /** Grace period after the no-show warning before automatic cancellation. */
 const NO_SHOW_GRACE_MS = 24 * HOUR;
+/** How long after pickup to ask for a review — long enough to settle in, soon enough to remember why they bought. */
+const REVIEW_REQUEST_DELAY_MS = 3 * 24 * HOUR;
 
 export interface SchedulerResult {
   reminders: number;
   warnings: number;
   noShows: number;
+  reviewRequests: number;
 }
 
 /**
  * Scheduled sweep (cron): sends pickup reminders as the deadline approaches,
- * a no-show warning when it passes, and automatically cancels + refunds after
- * the grace period.
+ * a no-show warning when it passes, automatically cancels + refunds after the
+ * grace period, and — once a Google review link is configured — a one-time
+ * review request a few days after each order completes.
  */
 export async function processOverdueFulfillments(): Promise<SchedulerResult> {
   const db = requireDb();
   const now = new Date();
-  const result: SchedulerResult = { reminders: 0, warnings: 0, noShows: 0 };
+  const result: SchedulerResult = { reminders: 0, warnings: 0, noShows: 0, reviewRequests: 0 };
 
   const waiting = await db.fulfillment.findMany({
     where: { status: "ready", collectBy: { not: null } },
@@ -476,6 +480,36 @@ export async function processOverdueFulfillments(): Promise<SchedulerResult> {
       }
     } catch (e) {
       console.error(`[fulfillment] scheduler failed for ${f.id}:`, e);
+    }
+  }
+
+  const settings = await getSettings();
+  if (settings.googleReviewUrl) {
+    const dueForReview = await db.fulfillment.findMany({
+      where: {
+        status: "completed",
+        reviewRequestSentAt: null,
+        completedAt: { lte: new Date(now.getTime() - REVIEW_REQUEST_DELAY_MS) },
+      },
+      include: fulfillmentInclude,
+      take: 100,
+    });
+
+    for (const f of dueForReview) {
+      try {
+        await sendNotification({
+          templateId: "post-pickup-review-request",
+          event: "fulfillment.review_request",
+          to: f.order.email,
+          locale: orderLocale(f.order),
+          data: { name: f.order.name, orderNumber: f.order.orderNumber, reviewUrl: settings.googleReviewUrl },
+          context: { orderId: f.orderId, fulfillmentId: f.id },
+        });
+        await db.fulfillment.update({ where: { id: f.id }, data: { reviewRequestSentAt: now } });
+        result.reviewRequests++;
+      } catch (e) {
+        console.error(`[fulfillment] review request failed for ${f.id}:`, e);
+      }
     }
   }
 

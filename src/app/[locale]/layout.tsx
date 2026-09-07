@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Fraunces, Inter } from "next/font/google";
 import { notFound } from "next/navigation";
 import "../globals.css";
@@ -10,7 +11,8 @@ import Providers from "@/components/Providers";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import JsonLd from "@/components/JsonLd";
-import { organizationSchema, websiteSchema } from "@/lib/seo";
+import AnalyticsBeacon from "@/components/AnalyticsBeacon";
+import { organizationSchema, websiteSchema, localBusinessSchema } from "@/lib/seo";
 
 const display = Fraunces({
   subsets: ["latin"],
@@ -95,6 +97,10 @@ export default async function LocaleLayout({
       <body>
         <JsonLd data={organizationSchema(dict)} />
         <JsonLd data={websiteSchema(dict)} />
+        <JsonLd data={localBusinessSchema(dict)} />
+        <Suspense fallback={null}>
+          <AnalyticsBeacon locale={locale} />
+        </Suspense>
         <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded focus:bg-gold focus:px-4 focus:py-2 focus:text-ink">
           Skip to content
         </a>

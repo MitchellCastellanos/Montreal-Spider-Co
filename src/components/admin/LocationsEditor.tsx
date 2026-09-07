@@ -5,6 +5,7 @@ import {
   updateLocationAction,
   createLocationAction,
   sendDistributorCodeEmailAction,
+  requestBacklinkAction,
   type ActionState,
 } from "@/app/[locale]/admin/actions";
 import type { Locale } from "@/i18n/config";
@@ -100,8 +101,13 @@ function LocationRow({ location, locale }: { location: StoreLocationView; locale
     sendDistributorCodeEmailAction,
     {},
   );
+  const [backlinkState, backlinkAction, backlinkSending] = useActionState<ActionState, FormData>(
+    requestBacklinkAction,
+    {},
+  );
 
   const canEmailCode = row.distributorCode.trim() !== "" && row.email.trim() !== "";
+  const canRequestBacklink = row.isDistributor && row.email.trim() !== "";
 
   const patch = (fields: Partial<StoreLocationView>) => setRow((r) => ({ ...r, ...fields }));
 
@@ -270,6 +276,19 @@ function LocationRow({ location, locale }: { location: StoreLocationView; locale
                   />
                   Authorized distributor
                 </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="submit"
+                    formAction={backlinkAction}
+                    disabled={!canRequestBacklink || backlinkSending}
+                    title={canRequestBacklink ? undefined : "Mark this location as a distributor with a partner email first."}
+                    className="rounded-md border border-line px-2 py-1 text-xs text-bone hover:border-gold hover:text-gold-bright disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {backlinkSending ? "Sending…" : "Request backlink"}
+                  </button>
+                  {backlinkState.error && <p className="text-xs text-danger">{backlinkState.error}</p>}
+                  {backlinkState.ok && <p className="text-xs text-ok">Sent ✓</p>}
+                </div>
                 <label className="flex items-center gap-2 text-sm text-bone">
                   <input
                     type="checkbox"

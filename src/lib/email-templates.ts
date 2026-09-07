@@ -491,6 +491,30 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
     cta: { en: "Read the care guides", fr: "Voir les guides de soins", hrefKey: "careUrl" },
   }),
 
+  simpleTemplate({
+    id: "post-pickup-review-request",
+    label: "Review request (post-pickup)",
+    description: "One-time ask for a Google review, sent a few days after an order is marked complete.",
+    sample: { name: "Alex", orderNumber: "MSC-1042", reviewUrl: "https://g.page/r/sample/review" },
+    subject: {
+      en: "How's your new spider settling in, {name}?",
+      fr: "Comment se porte votre nouvelle mygale, {name}?",
+    },
+    paragraphs: {
+      en: [
+        "Hi {name},",
+        "It's been a few days since order <strong>{orderNumber}</strong> came home — we hope your spider is settling in well.",
+        "We're a small, brand-new shop and honest reviews make a real difference for other Montreal keepers finding us. If you have a minute, we'd be grateful for one.",
+      ],
+      fr: [
+        "Bonjour {name},",
+        "Cela fait quelques jours que la commande <strong>{orderNumber}</strong> est arrivée chez vous — nous espérons que tout se passe bien.",
+        "Nous sommes une petite boutique toute nouvelle, et un avis honnête fait une vraie différence pour les autres éleveurs montréalais qui nous découvrent. Si vous avez une minute, nous vous en serions reconnaissants.",
+      ],
+    },
+    cta: { en: "Leave a Google review", fr: "Laisser un avis Google", hrefKey: "reviewUrl" },
+  }),
+
   // -------------------------------------------------------------------------
   // Partner operations (partners interact via email + simple links — no dashboards)
   // -------------------------------------------------------------------------
@@ -710,6 +734,20 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
     },
   }),
   simpleTemplate({
+    id: "partner-backlink-request",
+    label: "Partner — backlink request",
+    description: "Asks a distributor partner for a homepage link/mention — sent on demand from the Locations admin page.",
+    sample: { partnerName: "Marie", storeName: "Reptile Concept", siteUrl: SITE.url },
+    subject: { en: "Quick favour — a link from {storeName} to Montreal Spider Co.?" },
+    paragraphs: {
+      en: [
+        "Hi {partnerName},",
+        `As an authorized ${SITE.name} display partner, would you mind adding a short mention and link to us on your website? Something like "Living tarantula display curated by <a href="{siteUrl}">Montreal Spider Co.</a>" works perfectly, or your own wording — whatever fits your site.`,
+        "It costs nothing on your end and helps customers find both of us. Happy to return the favour with a mention of your store on ours — just reply and let me know what you'd like it to say.",
+      ],
+    },
+  }),
+  simpleTemplate({
     id: "partner-distributor-code",
     label: "Partner — distributor code",
     description: "Sends a store its distributor code, sent on demand from the Locations admin page.",
@@ -867,6 +905,28 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
         "Manage it from Admin → Restock.",
       ],
     },
+  }),
+  simpleTemplate({
+    id: "internal-seo-audit-report",
+    label: "Internal — weekly SEO audit report",
+    description: "Weekly automated SEO health check summary (Vercel Cron).",
+    sample: {
+      score: "92",
+      pagesChecked: "16",
+      criticalCount: "0",
+      warningCount: "2",
+      issueLines: "• [WARNING] /en/faq — Description is 42 characters (aim for 50-160).",
+      dashboardUrl: `${SITE.url}/en/admin/seo`,
+    },
+    subject: { en: "🔍 Weekly SEO audit — score {score}/100 ({criticalCount} critical)" },
+    paragraphs: {
+      en: [
+        "This week's automated SEO audit is done.",
+        "<strong>Score:</strong> {score}/100 · <strong>Pages checked:</strong> {pagesChecked} · <strong>Critical:</strong> {criticalCount} · <strong>Warnings:</strong> {warningCount}",
+        "<strong>Top issues:</strong><br />{issueLines}",
+      ],
+    },
+    cta: { en: "Open the SEO dashboard", hrefKey: "dashboardUrl" },
   }),
   simpleTemplate({
     id: "internal-refund-processed",

@@ -71,6 +71,8 @@ export default function Footer() {
             <LocaleLink href="/care" className="footer-link">{dict.nav.care}</LocaleLink>
             <a href={SITE.verifiedOriginUrl} target="_blank" rel="noopener noreferrer" className="footer-link">{dict.nav.verified}</a>
             <LocaleLink href="/faq" className="footer-link">{dict.nav.faq}</LocaleLink>
+            <LocaleLink href="/price-guide" className="footer-link">{dict.nav.priceGuide}</LocaleLink>
+            <LocaleLink href="/legal" className="footer-link">{dict.nav.legalGuide}</LocaleLink>
           </FooterCol>
 
           <FooterCol title={f.companyCol}>

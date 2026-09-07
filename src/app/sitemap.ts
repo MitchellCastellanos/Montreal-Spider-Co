@@ -4,7 +4,7 @@ import { locales } from "@/i18n/config";
 import { getStorefrontProducts } from "@/lib/data/products";
 import { CARE_GUIDES } from "@/lib/care";
 
-const STATIC_PATHS = ["", "/shop", "/care", "/verified-origin", "/delivery", "/about", "/faq", "/contact"];
+const STATIC_PATHS = ["", "/shop", "/care", "/verified-origin", "/delivery", "/about", "/faq", "/contact", "/legal", "/price-guide"];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries: MetadataRoute.Sitemap = [];

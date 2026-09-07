@@ -29,6 +29,38 @@ export function organizationSchema(dict: Dict) {
   };
 }
 
+/**
+ * PetStore/LocalBusiness markup — the single highest-leverage schema for
+ * ranking in the Google local pack for queries like "tarantula for sale
+ * Montreal". Kept city-level (no storefront address) since MSC fulfills via
+ * pickup points and metro meetups rather than one retail location.
+ */
+export function localBusinessSchema(dict: Dict) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "PetStore",
+    name: dict.meta.siteName,
+    url: SITE.url,
+    email: SITE.email,
+    image: `${SITE.url}/og/og-image.png`,
+    description: dict.meta.defaultDescription,
+    priceRange: "$$",
+    areaServed: {
+      "@type": "City",
+      name: "Montréal",
+      containedInPlace: { "@type": "AdministrativeArea", name: "Québec" },
+    },
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: "Montréal",
+      addressRegion: "QC",
+      addressCountry: "CA",
+    },
+    geo: { "@type": "GeoCoordinates", latitude: 45.5019, longitude: -73.5674 },
+    sameAs: [SITE.social.instagram, SITE.social.facebook, SITE.social.tiktok],
+  };
+}
+
 export function websiteSchema(dict: Dict) {
   return {
     "@context": "https://schema.org",
