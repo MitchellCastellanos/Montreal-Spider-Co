@@ -7,10 +7,13 @@ export interface StoreSettings {
   pickupTerms: L;
   /** General terms & conditions (shown on /terms). */
   terms: L;
+  /** Google Business Profile review link ("Write a review" short URL). Empty until the profile exists — the post-pickup review request email is skipped until this is set. */
+  googleReviewUrl: string;
 }
 
 export const DEFAULT_SETTINGS: StoreSettings = {
   pickupWindowDays: 2,
+  googleReviewUrl: "",
   pickupTerms: {
     en: "Once your order is ready for pickup or meetup, you have {days} days to collect it. We'll message you as soon as it's ready. Orders left unclaimed after the {days}-day window may be returned to our care, and a re-delivery or restocking fee may apply.",
     fr: "Une fois votre commande prête pour la cueillette ou la rencontre, vous avez {days} jours pour la récupérer. Nous vous écrirons dès qu'elle sera prête. Les commandes non réclamées après le délai de {days} jours peuvent retourner à nos soins, et des frais de nouvelle livraison ou de réapprovisionnement peuvent s'appliquer.",

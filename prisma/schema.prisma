@@ -662,6 +662,8 @@ model Fulfillment {
   refundAmount    Float?
   /** Optional fee retained on no-show refunds. */
   noShowFee       Float             @default(0)
+  /** When the post-pickup Google review request was sent (never resent). Null until the setting has a review link and the sweep fires. */
+  reviewRequestSentAt DateTime?
   /** Unguessable token for the customer/partner pickup-confirmation page & QR. */
   pickupToken     String            @unique @default(cuid())
   notes           String            @default("")

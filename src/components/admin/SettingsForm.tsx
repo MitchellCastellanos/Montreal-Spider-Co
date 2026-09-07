@@ -36,6 +36,24 @@ export default function SettingsForm({ settings, editable }: { settings: StoreSe
         </section>
 
         <section className="card-glow rounded-2xl p-5">
+          <h2 className="mb-4 font-display text-lg font-semibold text-cream">Reviews</h2>
+          <label className="field">
+            <span>Google review link</span>
+            <input
+              type="url"
+              name="googleReviewUrl"
+              defaultValue={settings.googleReviewUrl}
+              placeholder="https://g.page/r/…/review"
+              className="input"
+            />
+          </label>
+          <p className="mt-2 text-xs text-muted">
+            Once set, customers get a one-time &ldquo;leave a review&rdquo; email 3 days after their order is marked complete.
+            Find this link in your Google Business Profile under Ask for reviews. Leave empty to skip.
+          </p>
+        </section>
+
+        <section className="card-glow rounded-2xl p-5">
           <h2 className="mb-4 font-display text-lg font-semibold text-cream">Terms &amp; conditions</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="field">

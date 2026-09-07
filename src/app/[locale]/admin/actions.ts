@@ -20,6 +20,7 @@ import { sendNotification } from "@/lib/notifications/service";
 import { addLibraryImage } from "@/lib/data/species-library";
 import { executeAndRecordSeoAudit } from "@/lib/data/seo-audits";
 import { pingIndexNow } from "@/lib/indexnow";
+import { SITE } from "@/lib/site";
 import { linkProductToSpecies, upsertSpeciesMinimal, type SpeciesInput } from "@/lib/data/species";
 import {
   receiveSpecimenBatch,
@@ -298,6 +299,33 @@ export async function sendDistributorCodeEmailAction(
   return { ok: true };
 }
 
+/** Asks a distributor partner for a homepage backlink/mention — sent on demand, never automatically. */
+export async function requestBacklinkAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  if (!(await isAdminAuthed())) return { error: "unauthorized" };
+  const locationId = str(formData, "id");
+  if (!locationId) return { error: "missing_id" };
+
+  const location = await getLocationById(locationId);
+  if (!location) return { error: "Location not found." };
+  if (!location.isDistributor) return { error: "This location isn't marked as a distributor." };
+  if (!location.email.trim()) return { error: "This store has no partner email on file." };
+
+  const sent = await sendNotification({
+    templateId: "partner-backlink-request",
+    event: "partner.backlink_requested",
+    to: location.email,
+    data: {
+      partnerName: location.contactName || location.name,
+      storeName: location.name,
+      siteUrl: SITE.url,
+    },
+    context: { locationId: location.id },
+  });
+
+  if (!sent) return { error: "Could not send the email — check that RESEND_API_KEY is configured." };
+  return { ok: true };
+}
+
 export async function createLocationAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   if (!(await isAdminAuthed())) return { error: "unauthorized" };
   const locale = str(formData, "locale") || "en";
@@ -343,6 +371,7 @@ export async function saveSettingsAction(_prev: ActionState, formData: FormData)
       pickupWindowDays: Math.max(1, Math.round(num(formData, "pickupWindowDays", 2))),
       pickupTerms: { en: str(formData, "pickupTermsEn"), fr: str(formData, "pickupTermsFr") },
       terms: { en: str(formData, "termsEn"), fr: str(formData, "termsFr") },
+      googleReviewUrl: str(formData, "googleReviewUrl"),
     });
   } catch (e) {
     return { error: e instanceof Error ? e.message : "save_failed" };
