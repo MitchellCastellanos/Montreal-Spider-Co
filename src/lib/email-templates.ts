@@ -267,6 +267,27 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       return { subject, html, text };
     },
   },
+  simpleTemplate({
+    id: "internal-contact-message",
+    label: "Internal — contact form message",
+    description: "Staff alert for every message submitted through the site's contact form.",
+    sample: {
+      name: "Alex",
+      email: "alex@example.com",
+      phone: "514-555-0100",
+      subject: "General question",
+      message: "Do you have any Grammostola pulchra in stock right now?",
+    },
+    subject: { en: "✉️ Contact form — {subject} ({name})" },
+    paragraphs: {
+      en: [
+        "New message from the contact form:",
+        "<strong>Name:</strong> {name}<br /><strong>Email:</strong> {email}<br /><strong>Phone:</strong> {phone}<br /><strong>Subject:</strong> {subject}",
+        "<strong>Message:</strong><br />{message}",
+        "Reply directly to {email} to respond.",
+      ],
+    },
+  }),
   {
     id: "distributor-sale-alert",
     label: "Distributor stock sold (staff)",

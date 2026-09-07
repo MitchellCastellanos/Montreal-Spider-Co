@@ -540,6 +540,8 @@
     "messageLabel": "Message",
     "messagePlaceholder": "How can we help?",
     "send": "Send message",
+    "sending": "Sending…",
+    "error": "Something went wrong — please try again or email us directly.",
     "sent": "Thanks! We'll reply within one business day.",
     "infoTitle": "Other ways to reach us",
     "emailLabel": "Email",
