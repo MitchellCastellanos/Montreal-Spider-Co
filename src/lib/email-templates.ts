@@ -869,6 +869,28 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
     },
   }),
   simpleTemplate({
+    id: "internal-seo-audit-report",
+    label: "Internal — weekly SEO audit report",
+    description: "Weekly automated SEO health check summary (Vercel Cron).",
+    sample: {
+      score: "92",
+      pagesChecked: "16",
+      criticalCount: "0",
+      warningCount: "2",
+      issueLines: "• [WARNING] /en/faq — Description is 42 characters (aim for 50-160).",
+      dashboardUrl: `${SITE.url}/en/admin/seo`,
+    },
+    subject: { en: "🔍 Weekly SEO audit — score {score}/100 ({criticalCount} critical)" },
+    paragraphs: {
+      en: [
+        "This week's automated SEO audit is done.",
+        "<strong>Score:</strong> {score}/100 · <strong>Pages checked:</strong> {pagesChecked} · <strong>Critical:</strong> {criticalCount} · <strong>Warnings:</strong> {warningCount}",
+        "<strong>Top issues:</strong><br />{issueLines}",
+      ],
+    },
+    cta: { en: "Open the SEO dashboard", hrefKey: "dashboardUrl" },
+  }),
+  simpleTemplate({
     id: "internal-refund-processed",
     label: "Internal — refund processed",
     description: "Staff record of an automatic or manual refund.",

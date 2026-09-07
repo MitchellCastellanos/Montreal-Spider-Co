@@ -951,3 +951,72 @@ model EmailLog {
   @@index([to])
   @@index([createdAt])
 }
+
+// ---------------------------------------------------------------------------
+// Web analytics — first-party, cookie-free pageview tracking (admin dashboard)
+// ---------------------------------------------------------------------------
+
+/**
+ * One recorded pageview. No cookies, no third-party scripts, no raw IP stored:
+ * `visitorHash` is a one-way hash of IP+UA salted with the day, kept only long
+ * enough to approximate daily unique visitors.
+ */
+model PageView {
+  id           String   @id @default(cuid())
+  /** Path without locale prefix or query string, e.g. "/shop". */
+  path         String
+  locale       String   @default("en")
+  /** Referrer hostname only (e.g. "google.com"), never the full URL. */
+  referrerHost String   @default("")
+  utmSource    String   @default("")
+  utmMedium    String   @default("")
+  utmCampaign  String   @default("")
+  device       String   @default("desktop")
+  country      String   @default("")
+  visitorHash  String
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([path, createdAt])
+  @@index([visitorHash, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// SEO audits — automated weekly technical/on-page health check
+// ---------------------------------------------------------------------------
+
+enum SeoIssueSeverity {
+  info
+  warning
+  critical
+}
+
+model SeoAuditRun {
+  id            String          @id @default(cuid())
+  startedAt     DateTime        @default(now())
+  finishedAt    DateTime?
+  pagesChecked  Int             @default(0)
+  /** 0-100 health score for this run. */
+  score         Int             @default(0)
+  criticalCount Int             @default(0)
+  warningCount  Int             @default(0)
+  /** Set when the run itself failed (e.g. site unreachable) — distinct from issues found. */
+  error         String          @default("")
+  issues        SeoAuditIssue[]
+
+  @@index([startedAt])
+}
+
+model SeoAuditIssue {
+  id        String           @id @default(cuid())
+  runId     String
+  run       SeoAuditRun      @relation(fields: [runId], references: [id], onDelete: Cascade)
+  path      String
+  severity  SeoIssueSeverity
+  /** Stable machine code, e.g. "missing_meta_description". */
+  code      String
+  message   String
+
+  @@index([runId])
+  @@index([severity])
+}

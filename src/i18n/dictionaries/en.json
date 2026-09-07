@@ -3,7 +3,9 @@
     "siteName": "Montreal Spider Co.",
     "tagline": "Premium tarantulas, raised right — in Montreal.",
     "defaultDescription": "Montreal Spider Co. is Quebec's premium tarantula specialist. Captive-bred, TarantulApp Verified Origin spiders with pickup points and metro meetups across Montreal.",
-    "ogAlt": "Montreal Spider Co. — gold and black company seal"
+    "ogAlt": "Montreal Spider Co. — gold and black company seal",
+    "homeTitle": "Tarantulas for Sale in Montreal, QC",
+    "homeDescription": "Buy a tarantula for sale in Montreal — captive-bred, TarantulApp Verified Origin specimens with free pickup points and metro meetups across the city. Beginner to advanced species in stock."
   },
   "nav": {
     "shop": "Shop",
@@ -107,6 +109,15 @@
     "ctaButton": "Start shopping",
     "growingTitle": "We're just getting started in Montreal",
     "growingBody": "No inflated numbers here — just captive-bred, Verified Origin tarantulas raised with real care. Be one of our first Montreal keepers.",
+    "seoKicker": "Tarantulas for sale in Montreal",
+    "seoTitle": "Looking for a tarantula for sale in Montreal?",
+    "seoBody": "Montreal Spider Co. is Québec's dedicated tarantula specialist — every spider for sale in Montreal is captive-bred, health-checked and TarantulApp Verified Origin certified. Whether you want a docile beginner species or a showpiece for an experienced keeper, browse what's currently in stock and collect at a Montreal pickup point or a metro meetup — no cross-border shipping, no wild-caught animals, ever.",
+    "seoFaqQ1": "Is it legal to buy a tarantula in Montreal?",
+    "seoFaqA1": "Yes — pet tarantulas are legal to own in Québec and widely kept across Montreal. We operate in full compliance with municipal and provincial regulations, and every specimen we sell is captive-bred, never wild-caught.",
+    "seoFaqQ2": "How much does a tarantula for sale in Montreal cost?",
+    "seoFaqA2": "Prices vary by species, size and rarity — beginner slings often start under $50, with adult specimens and rarer genera priced higher. Every price includes the TarantulApp Verified Origin certificate; browse the shop for current stock and pricing.",
+    "seoFaqQ3": "Where can I buy a tarantula in Montreal?",
+    "seoFaqA3": "Right here — Montreal Spider Co. is Montreal's dedicated tarantula shop. Browse our current stock online, then collect for free at a partner pickup point or meet us at a metro station near you.",
     "newsletterTitle": "Join the molt list",
     "newsletterBody": "New arrivals, restocks and care tips. No spam — we promise.",
     "newsletterButton": "Subscribe",

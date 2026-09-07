@@ -3,7 +3,9 @@
     "siteName": "Montreal Spider Co.",
     "tagline": "Des mygales d'exception, élevées comme il se doit — à Montréal.",
     "defaultDescription": "Montreal Spider Co. est le spécialiste de la mygale au Québec. Spécimens nés en captivité, certifiés Origine Vérifiée TarantulApp, avec points de cueillette et rencontres en métro à Montréal.",
-    "ogAlt": "Montreal Spider Co. — sceau doré sur fond noir"
+    "ogAlt": "Montreal Spider Co. — sceau doré sur fond noir",
+    "homeTitle": "Tarentules à vendre à Montréal, QC",
+    "homeDescription": "Achetez une tarentule à vendre à Montréal — spécimens nés en captivité, certifiés Origine Vérifiée TarantulApp, avec points de cueillette gratuits et rencontres en métro partout dans la ville. Espèces pour débutants et avancés en stock."
   },
   "nav": {
     "shop": "Boutique",
@@ -107,6 +109,15 @@
     "ctaButton": "Commencer à magasiner",
     "growingTitle": "On débute tout juste à Montréal",
     "growingBody": "Pas de chiffres exagérés ici — seulement des mygales nées en captivité et certifiées Origine Vérifiée, élevées avec un vrai soin. Soyez parmi nos premiers éleveurs montréalais.",
+    "seoKicker": "Tarentules à vendre à Montréal",
+    "seoTitle": "Vous cherchez une tarentule à vendre à Montréal?",
+    "seoBody": "Montreal Spider Co. est le spécialiste dédié de la mygale au Québec — chaque tarentule à vendre à Montréal est née en captivité, inspectée et certifiée Origine Vérifiée TarantulApp. Que vous vouliez une espèce docile pour débutant ou une pièce spectaculaire pour éleveur expérimenté, parcourez nos spécimens en stock et récupérez-les à un point de cueillette montréalais ou lors d'une rencontre en métro — jamais d'expédition transfrontalière, jamais d'animaux sauvages.",
+    "seoFaqQ1": "Est-il légal d'acheter une mygale à Montréal?",
+    "seoFaqA1": "Oui — posséder une mygale de compagnie est légal au Québec et très répandu à Montréal. Nous respectons toutes les réglementations municipales et provinciales, et chacun de nos spécimens est né en captivité, jamais capturé dans la nature.",
+    "seoFaqQ2": "Combien coûte une tarentule à vendre à Montréal?",
+    "seoFaqA2": "Le prix varie selon l'espèce, la taille et la rareté — les jeunes mygales pour débutants commencent souvent sous 50 $, tandis que les spécimens adultes ou les genres plus rares sont proposés à un prix plus élevé. Chaque prix inclut le certificat Origine Vérifiée TarantulApp; parcourez la boutique pour voir le stock et les prix actuels.",
+    "seoFaqQ3": "Où puis-je acheter une mygale à Montréal?",
+    "seoFaqA3": "Ici même — Montreal Spider Co. est la boutique de mygales dédiée de Montréal. Parcourez notre stock en ligne, puis récupérez gratuitement à un point de cueillette partenaire ou rencontrez-nous à une station de métro près de chez vous.",
     "newsletterTitle": "Rejoignez la liste des mues",
     "newsletterBody": "Nouveautés, réassorts et conseils de soins. Pas de pourriel — promis.",
     "newsletterButton": "S'abonner",

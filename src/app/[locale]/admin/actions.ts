@@ -18,6 +18,8 @@ import { updateSettings } from "@/lib/data/settings";
 import { sendTemplateTestEmail } from "@/lib/email";
 import { sendNotification } from "@/lib/notifications/service";
 import { addLibraryImage } from "@/lib/data/species-library";
+import { executeAndRecordSeoAudit } from "@/lib/data/seo-audits";
+import { pingIndexNow } from "@/lib/indexnow";
 import { linkProductToSpecies, upsertSpeciesMinimal, type SpeciesInput } from "@/lib/data/species";
 import {
   receiveSpecimenBatch,
@@ -205,6 +207,7 @@ export async function saveProductAction(_prev: ActionState, formData: FormData):
     return { error: e instanceof Error ? e.message : "save_failed" };
   }
 
+  await pingIndexNow([`/en/product/${slug}`, `/fr/product/${slug}`, "/en/shop", "/fr/shop"]);
   revalidatePath("/", "layout");
   redirect(`/${locale}/admin`);
 }
@@ -215,6 +218,7 @@ export async function deleteProductAction(formData: FormData): Promise<void> {
   const locale = str(formData, "locale") || "en";
   if (id) {
     await deleteProduct(id);
+    await pingIndexNow(["/en/shop", "/fr/shop"]);
     revalidatePath("/", "layout");
   }
   redirect(`/${locale}/admin`);
@@ -652,6 +656,19 @@ export async function deleteSpecimensAction(_prev: ActionState, formData: FormDa
 
   revalidatePath("/", "layout");
   redirect(`/${locale}/admin/inventory`);
+}
+
+// --- SEO audits -------------------------------------------------------------
+
+export async function runSeoAuditAction(): Promise<ActionState> {
+  if (!(await isAdminAuthed())) return { error: "unauthorized" };
+  try {
+    await executeAndRecordSeoAudit();
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "audit_failed" };
+  }
+  revalidatePath("/[locale]/admin/seo", "page");
+  return { ok: true };
 }
 
 export async function exportSalesCsvAction(formData: FormData): Promise<{ csv?: string; error?: string }> {
