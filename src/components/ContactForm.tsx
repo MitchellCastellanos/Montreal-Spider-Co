@@ -4,9 +4,11 @@ import { useState } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 
 export default function ContactForm() {
-  const { dict } = useI18n();
+  const { dict, locale } = useI18n();
   const c = dict.contact;
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState(false);
 
   if (sent) {
     return (
@@ -19,9 +21,32 @@ export default function ContactForm() {
 
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
-        setSent(true);
+        const form = e.currentTarget;
+        const data = new FormData(form);
+        setSending(true);
+        setError(false);
+        try {
+          const res = await fetch("/api/contact", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: data.get("name"),
+              email: data.get("email"),
+              phone: data.get("phone"),
+              subject: data.get("subject"),
+              message: data.get("message"),
+              locale,
+            }),
+          });
+          if (!res.ok) throw new Error("Request failed");
+          setSent(true);
+        } catch {
+          setError(true);
+        } finally {
+          setSending(false);
+        }
       }}
       className="card-glow space-y-4 rounded-2xl p-6 sm:p-8"
     >
@@ -29,21 +54,21 @@ export default function ContactForm() {
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="field">
           <span>{dict.common.name}</span>
-          <input className="input" required autoComplete="name" />
+          <input name="name" className="input" required autoComplete="name" />
         </label>
         <label className="field">
           <span>{dict.common.email}</span>
-          <input type="email" className="input" required autoComplete="email" />
+          <input name="email" type="email" className="input" required autoComplete="email" />
         </label>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="field">
           <span>{dict.common.phone} <span className="text-muted">({dict.common.optional})</span></span>
-          <input type="tel" className="input" autoComplete="tel" />
+          <input name="phone" type="tel" className="input" autoComplete="tel" />
         </label>
         <label className="field">
           <span>{c.subjectLabel}</span>
-          <select className="input" defaultValue="general">
+          <select name="subject" className="input" defaultValue="general">
             <option value="general">{c.subjectGeneral}</option>
             <option value="order">{c.subjectOrder}</option>
             <option value="species">{c.subjectSpecies}</option>
@@ -53,9 +78,12 @@ export default function ContactForm() {
       </div>
       <label className="field">
         <span>{c.messageLabel}</span>
-        <textarea className="input min-h-32 resize-y" placeholder={c.messagePlaceholder} required />
+        <textarea name="message" className="input min-h-32 resize-y" placeholder={c.messagePlaceholder} required />
       </label>
-      <button className="btn btn-gold w-full">{c.send}</button>
+      {error && <p className="text-sm text-red-400">{c.error}</p>}
+      <button className="btn btn-gold w-full" disabled={sending}>
+        {sending ? c.sending : c.send}
+      </button>
     </form>
   );
 }

@@ -540,6 +540,8 @@
     "messageLabel": "Message",
     "messagePlaceholder": "Comment pouvons-nous aider?",
     "send": "Envoyer le message",
+    "sending": "Envoi en cours…",
+    "error": "Une erreur est survenue — veuillez réessayer ou nous écrire directement.",
     "sent": "Merci! Nous répondrons en un jour ouvrable.",
     "infoTitle": "Autres façons de nous joindre",
     "emailLabel": "Courriel",
