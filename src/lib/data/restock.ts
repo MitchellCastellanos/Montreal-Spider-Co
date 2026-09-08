@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { SITE } from "@/lib/site";
 import { formatCmAsInches } from "@/lib/size-inches";
 import { syncAggregateStock } from "@/lib/data/specimens";
-import { sendNotification, notifyStaff } from "@/lib/notifications/service";
+import { sendNotification, notifyStaff, distributorBcc } from "@/lib/notifications/service";
 
 /**
  * Restock proposals — replacement inventory is NEVER sent automatically.
@@ -168,6 +168,7 @@ export async function sendProposal(id: string): Promise<void> {
       confirmUrl: `${SITE.url}/en/p/restock/${p.confirmToken}`,
     },
     context: { proposalId: id, locationId: p.locationId },
+    bcc: distributorBcc(location.isDistributor),
   });
 }
 
@@ -198,6 +199,7 @@ export async function respondToProposal(token: string, accept: boolean, partnerN
         preferredDate: p.preferredDate ?? "to be scheduled",
       },
       context: { proposalId: p.id, locationId: p.locationId },
+      bcc: distributorBcc(location.isDistributor),
     });
   }
 
@@ -264,6 +266,7 @@ export async function shipProposal(id: string): Promise<void> {
         itemLines: itemLines(p),
       },
       context: { proposalId: id, locationId: p.locationId },
+      bcc: distributorBcc(location.isDistributor),
     });
   }
 }
@@ -314,6 +317,7 @@ export async function completeProposal(id: string): Promise<void> {
         itemLines: itemLines(p),
       },
       context: { proposalId: id, locationId: p.locationId },
+      bcc: distributorBcc(location.isDistributor),
     });
   }
 }

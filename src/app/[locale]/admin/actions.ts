@@ -16,7 +16,8 @@ import { uploadProductImage, hasStorage } from "@/lib/storage";
 import { createLocation, updateLocation, getLocationById, type LocationInput } from "@/lib/data/locations";
 import { updateSettings } from "@/lib/data/settings";
 import { sendTemplateTestEmail } from "@/lib/email";
-import { sendNotification } from "@/lib/notifications/service";
+import { sendNotification, distributorBcc } from "@/lib/notifications/service";
+import { notifyPartnersOfWriteOff } from "@/lib/data/distributor-report";
 import { addLibraryImage } from "@/lib/data/species-library";
 import { executeAndRecordSeoAudit } from "@/lib/data/seo-audits";
 import { pingIndexNow } from "@/lib/indexnow";
@@ -293,6 +294,7 @@ export async function sendDistributorCodeEmailAction(
       code: location.distributorCode,
     },
     context: { locationId: location.id },
+    bcc: distributorBcc(location.isDistributor),
   });
 
   if (!sent) return { error: "Could not send the email — check that RESEND_API_KEY is configured." };
@@ -320,6 +322,7 @@ export async function requestBacklinkAction(_prev: ActionState, formData: FormDa
       siteUrl: SITE.url,
     },
     context: { locationId: location.id },
+    bcc: distributorBcc(location.isDistributor),
   });
 
   if (!sent) return { error: "Could not send the email — check that RESEND_API_KEY is configured." };
@@ -590,10 +593,17 @@ export async function writeOffSpecimensAction(_prev: ActionState, formData: Form
     return { error: "specimens_invalid" };
   }
 
+  const notes = str(formData, "notes");
   try {
-    await writeOffSpecimens({ specimenIds, notes: str(formData, "notes") });
+    await writeOffSpecimens({ specimenIds, notes });
   } catch (e) {
     return { error: e instanceof Error ? e.message : "writeoff_failed" };
+  }
+
+  try {
+    await notifyPartnersOfWriteOff(specimenIds, notes);
+  } catch (e) {
+    console.error("[admin] partner write-off notice failed:", e);
   }
 
   revalidatePath("/", "layout");

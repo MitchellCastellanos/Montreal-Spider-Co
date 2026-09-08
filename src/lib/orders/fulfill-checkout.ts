@@ -2,7 +2,7 @@ import "server-only";
 import type Stripe from "stripe";
 import type { FulfillmentMethod, SpecimenSex } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { sendNotification, notifyStaff } from "@/lib/notifications/service";
+import { sendNotification, notifyStaff, distributorBcc } from "@/lib/notifications/service";
 import { allocateSpecimensFifo, syncAggregateStock, type DistributorPickupLine } from "@/lib/data/specimens";
 import { createFulfillmentForOrder } from "@/lib/fulfillment/fulfillment";
 import { redeemCoupon } from "@/lib/account/coupons";
@@ -245,6 +245,8 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
         itemLines: lines.map((l) => `${l.productName} (${l.sizeLabel}, ${l.sex})`).join("<br />"),
       },
       context: { orderId: order.id, locationId },
+      // This branch is exclusively for stock physically held at a distributor.
+      bcc: distributorBcc(true),
     });
   }
   if (distributorAlerts.length > 0) {

@@ -840,6 +840,30 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       return { subject, html, text };
     },
   },
+  simpleTemplate({
+    id: "partner-writeoff-notice",
+    label: "Partner — inventory written off",
+    description:
+      "Notifies a partner that specimens on consignment at their store were written off (deceased, unsellable, etc.). An updated inventory copy is attached.",
+    sample: {
+      partnerName: "Marie",
+      storeName: "Reptile Concept",
+      writeoffDate: "August 12, 2026",
+      itemCount: "1",
+      itemLines: "1× Grammostola pulchra (2 3/8″, unsexed)",
+      notes: "Found deceased during routine check.",
+    },
+    subject: { en: "Inventory update — {itemCount} specimen(s) written off at {storeName}" },
+    paragraphs: {
+      en: [
+        "Hi {partnerName},",
+        "The following MSC consignment inventory at <strong>{storeName}</strong> has been written off and removed from your active display count:",
+        "<strong>{itemLines}</strong>",
+        "{notes}",
+        "An updated inventory copy is attached to this email.",
+      ],
+    },
+  }),
 
   // -------------------------------------------------------------------------
   // Internal (MSC staff)

@@ -14,13 +14,39 @@ import { getEmailTemplate, type EmailLocale } from "@/lib/email-templates";
  */
 
 const resendConfigured = Boolean(process.env.RESEND_API_KEY);
-const fromEmail = process.env.RESEND_FROM_EMAIL ?? `orders@${new URL(SITE.url).hostname}`;
+const siteHostname = new URL(SITE.url).hostname;
+const fromEmail = process.env.RESEND_FROM_EMAIL ?? `orders@${siteHostname}`;
 const partnerFromEmail = process.env.RESEND_PARTNER_FROM_EMAIL ?? fromEmail;
-const partnerFromDisplay = `Partners @ ${SITE.name} <${partnerFromEmail}>`;
+const accountFromEmail = process.env.RESEND_ACCOUNT_FROM_EMAIL ?? `hello@${siteHostname}`;
+const contactFromEmail = process.env.RESEND_CONTACT_FROM_EMAIL ?? `contact@${siteHostname}`;
+const reportsFromEmail = process.env.RESEND_REPORTS_FROM_EMAIL ?? `reports@${siteHostname}`;
 
-/** Partner/distributor-facing templates send from a dedicated, named address. */
+const partnerFromDisplay = `Partners @ ${SITE.name} <${partnerFromEmail}>`;
+const reportsFromDisplay = `${SITE.name} Reports <${reportsFromEmail}>`;
+
+const adminEmail = process.env.ORDERS_ADMIN_EMAIL ?? SITE.email;
+
+/** Account templates (not order-specific): welcome, password reset. */
+const ACCOUNT_TEMPLATE_IDS = new Set(["welcome", "password-reset"]);
+/** Internal/staff reports send from a distinct address, separate from customer- and partner-facing mail. */
+const REPORT_TEMPLATE_IDS = new Set(["distributor-sale-alert"]);
+
+/**
+ * Chooses the "from" address by template purpose, so recipients can filter/trust
+ * each stream independently: customer orders, account mail, the contact-form
+ * auto-reply, partner/distributor operations, and internal staff reports.
+ */
 function resolveFromEmail(templateId: string): string {
-  return templateId.startsWith("partner-") ? partnerFromDisplay : fromEmail;
+  if (templateId.startsWith("partner-")) return partnerFromDisplay;
+  if (templateId.startsWith("internal-") || REPORT_TEMPLATE_IDS.has(templateId)) return reportsFromDisplay;
+  if (templateId === "contact-received") return contactFromEmail;
+  if (ACCOUNT_TEMPLATE_IDS.has(templateId)) return accountFromEmail;
+  return fromEmail;
+}
+
+/** BCC the admin inbox whenever a message goes out to a distributor (consignment) location. */
+export function distributorBcc(isDistributor: boolean): string | undefined {
+  return isDistributor ? adminEmail : undefined;
 }
 
 export interface NotificationInput {
@@ -36,6 +62,8 @@ export interface NotificationInput {
   context?: Record<string, string>;
   /** Optional file attachments (e.g. a CSV/PDF export sent along with the email). */
   attachments?: { filename: string; content: Buffer; contentType?: string }[];
+  /** Optional BCC recipient(s) — e.g. looping in the admin on distributor-facing mail. */
+  bcc?: string | string[];
 }
 
 async function logEmail(entry: {
@@ -119,6 +147,7 @@ export async function sendNotification(input: NotificationInput): Promise<boolea
     const { error } = await resend.emails.send({
       from: resolveFromEmail(input.templateId),
       to: input.to,
+      bcc: input.bcc,
       subject: email.subject,
       html: email.html,
       text: email.text,
@@ -154,6 +183,5 @@ export async function sendNotification(input: NotificationInput): Promise<boolea
 export async function notifyStaff(
   input: Omit<NotificationInput, "to" | "locale">,
 ): Promise<boolean> {
-  const adminTo = process.env.ORDERS_ADMIN_EMAIL ?? SITE.email;
-  return sendNotification({ ...input, to: adminTo, locale: "en" });
+  return sendNotification({ ...input, to: adminEmail, locale: "en" });
 }

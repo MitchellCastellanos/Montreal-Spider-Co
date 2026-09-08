@@ -3,8 +3,9 @@ import { getLocationById } from "@/lib/data/locations";
 import { listExpectedSpecimensAt } from "@/lib/data/audits";
 import { prisma } from "@/lib/db";
 import { suggestedSalePrice, STATUS_LABELS } from "@/lib/inventory-labels";
-import { sendNotification } from "@/lib/notifications/service";
+import { sendNotification, distributorBcc } from "@/lib/notifications/service";
 import { buildDistributorInventoryPdf } from "@/lib/distributor-report-pdf";
+import { formatCmAsInches } from "@/lib/size-inches";
 import { SITE } from "@/lib/site";
 import type { EmailLocale } from "@/lib/email-templates";
 
@@ -186,5 +187,65 @@ export async function sendDistributorInventoryReport(
     },
     context: { locationId, format },
     attachments: [attachment],
+    bcc: distributorBcc(true),
   });
+}
+
+/**
+ * Notifies each affected partner after specimens on consignment at their store
+ * are written off, attaching an updated (post-write-off) inventory copy.
+ * Specimens not held at a partner (warehouse/transit) are silently skipped —
+ * write-offs there have no partner to notify.
+ */
+export async function notifyPartnersOfWriteOff(specimenIds: string[], notes = ""): Promise<void> {
+  const db = requireDb();
+  const specimens = await db.specimen.findMany({
+    where: { id: { in: specimenIds }, locationType: "consignment", locationId: { not: null } },
+    include: { product: { select: { scientific: true } }, location: true },
+  });
+
+  const byLocationId = new Map<string, typeof specimens>();
+  for (const s of specimens) {
+    const list = byLocationId.get(s.locationId!) ?? [];
+    list.push(s);
+    byLocationId.set(s.locationId!, list);
+  }
+
+  for (const [locationId, items] of byLocationId) {
+    const location = items[0].location;
+    if (!location?.email.trim()) continue;
+
+    try {
+      const report = await getDistributorInventoryReport(locationId);
+      const csv = buildDistributorInventoryCsv(report);
+      const itemLines = items
+        .map((s) => `1× ${s.product.scientific} (${formatCmAsInches(s.sizeCm)}, ${s.sex})`)
+        .join("<br />");
+
+      await sendNotification({
+        templateId: "partner-writeoff-notice",
+        event: "inventory.write_off",
+        to: location.email,
+        data: {
+          partnerName: location.contactName || location.name,
+          storeName: location.name,
+          writeoffDate: new Date().toLocaleDateString("en-CA", { year: "numeric", month: "long", day: "numeric" }),
+          itemCount: String(items.length),
+          itemLines,
+          notes,
+        },
+        context: { locationId },
+        attachments: [
+          {
+            filename: `${reportFilenameBase(report)}.csv`,
+            content: Buffer.from(csv, "utf-8"),
+            contentType: "text/csv",
+          },
+        ],
+        bcc: distributorBcc(location.isDistributor),
+      });
+    } catch (e) {
+      console.error(`[distributor-report] write-off notice to location ${locationId} failed:`, e);
+    }
+  }
 }

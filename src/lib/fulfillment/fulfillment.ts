@@ -5,7 +5,7 @@ import { SITE } from "@/lib/site";
 import { getStripe, stripeConfigured } from "@/lib/stripe";
 import { getSettings } from "@/lib/data/settings";
 import { markOrderSpecimensSold, releaseOrderSpecimens } from "@/lib/data/specimens";
-import { sendNotification, notifyStaff } from "@/lib/notifications/service";
+import { sendNotification, notifyStaff, distributorBcc } from "@/lib/notifications/service";
 import { partnerPickupUrl } from "@/lib/partner/auth";
 
 /**
@@ -166,6 +166,7 @@ export async function markReady(fulfillmentId: string, scheduledFor?: Date): Pro
         confirmUrl: partnerPickupUrl(f.pickupToken, f.location.partnerToken),
       },
       context: { orderId: f.orderId, fulfillmentId, locationId: f.location.id },
+      bcc: distributorBcc(f.location.isDistributor),
     });
   }
 }
@@ -376,6 +377,7 @@ export async function cancelFulfillment(fulfillmentId: string, opts: CancelOptio
         itemLines: orderItemLines(f.order),
       },
       context: { orderId: f.orderId, fulfillmentId, locationId: f.location.id },
+      bcc: distributorBcc(f.location.isDistributor),
     });
   }
 

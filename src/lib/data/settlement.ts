@@ -2,7 +2,7 @@ import "server-only";
 import type { SettlementPaymentStatus, StatementStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { formatCmAsInches } from "@/lib/size-inches";
-import { sendNotification } from "@/lib/notifications/service";
+import { sendNotification, distributorBcc } from "@/lib/notifications/service";
 
 /**
  * Settlement ledger — partner financial tracking.
@@ -175,6 +175,7 @@ export async function sendStatement(statementId: string): Promise<void> {
       totalMargin: `$${s.totalMargin.toFixed(2)} CAD`,
     },
     context: { statementId, locationId: s.locationId },
+    bcc: distributorBcc(s.location.isDistributor),
   });
 
   await db.settlementStatement.update({
@@ -215,6 +216,7 @@ export async function markStatementPaid(statementId: string): Promise<void> {
         amount: `$${s.totalOwed.toFixed(2)} CAD`,
       },
       context: { statementId, locationId: s.locationId },
+      bcc: distributorBcc(s.location.isDistributor),
     });
   }
 }
@@ -312,6 +314,7 @@ export async function settleOutstandingBalance(locationId: string): Promise<{ am
         amount: `$${amount.toFixed(2)} CAD`,
       },
       context: { locationId, statementIds: paidStatementIds.join(",") },
+      bcc: distributorBcc(location.isDistributor),
     });
   }
 

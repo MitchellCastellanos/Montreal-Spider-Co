@@ -3,7 +3,7 @@ import type { PaymentMethod } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { formatCmAsInches } from "@/lib/size-inches";
 import { IN_STOCK_STATUSES, syncAggregateStock } from "@/lib/data/specimens";
-import { sendNotification } from "@/lib/notifications/service";
+import { sendNotification, distributorBcc } from "@/lib/notifications/service";
 import { createTask } from "@/lib/data/tasks";
 
 /**
@@ -281,6 +281,7 @@ export async function createAudit(input: CreateAuditInput): Promise<string> {
         notes: input.notes ?? "",
       },
       context: { auditId, locationId: input.locationId },
+      bcc: distributorBcc(location.isDistributor),
     });
   }
 

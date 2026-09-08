@@ -3,7 +3,7 @@ import type { PaymentMethod } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { formatCmAsInches } from "@/lib/size-inches";
 import { syncAggregateStock } from "@/lib/data/specimens";
-import { sendNotification, notifyStaff } from "@/lib/notifications/service";
+import { sendNotification, notifyStaff, distributorBcc } from "@/lib/notifications/service";
 import { createTask } from "@/lib/data/tasks";
 import { assertPartnerTokenForLocation } from "@/lib/partner/auth";
 
@@ -148,6 +148,7 @@ export async function registerWalkInSale(input: WalkInSaleInput): Promise<WalkIn
         settlementPrice: `$${settlementPrice.toFixed(2)} CAD`,
       },
       context: { specimenId: specimen.id, locationId: specimen.locationId! },
+      bcc: distributorBcc(specimen.location.isDistributor),
     });
   }
 
