@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import SexBadge from "@/components/SexBadge";
 import { useI18n } from "@/i18n/I18nProvider";
 
 type SpecimenFacts = {
@@ -62,7 +63,10 @@ export default function SpecimenFactsPanel({ slug }: { slug: string }) {
         </div>
         <div>
           <dt className="text-xs text-muted">{p.specimenSex}</dt>
-          <dd className="text-cream">{sexLabel}</dd>
+          <dd className="flex items-center gap-1.5 text-cream">
+            {sexLabel}
+            <SexBadge sex={facts.sex} />
+          </dd>
         </div>
         {facts.lastMeasured && (
           <div>

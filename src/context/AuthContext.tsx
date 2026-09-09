@@ -15,6 +15,7 @@ export interface OrderItem {
   productId?: string;
   name: string;
   size: string;
+  sex?: "unsexed" | "male" | "female" | null;
   unitKey?: string | null;
   qty: number;
   price: number;

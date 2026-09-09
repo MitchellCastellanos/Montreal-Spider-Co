@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import DistributorAvailabilityCta from "@/components/DistributorAvailabilityCta";
+import SexBadge from "@/components/SexBadge";
 import UnitFulfillmentBadge from "@/components/UnitFulfillmentBadge";
 import { useCart, snapshotFromProduct } from "@/context/CartContext";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -55,7 +56,10 @@ export default function AddToCart({ product }: { product: Product }) {
                   active ? "border-gold bg-gold/10" : "border-line hover:border-gold/50"
                 } ${disabled ? "cursor-not-allowed opacity-40" : ""}`}
               >
-                <span className="block text-sm font-semibold text-cream">{s.sizeLabel}</span>
+                <span className="flex items-center gap-1.5 text-sm font-semibold text-cream">
+                  {s.sizeLabel}
+                  <SexBadge sex={s.sex} />
+                </span>
                 <span className="block text-xs text-muted">{dict.product[SEX_LABEL_KEY[s.sex]]}</span>
                 <UnitFulfillmentBadge unit={s} distributorName={distributorName} className="mt-0.5" />
                 {s.includesEnclosure && (

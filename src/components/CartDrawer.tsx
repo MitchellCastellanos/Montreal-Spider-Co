@@ -6,6 +6,7 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
 import { productDisplaySubtitle, productDisplayTitle, productImageAlt } from "@/lib/product-display";
 import LocaleLink from "./LocaleLink";
+import SexBadge from "./SexBadge";
 import SpiderGraphic from "./SpiderGraphic";
 import SpeciesImage from "./SpeciesImage";
 
@@ -73,7 +74,10 @@ export default function CartDrawer() {
                           {productDisplayTitle(line.product)}
                         </LocaleLink>
                         {subtitle && <p className="truncate text-xs text-muted">{subtitle}</p>}
-                        <p className="text-xs text-bone">{line.size.label}</p>
+                        <p className="flex items-center gap-1.5 text-xs text-bone">
+                          {line.size.label}
+                          <SexBadge sex={line.size.sex} />
+                        </p>
                         {line.size.includesEnclosure && (
                           <p className="text-xs font-semibold text-gold-deep">{dict.product.bundleEnclosure}</p>
                         )}

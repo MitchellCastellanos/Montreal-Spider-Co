@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import LocaleLink from "@/components/LocaleLink";
+import SexBadge from "@/components/SexBadge";
 import SpeciesImage from "@/components/SpeciesImage";
 import { useCart } from "@/context/CartContext";
 import { useAuth, type User } from "@/context/AuthContext";
@@ -445,7 +446,10 @@ export default function CheckoutView({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm italic text-cream">{productDisplayTitle(l.product)}</p>
                     {subtitle && <p className="truncate text-xs text-muted">{subtitle}</p>}
-                    <p className="text-xs text-muted">{l.size.label} × {l.qty}</p>
+                    <p className="flex items-center gap-1.5 text-xs text-muted">
+                      {l.size.label} × {l.qty}
+                      <SexBadge sex={l.size.sex} />
+                    </p>
                     {l.size.includesEnclosure && (
                       <p className="text-xs font-semibold text-gold-deep">{dict.product.bundleEnclosure}</p>
                     )}

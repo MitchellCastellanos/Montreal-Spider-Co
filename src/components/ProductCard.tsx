@@ -6,17 +6,13 @@ import LocaleLink from "./LocaleLink";
 import SpeciesImage from "./SpeciesImage";
 import DistributorAvailabilityCta from "./DistributorAvailabilityCta";
 import KlarnaBadge from "./KlarnaBadge";
+import SexBadge from "./SexBadge";
 import UnitFulfillmentBadge from "./UnitFulfillmentBadge";
 import { useCart, snapshotFromProduct } from "@/context/CartContext";
 import { useProductDisplay } from "@/hooks/useProductDisplay";
 import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
-import {
-  CARD_AVAILABILITY_MAX,
-  cardAvailabilityUnits,
-  cardUnitSexSymbol,
-  cardUnitShowsSex,
-} from "@/lib/product-display";
+import { CARD_AVAILABILITY_MAX, cardAvailabilityUnits, cardUnitShowsSex } from "@/lib/product-display";
 import { basePrice, isAvailableAtDistributor, isPurchasableOnline, totalStock, type Product } from "@/lib/types";
 import { unitHasDistributorStock } from "@/lib/unit-fulfillment";
 
@@ -122,9 +118,7 @@ export default function ProductCard({ product }: { product: Product }) {
                     <span className="min-w-0 text-sm font-medium tabular-nums text-cream">
                       {unit.sizeLabel}
                       {cardUnitShowsSex(inStockUnits, unit) && (
-                        <span className="ml-1 text-xs text-muted" aria-hidden>
-                          {cardUnitSexSymbol(unit)}
-                        </span>
+                        <SexBadge sex={unit.sex} className="ml-1.5 align-middle normal-case tracking-normal" />
                       )}
                       <UnitFulfillmentBadge
                         unit={unit}

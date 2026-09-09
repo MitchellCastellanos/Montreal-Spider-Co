@@ -5,8 +5,6 @@ import { t } from "./types";
 /** Max size/price rows on a shop listing card before "+N more". */
 export const CARD_AVAILABILITY_MAX = 4;
 
-const SEX_SYMBOL = { male: "♂", female: "♀" } as const;
-
 /** In-stock units for listing cards, smallest size first. */
 export function cardAvailabilityUnits(availability: AvailableUnit[]): AvailableUnit[] {
   return availability
@@ -14,16 +12,14 @@ export function cardAvailabilityUnits(availability: AvailableUnit[]): AvailableU
     .sort((a, b) => a.sizeCm - b.sizeCm || a.price - b.price);
 }
 
-/** Show a sex marker when multiple in-stock units share a size but differ in sex. */
+/**
+ * Show a sex marker whenever this product's in-stock units mix sexes — not just
+ * when two units happen to share a size. A species sold as, say, a 4cm male and
+ * a 6cm female is exactly the case a shopper needs the sex called out for.
+ */
 export function cardUnitShowsSex(units: AvailableUnit[], unit: AvailableUnit): boolean {
   if (unit.sex === "unsexed") return false;
-  const atSize = units.filter((u) => u.sizeCm === unit.sizeCm);
-  if (atSize.length <= 1) return false;
-  return new Set(atSize.map((u) => u.sex)).size > 1;
-}
-
-export function cardUnitSexSymbol(unit: AvailableUnit): string {
-  return unit.sex === "unsexed" ? "" : SEX_SYMBOL[unit.sex];
+  return new Set(units.map((u) => u.sex)).size > 1;
 }
 
 type Named = Pick<Product, "scientific" | "common">;
