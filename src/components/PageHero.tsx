@@ -17,7 +17,7 @@ export default function PageHero({
       <div className="container-x relative py-14 md:py-20">
         <Reveal>
           {kicker && <p className="badge mb-4">{kicker}</p>}
-          <h1 className="max-w-3xl font-display text-4xl font-bold leading-tight text-cream md:text-6xl">
+          <h1 className="max-w-3xl font-display text-4xl font-normal leading-tight text-cream md:text-6xl">
             <span className="text-gradient-gold">{title}</span>
           </h1>
           {subtitle && <p className="mt-5 max-w-2xl text-lg text-bone">{subtitle}</p>}

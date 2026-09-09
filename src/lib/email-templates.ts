@@ -28,8 +28,8 @@ export type EmailTemplate = {
   render: (locale: EmailLocale, data: Record<string, string>) => RenderedEmail;
 };
 
-const brandGold = "#c9a24b";
-const ink = "#14110d";
+const brandGold = "#d8ccA6";
+const ink = "#141c11";
 const cream = "#f4ecd8";
 
 /** Shared branded HTML shell. Body is the inner content for the white card. */
@@ -44,9 +44,9 @@ function layout(opts: { locale: EmailLocale; preview: string; bodyHtml: string }
     <meta name="color-scheme" content="light only" />
     <title>${SITE.name}</title>
   </head>
-  <body style="margin:0;padding:0;background:#0c0a07;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <body style="margin:0;padding:0;background:#141c11;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
     <span style="display:none;max-height:0;overflow:hidden;opacity:0;">${opts.preview}</span>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0c0a07;padding:28px 12px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#141c11;padding:28px 12px;">
       <tr>
         <td align="center">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e7ddc6;">

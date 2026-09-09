@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { getFeatured } from "@/lib/data/products";
@@ -14,7 +15,6 @@ import JsonLd from "@/components/JsonLd";
 import { withVerifiedOriginLinks } from "@/lib/verified-origin-links";
 import { SITE } from "@/lib/site";
 import { faqSchema } from "@/lib/seo";
-import Image from "next/image";
 import Link from "next/link";
 
 export const revalidate = 60;
