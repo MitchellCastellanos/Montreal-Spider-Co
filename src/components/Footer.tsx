@@ -100,6 +100,19 @@ export default function Footer() {
         </div>
       </div>
 
+      <div className="container-x flex items-center justify-center gap-4 border-t border-line py-4">
+        <a
+          href="https://gabansolutions.ca"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 text-xs text-muted transition-colors hover:text-cream"
+        >
+          <span>{f.credit}</span>
+          <Image src="/brand/gaban-logo.png" alt="GABAN Solutions" width={22} height={22} className="object-contain" />
+          <span className="font-medium text-bone">GABAN Solutions</span>
+        </a>
+      </div>
+
       <style>{`
         .footer-link { display:block; color: var(--bone); font-size: .9rem; padding: .25rem 0; transition: color .2s, transform .2s; }
         .footer-link:hover { color: var(--gold-bright); transform: translateX(2px); }
