@@ -159,10 +159,17 @@ export default function ProductCard({ product }: { product: Product }) {
 
         <div className="mt-auto flex items-end justify-between gap-2 pt-2">
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-muted">
-              {inStockUnits.length > 1 && selected
-                ? selected.sizeLabel
-                : dict.common.from}
+            <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted">
+              {inStockUnits.length > 1 && selected ? (
+                <>
+                  {selected.sizeLabel}
+                  {cardUnitShowsSex(inStockUnits, selected) && (
+                    <SexBadge sex={selected.sex} className="normal-case tracking-normal" />
+                  )}
+                </>
+              ) : (
+                dict.common.from
+              )}
             </p>
             <p className="font-display text-xl font-bold text-cream">
               {formatPrice(selected?.price ?? basePrice(product), locale)}{" "}
