@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { getFeatured } from "@/lib/data/products";
@@ -230,6 +231,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       <section className="container-x pb-16 md:pb-24">
         <Reveal>
           <div className="relative overflow-hidden rounded-3xl border border-gold/30 bg-gradient-to-br from-ink-soft to-ink p-10 text-center md:p-16">
+            <Image
+              src="/images/cta-texture.png"
+              alt=""
+              fill
+              sizes="100vw"
+              className="pointer-events-none absolute inset-0 object-cover opacity-50"
+            />
             <div className="web-grid pointer-events-none absolute inset-0 opacity-20" />
             <div className="relative">
               <h2 className="mx-auto max-w-2xl font-display text-3xl font-bold text-cream sm:text-4xl">{h.ctaTitle}</h2>
