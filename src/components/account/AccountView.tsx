@@ -5,6 +5,7 @@ import { useAuth, type Order } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice, formatDate } from "@/lib/format";
+import SexBadge from "@/components/SexBadge";
 import SpiderGraphic from "@/components/SpiderGraphic";
 import { PreferencesTab, ReferralTab, SavedGuidesTab, WishlistTab } from "@/components/account/AccountExtras";
 import type { PickupOption } from "@/components/checkout/PickupMeetupSection";
@@ -212,6 +213,7 @@ function OrdersTab({ onRefresh }: { onRefresh: () => void }) {
         hue: 36,
         accent: "#c9a24b",
         sizeLabel: it.size,
+        sex: it.sex ?? "unsexed",
         price: it.price,
       });
     }
@@ -252,7 +254,10 @@ function OrdersTab({ onRefresh }: { onRefresh: () => void }) {
             {o.statusDetail && <p className="mt-2 text-sm text-gold-deep">{o.statusDetail}</p>}
             <ul className="mt-3 space-y-1 text-sm text-bone">
               {o.items.map((it, i) => (
-                <li key={i}>{it.qty}× {it.name} — <span className="text-muted">{it.size}</span></li>
+                <li key={i} className="flex items-center gap-1.5">
+                  {it.qty}× {it.name} — <span className="text-muted">{it.size}</span>
+                  {it.sex && it.sex !== "unsexed" && <SexBadge sex={it.sex} />}
+                </li>
               ))}
             </ul>
             <div className="mt-3 flex flex-wrap gap-2">

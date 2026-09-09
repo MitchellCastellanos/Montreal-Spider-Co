@@ -13,6 +13,7 @@ import {
   type ActionState,
 } from "@/app/[locale]/admin/actions";
 import { localeHref } from "@/lib/href";
+import SexBadge from "@/components/SexBadge";
 import type { SpecimenView, SalesChannel } from "@/lib/data/specimens";
 import type { DistributorView } from "@/lib/data/locations";
 import type { LibraryImage } from "@/lib/data/species-library";
@@ -38,6 +39,7 @@ type SpecimenSortKey =
   | "tarantulAppId"
   | "species"
   | "size"
+  | "sex"
   | "status"
   | "location"
   | "cost"
@@ -149,6 +151,12 @@ function speciesDefaultImage(
   return product?.image ?? null;
 }
 
+const SEX_LABELS: Record<SpecimenView["sex"], string> = {
+  unsexed: "Unsexed",
+  male: "Male",
+  female: "Female",
+};
+
 function specimenLocationLabel(s: SpecimenView): string {
   return s.locationType === "warehouse" ? "Warehouse" : (s.locationName ?? "Distributor");
 }
@@ -210,6 +218,8 @@ export default function InventoryHub({
           return cmpStr(a.productName, b.productName, sortDir);
         case "size":
           return cmpNum(a.sizeCm, b.sizeCm, sortDir);
+        case "sex":
+          return cmpStr(a.sex, b.sex, sortDir);
         case "status":
           return cmpStr(a.status, b.status, sortDir);
         case "location":
@@ -355,6 +365,14 @@ export default function InventoryHub({
                     className="px-3 py-3"
                   />
                   <SortableTh
+                    label="Sex"
+                    sortKey="sex"
+                    activeKey={sortKey}
+                    dir={sortDir}
+                    onSort={onSort}
+                    className="px-3 py-3"
+                  />
+                  <SortableTh
                     label="Status"
                     sortKey="status"
                     activeKey={sortKey}
@@ -410,7 +428,7 @@ export default function InventoryHub({
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="px-4 py-8 text-center text-muted">
+                    <td colSpan={11} className="px-4 py-8 text-center text-muted">
                       No specimens match. Use &quot;Receive stock&quot; to add inventory.
                     </td>
                   </tr>
@@ -562,6 +580,12 @@ function SpecimenRow({
         </td>
         <td className="px-3 py-2">{s.sizeLabel}</td>
         <td className="px-3 py-2">
+          <span className="flex items-center gap-1.5">
+            {SEX_LABELS[s.sex]}
+            <SexBadge sex={s.sex} />
+          </span>
+        </td>
+        <td className="px-3 py-2">
           <span className="rounded-full border border-line px-2 py-0.5 text-[10px] uppercase">
             {STATUS_LABELS[s.status] ?? s.status}
           </span>
@@ -596,7 +620,7 @@ function SpecimenRow({
       </tr>
       {editing && !locked && (
         <tr className="bg-ink-soft/30">
-          <td colSpan={10} className="px-4 py-4">
+          <td colSpan={11} className="px-4 py-4">
             <form action={editAction} className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
               <input type="hidden" name="specimenId" value={s.id} />
               <label className="field">

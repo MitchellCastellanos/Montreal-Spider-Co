@@ -7,7 +7,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { PRODUCTS } from "@/lib/products";
-import { asL, type AvailableUnit, type L, type Product } from "@/lib/types";
+import { asL, type AvailableUnit, type L, type Product, type SpecimenSex } from "@/lib/types";
 
 /** Display snapshot stored on each line so cart works even when the client
  *  does not hold the full (DB-backed) catalog. */
@@ -19,6 +19,8 @@ export interface CartSnapshot {
   accent: string;
   image?: string;
   sizeLabel: string;
+  /** Omitted by call sites that don't have it yet (wishlist, reorder) — treated as unsexed. */
+  sex?: SpecimenSex;
   price: number;
   /** This unit is sold bundled with a starter terrarium. */
   includesEnclosure?: boolean;
@@ -47,6 +49,7 @@ export interface CartDisplayProduct {
 export interface CartDisplaySize {
   key: string;
   label: string;
+  sex: SpecimenSex;
   price: number;
   includesEnclosure?: boolean;
 }
@@ -71,6 +74,7 @@ export function snapshotFromProduct(product: Product, unit: AvailableUnit): Cart
     accent: product.accent,
     image: product.image,
     sizeLabel: unit.sizeLabel,
+    sex: unit.sex,
     price: unit.price,
     includesEnclosure: unit.includesEnclosure,
     stock: unit.stock,
@@ -131,6 +135,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
                 ...l.snap,
                 common: asL(l.snap.common),
                 sizeLabel: typeof l.snap.sizeLabel === "string" ? l.snap.sizeLabel : String(l.snap.sizeLabel ?? ""),
+                /** Older carts saved before sex was tracked — treat as unsexed rather than guessing. */
+                sex: l.snap.sex ?? "unsexed",
               };
               const stock = resolveStock(l.productId, l.unitKey, snap);
               return { ...l, qty: stock != null ? Math.min(l.qty, stock) : l.qty, snap };
@@ -264,6 +270,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             size: {
               key: l.unitKey,
               label: l.snap.sizeLabel,
+              sex: l.snap.sex ?? "unsexed",
               price: l.snap.price,
               includesEnclosure: l.snap.includesEnclosure,
             },
@@ -291,6 +298,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           size: {
             key: unit.key,
             label: unit.sizeLabel,
+            sex: unit.sex,
             price: unit.price,
             includesEnclosure: unit.includesEnclosure,
           },
