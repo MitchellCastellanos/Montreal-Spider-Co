@@ -56,7 +56,7 @@ export default function Hero() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.05 }}
-            className="mt-5 font-display text-5xl font-black leading-[1.05] tracking-tight text-cream sm:text-6xl lg:text-7xl"
+            className="mt-5 font-display text-5xl font-normal leading-[1.05] tracking-tight text-cream sm:text-6xl lg:text-7xl"
           >
             <span className="text-gradient-gold">{h.heroTitle}</span>
           </motion.h1>

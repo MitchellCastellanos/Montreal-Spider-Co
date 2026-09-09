@@ -53,7 +53,7 @@ export default function Header() {
     >
       <div className="container-x flex items-center justify-between gap-4">
         <LocaleLink href="/" className="flex items-center gap-3 group">
-          <span className="relative inline-block h-14 w-14 shrink-0 transition-transform duration-500 group-hover:rotate-[8deg] group-hover:scale-105 drop-shadow-[0_4px_14px_rgba(201,162,75,0.25)]">
+          <span className="relative inline-block h-14 w-14 shrink-0 transition-transform duration-500 group-hover:rotate-[8deg] group-hover:scale-105">
             <Image src="/brand/logo.png" alt={dict.meta.siteName} fill sizes="56px" className="object-contain" priority />
           </span>
           <span className="hidden sm:flex flex-col leading-none">
