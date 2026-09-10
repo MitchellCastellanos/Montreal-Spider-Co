@@ -153,13 +153,18 @@ export default async function ProductPage({
             </h1>
             {displaySubtitle && <p className="mt-1 text-lg text-muted">{displaySubtitle}</p>}
 
-            <p className="mt-3 text-2xl font-bold text-cream">
-              <span className="text-sm font-normal text-muted">{dict.common.from} </span>
-              {formatPrice(basePrice(product), loc)}{" "}
-              <span className="text-sm font-normal text-muted">{dict.common.plusTaxes}</span>
-            </p>
-
-            <KlarnaBadge variant="detail" amount={basePrice(product)} className="mt-4" />
+            {product.availability.length > 0 ? (
+              <>
+                <p className="mt-3 text-2xl font-bold text-cream">
+                  <span className="text-sm font-normal text-muted">{dict.common.from} </span>
+                  {formatPrice(basePrice(product), loc)}{" "}
+                  <span className="text-sm font-normal text-muted">{dict.common.plusTaxes}</span>
+                </p>
+                <KlarnaBadge variant="detail" amount={basePrice(product)} className="mt-4" />
+              </>
+            ) : (
+              <p className="mt-3 text-2xl font-bold text-muted">{dict.common.soldOut}</p>
+            )}
 
             <div className="my-6 h-px bg-line" />
 

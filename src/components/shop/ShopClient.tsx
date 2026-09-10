@@ -230,6 +230,13 @@ export default function ShopClient({ products, genera }: { products: Product[]; 
           <option value="price-desc">{s.sortPriceDesc}</option>
           <option value="name">{s.sortNameAsc}</option>
         </select>
+        <button
+          onClick={() => setInStock((v) => !v)}
+          aria-pressed={inStock}
+          className={`btn ${inStock ? "btn-gold" : "btn-ghost"}`}
+        >
+          {s.onlyInStock}
+        </button>
         <button onClick={() => setMobileOpen(true)} className="btn btn-ghost lg:hidden">
           {s.filters} {activeCount > 0 && <span className="badge ml-1">{activeCount}</span>}
         </button>
