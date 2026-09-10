@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { pageMeta } from "@/lib/pageMeta";
@@ -30,15 +31,26 @@ export default async function BlogIndexPage({ params }: { params: Promise<{ loca
         <div className="grid gap-6 md:grid-cols-2">
           {posts.map((post, i) => (
             <Reveal key={post.slug} delay={i * 0.07}>
-              <Link href={localeHref(loc, `/blog/${post.slug}`)} className="card-glow group flex h-full flex-col rounded-2xl p-6">
-                <span className="badge w-fit">{t(post.category, loc)}</span>
-                <h2 className="mt-4 font-display text-xl font-semibold text-cream group-hover:text-gold-bright">{t(post.title, loc)}</h2>
-                <p className="mt-2 flex-1 text-sm leading-relaxed text-bone">{t(post.summary, loc)}</p>
-                <div className="mt-4 flex items-center justify-between text-xs text-muted">
-                  <span>
-                    {post.minRead} {dict.care.minRead}
-                  </span>
-                  <span className="font-semibold text-gold-bright">{dict.blog.readArticle} →</span>
+              <Link href={localeHref(loc, `/blog/${post.slug}`)} className="card-glow group flex h-full flex-col overflow-hidden rounded-2xl">
+                <div className="relative aspect-[16/9] overflow-hidden bg-ink">
+                  <Image
+                    src={`/images/blog/${post.slug}.png`}
+                    alt={t(post.title, loc)}
+                    fill
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    className="object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                  <span className="absolute left-3 top-3 badge backdrop-blur-sm">{t(post.category, loc)}</span>
+                </div>
+                <div className="flex flex-1 flex-col p-6">
+                  <h2 className="font-display text-xl font-semibold text-cream group-hover:text-gold-bright">{t(post.title, loc)}</h2>
+                  <p className="mt-2 flex-1 text-sm leading-relaxed text-bone">{t(post.summary, loc)}</p>
+                  <div className="mt-4 flex items-center justify-between text-xs text-muted">
+                    <span>
+                      {post.minRead} {dict.care.minRead}
+                    </span>
+                    <span className="font-semibold text-gold-bright">{dict.blog.readArticle} →</span>
+                  </div>
                 </div>
               </Link>
             </Reveal>
