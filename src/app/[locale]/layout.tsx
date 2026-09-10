@@ -78,6 +78,12 @@ export async function generateMetadata({
     },
     // Favicon/app icons are auto-detected from src/app/icon.png & apple-icon.png
     robots: { index: true, follow: true },
+    // Domain-ownership verification for Google Search Console / Bing Webmaster
+    // Tools. Both env vars are optional — omit either and its tag is skipped.
+    verification: {
+      google: process.env.GOOGLE_SITE_VERIFICATION || undefined,
+      other: process.env.BING_SITE_VERIFICATION ? { "msvalidate.01": process.env.BING_SITE_VERIFICATION } : undefined,
+    },
   };
 }
 

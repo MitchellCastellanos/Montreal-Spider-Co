@@ -22,7 +22,7 @@ export interface SeoAuditResult {
   issues: SeoIssueDraft[];
 }
 
-const CHECK_PATHS = ["", "/shop", "/care", "/verified-origin", "/delivery", "/about", "/faq", "/contact"];
+const CHECK_PATHS = ["", "/shop", "/care", "/blog", "/verified-origin", "/delivery", "/about", "/faq", "/contact"];
 
 async function fetchPage(url: string): Promise<{ status: number; html: string; ms: number } | null> {
   const start = Date.now();
