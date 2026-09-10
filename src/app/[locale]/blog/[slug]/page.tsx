@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { isLocale, locales, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { BLOG_POSTS, getBlogPost } from "@/lib/blog";
@@ -68,6 +69,18 @@ export default async function BlogPostPage({ params }: { params: Promise<{ local
         <Link href={localeHref(loc, "/blog")} className="mb-8 inline-block text-sm text-gold-deep hover:text-gold-bright">
           ← {dict.blog.backToBlog}
         </Link>
+        <Reveal className="mx-auto mb-12 max-w-4xl">
+          <div className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl border border-line">
+            <Image
+              src={`/images/blog/${post.slug}.png`}
+              alt={t(post.title, loc)}
+              fill
+              priority
+              sizes="(max-width: 1024px) 100vw, 896px"
+              className="object-cover"
+            />
+          </div>
+        </Reveal>
         <div className="mx-auto max-w-2xl space-y-10">
           {post.sections.map((section, i) => (
             <Reveal key={i} as="section">
