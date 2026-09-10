@@ -10,6 +10,7 @@
   "nav": {
     "shop": "Boutique",
     "care": "Guides de soins",
+    "blog": "Blogue",
     "verified": "Origine Vérifiée",
     "delivery": "Cueillette & rencontre",
     "about": "À propos",
@@ -544,6 +545,14 @@
     "minRead": "min de lecture",
     "backToGuides": "Tous les guides de soins",
     "relatedSpecies": "Espèces recommandées pour débutants"
+  },
+  "blog": {
+    "kicker": "Sur le web",
+    "title": "Blogue",
+    "subtitle": "Guides d'achat, choix d'espèces et astuces locales pour les éleveurs de mygales à Montréal et partout au Canada.",
+    "readArticle": "Lire l'article",
+    "backToBlog": "Tous les articles",
+    "relatedLinks": "Continuer la lecture"
   },
   "contact": {
     "kicker": "Dites bonjour",

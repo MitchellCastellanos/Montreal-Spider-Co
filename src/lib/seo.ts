@@ -2,6 +2,7 @@ import type enDict from "@/i18n/dictionaries/en.json";
 import type { Locale } from "@/i18n/config";
 import { SITE } from "./site";
 import type { Product } from "./types";
+import type { BlogPost } from "./blog";
 import { productSeoName } from "@/lib/product-display";
 import { t } from "./types";
 import { basePrice, totalStock } from "./types";
@@ -107,6 +108,26 @@ export function breadcrumbSchema(items: { name: string; url: string }[]) {
       name: item.name,
       item: `${SITE.url}${item.url}`,
     })),
+  };
+}
+
+export function blogPostingSchema(post: BlogPost, locale: Locale, dict: Dict) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: t(post.title, locale),
+    description: t(post.summary, locale),
+    image: `${SITE.url}/og/og-image.png`,
+    datePublished: post.publishedAt,
+    dateModified: post.updatedAt,
+    author: { "@type": "Organization", name: dict.meta.siteName },
+    publisher: {
+      "@type": "Organization",
+      name: dict.meta.siteName,
+      logo: { "@type": "ImageObject", url: `${SITE.url}/brand/logo-circle.png` },
+    },
+    mainEntityOfPage: `${SITE.url}/${locale}/blog/${post.slug}`,
+    inLanguage: locale === "fr" ? "fr-CA" : "en-CA",
   };
 }
 

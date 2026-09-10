@@ -10,6 +10,7 @@
   "nav": {
     "shop": "Shop",
     "care": "Care Guides",
+    "blog": "Blog",
     "verified": "Verified Origin",
     "delivery": "Pickup & Meetup",
     "about": "About",
@@ -544,6 +545,14 @@
     "minRead": "min read",
     "backToGuides": "All care guides",
     "relatedSpecies": "Recommended species for beginners"
+  },
+  "blog": {
+    "kicker": "From the web",
+    "title": "Blog",
+    "subtitle": "Buying guides, species picks and local how-tos for tarantula keepers in Montreal and across Canada.",
+    "readArticle": "Read article",
+    "backToBlog": "All articles",
+    "relatedLinks": "Keep reading"
   },
   "contact": {
     "kicker": "Say hello",

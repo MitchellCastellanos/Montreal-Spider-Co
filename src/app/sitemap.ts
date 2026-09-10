@@ -3,8 +3,9 @@ import { SITE } from "@/lib/site";
 import { locales } from "@/i18n/config";
 import { getStorefrontProducts } from "@/lib/data/products";
 import { CARE_GUIDES } from "@/lib/care";
+import { BLOG_POSTS } from "@/lib/blog";
 
-const STATIC_PATHS = ["", "/shop", "/care", "/verified-origin", "/delivery", "/about", "/faq", "/contact", "/legal", "/price-guide"];
+const STATIC_PATHS = ["", "/shop", "/care", "/blog", "/verified-origin", "/delivery", "/about", "/faq", "/contact", "/legal", "/price-guide"];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries: MetadataRoute.Sitemap = [];
@@ -28,6 +29,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   STATIC_PATHS.forEach((p) => add(p, p === "" ? 1 : 0.8, "weekly"));
   products.forEach((p) => add(`/product/${p.slug}`, 0.7, "daily"));
   CARE_GUIDES.forEach((g) => add(`/care/${g.slug}`, 0.6, "monthly"));
+  BLOG_POSTS.forEach((post) => add(`/blog/${post.slug}`, 0.6, "monthly"));
 
   return entries;
 }

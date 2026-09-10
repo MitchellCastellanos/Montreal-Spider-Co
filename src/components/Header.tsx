@@ -34,6 +34,7 @@ export default function Header() {
   const nav = [
     { href: "/shop", label: dict.nav.shop },
     { href: "/care", label: dict.nav.care },
+    { href: "/blog", label: dict.nav.blog },
     { href: "/verified-origin", label: dict.nav.verified },
     { href: "/delivery", label: dict.nav.delivery },
     { href: "/about", label: dict.nav.about },
