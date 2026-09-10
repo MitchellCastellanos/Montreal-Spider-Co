@@ -267,6 +267,45 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       return { subject, html, text };
     },
   },
+  {
+    id: "chat-resume",
+    label: "Chat — continue on another device",
+    description: "Sent when a visitor asks to pick up their live-chat conversation from a new browser/device.",
+    sample: { resumeUrl: `${SITE.url}/api/chat/resume?token=sample-token` },
+    render(locale, data) {
+      const resumeUrl = get(data, "resumeUrl", `${SITE.url}/api/chat/resume`);
+      const isFr = locale === "fr";
+      const subject = isFr ? "Continuez votre conversation" : "Continue your conversation";
+      const btn = button(isFr ? "Reprendre la conversation" : "Resume the conversation", resumeUrl);
+      const body = isFr
+        ? `${p("Bonjour,")}${p("Voici le lien pour reprendre votre conversation avec notre équipe là où vous l'avez laissée.")}${btn}${p("Ce lien expire dans 30 minutes. Si vous n'avez pas demandé ce lien, ignorez ce courriel.")}${p("— L'équipe " + SITE.name)}`
+        : `${p("Hi,")}${p("Here's the link to pick your conversation with our team back up right where you left it.")}${btn}${p("This link expires in 30 minutes. If you didn't request it, just ignore this email.")}${p("— The " + SITE.name + " team")}`;
+      const html = layout({ locale, preview: subject, bodyHtml: body });
+      const text = isFr
+        ? `Bonjour,\n\nReprenez votre conversation ici: ${resumeUrl}\n\nCe lien expire dans 30 minutes.\n\n— ${SITE.name}`
+        : `Hi,\n\nResume your conversation here: ${resumeUrl}\n\nThis link expires in 30 minutes.\n\n— ${SITE.name}`;
+      return { subject, html, text };
+    },
+  },
+  simpleTemplate({
+    id: "internal-chat-escalation",
+    label: "Internal — chat needs a human",
+    description: "Staff alert (backup to the Telegram ping) when a live-chat conversation is waiting on a person.",
+    sample: {
+      visitor: "alex@example.com",
+      reason: "Asked about a custom order for 3 specimens.",
+      adminUrl: `${SITE.url}/en/admin/chat/sample-id`,
+    },
+    subject: { en: "💬 Chat needs you — {visitor}" },
+    paragraphs: {
+      en: [
+        "A live-chat conversation is waiting for a human:",
+        "<strong>Visitor:</strong> {visitor}<br /><strong>Why:</strong> {reason}",
+        "Open the conversation to reply:",
+      ],
+    },
+    cta: { en: "Open the chat", hrefKey: "adminUrl" },
+  }),
   simpleTemplate({
     id: "internal-contact-message",
     label: "Internal — contact form message",

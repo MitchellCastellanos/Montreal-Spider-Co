@@ -12,6 +12,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import JsonLd from "@/components/JsonLd";
 import AnalyticsBeacon from "@/components/AnalyticsBeacon";
+import ChatWidget from "@/components/chat/ChatWidget";
 import { organizationSchema, websiteSchema, localBusinessSchema } from "@/lib/seo";
 
 const display = Fraunces({
@@ -114,6 +115,7 @@ export default async function LocaleLayout({
           <Header />
           <main id="main">{children}</main>
           <Footer />
+          <ChatWidget />
         </Providers>
       </body>
     </html>
