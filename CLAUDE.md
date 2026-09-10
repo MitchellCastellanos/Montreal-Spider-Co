@@ -1,99 +1,99 @@
-## Generación de prompts para imágenes
+## Prompts para generar imágenes con ChatGPT
 
-Cuando el usuario pida crear, preparar o generar imágenes para este proyecto, no debes generar prompts aislados ni entregar una lista informal. Debes preparar un documento maestro listo para copiar y pegar en ChatGPT o en otro agente generador de imágenes.
+Cuando el usuario pida preparar las imágenes necesarias para el proyecto, primero
+inspecciona el código para identificar:
 
-### 1. Inspección previa obligatoria
+- cuáles imágenes hacen falta;
+- dónde se utilizará cada imagen;
+- la ruta y el nombre exactos que espera el código;
+- la orientación, relación de aspecto y estilo visual apropiados;
+- las imágenes existentes que sirvan como referencia visual.
 
-Antes de escribir los prompts:
+Después, genera prompts finales listos para copiar y pegar directamente en ChatGPT.
 
-1. Revisa el código y los assets existentes.
-2. Identifica todas las imágenes necesarias.
-3. Localiza las rutas, nombres de archivo y placeholders que ya espera el código.
-4. No inventes nombres o rutas si ya existen referencias en componentes, datos, CSS o archivos de configuración.
-5. Si todavía no existe una referencia, propone un nombre coherente con la estructura del proyecto y aclara que es una ruta nueva.
-6. Verifica:
-   - formato requerido (`.webp`, `.jpg`, `.png`, etc.);
-   - orientación;
-   - relación de aspecto;
-   - uso de la imagen;
-   - resolución recomendada;
-   - si necesita fondo transparente;
-   - posición del sujeto para evitar conflictos con textos o componentes superpuestos.
+### Formato obligatorio de entrega
 
-### 2. Formato del documento maestro
+El resultado NO debe ser una ficha técnica, auditoría, explicación ni especificación
+detallada por imagen.
 
-Crea un solo documento que contenga todos los lotes necesarios.
+NO utilices secciones individuales como:
 
-Divide las imágenes en lotes de un máximo de 7 imágenes. Por ejemplo:
+- “Utilizada en”
+- “Texto alternativo”
+- “Resolución recomendada”
+- “Prompt”
+- “Contexto del proyecto”
+- “Especificaciones técnicas”
+- “Fin del lote”
 
-- 1–7 imágenes: 1 lote.
-- 8–14 imágenes: 2 lotes.
-- 15–21 imágenes: 3 lotes.
-- Y así sucesivamente.
+Tampoco expliques al usuario cómo guardar las imágenes después del prompt.
 
-Cada lote debe ser completamente autosuficiente, porque el usuario lo copiará y pegará por separado en una conversación con un agente generador de imágenes.
+Cada lote debe ser un único prompt natural, compacto y autosuficiente, similar al
+siguiente formato:
 
-No escribas cosas como “mantén las instrucciones anteriores” o “usa el mismo estilo del lote previo”. Cada lote debe repetir explícitamente todo el contexto, estilo visual, restricciones y flujo de trabajo.
+Vas a generar [cantidad] imágenes para [descripción breve del proyecto]. Te voy a dar
+las [cantidad] descripciones de una vez, pero quiero que las generes de UNA EN UNA:
+genera solo la primera ahora y espera. Cuando yo escriba "siguiente", genera la imagen
+2, y así sucesivamente hasta terminar las [cantidad]. No generes más de una imagen por
+turno.
 
-### 3. Instrucción obligatoria para el agente de imágenes
+Estilo visual que deben compartir las imágenes (aplícalo a todas): [guía visual
+completa pero compacta, escrita como un solo párrafo].
 
-Al comienzo de cada lote, indica claramente al agente:
+IMAGEN 1 — archivo: [ruta exacta/nombre.ext]
+[Descripción completa de la imagen.]
 
-- Debe generar únicamente la primera imagen del lote en su primera respuesta.
-- No debe generar todas las imágenes simultáneamente.
-- Después de entregar una imagen, debe esperar a que el usuario escriba exactamente `siguiente`.
-- Cada vez que el usuario escriba `siguiente`, debe generar solamente la imagen siguiente.
-- Debe continuar así hasta terminar el lote.
-- Junto con cada imagen debe devolver:
-  1. número de imagen dentro del lote;
-  2. nombre exacto del archivo;
-  3. ruta exacta donde debe guardarse;
-  4. texto alternativo recomendado;
-  5. una frase breve identificando qué parte del sitio utiliza la imagen.
-- No debe cambiar nombres, extensiones ni rutas.
-- No debe agregar texto o logotipos dentro de la imagen salvo que el prompt lo solicite expresamente.
-- Al terminar la última imagen, debe indicar claramente que el lote ha finalizado.
+IMAGEN 2 — archivo: [ruta exacta/nombre.ext]
+[Descripción completa de la imagen.]
 
-### 4. Estructura obligatoria de cada lote
+[Continuar con las demás imágenes.]
 
-Cada lote debe utilizar esta estructura:
+Empieza generando solo la IMAGEN 1 y espera mi "siguiente".
 
-# LOTE [n] — IMÁGENES [inicio] A [fin]
+### Reglas para los lotes
 
-## Instrucciones para el agente generador
+- Divide las imágenes en grupos de máximo 7.
+- Si hay más de 7 imágenes, entrega varios bloques independientes.
+- Cada bloque debe poder copiarse y pegarse directamente en un chat nuevo.
+- Cada bloque debe repetir el contexto, el estilo visual y la instrucción de generar
+  una sola imagen y esperar “siguiente”.
+- Dentro de cada lote, reinicia la numeración desde IMAGEN 1.
+- Indica la cantidad real del lote: si el último lote contiene 2 imágenes, escribe
+  “Vas a generar 2 imágenes”.
+- Pon cada lote dentro de su propio bloque de código para que pueda copiarse fácilmente.
+- Fuera del bloque puedes escribir únicamente un título breve como “LOTE 1 DE 2”.
+- No agregues comentarios, análisis ni instrucciones después del bloque.
+- No pongas cada descripción dentro de un campo llamado “Prompt”.
+- La descripción que aparece debajo de cada IMAGEN ya es el prompt.
+- Mantén las descripciones suficientemente detalladas para obtener resultados
+  consistentes, pero evita convertirlas en fichas técnicas enormes.
+- Toda información compartida debe aparecer una sola vez en el párrafo de estilo
+  visual, no repetirse en las siete descripciones.
 
-[Instrucciones completas del flujo “una por una” y espera de “siguiente”.]
+### Nombres y rutas
 
-## Contexto del proyecto
+Después de inspeccionar el código, escribe la ubicación completa dentro de `archivo:`.
 
-[Qué empresa, marca, producto o sitio es; qué función cumplen las imágenes.]
+Ejemplo:
 
-## Guía visual compartida
+IMAGEN 1 — archivo: public/images/blog/how-to-sex-a-tarantula.png
 
-[Estilo, paleta, iluminación, composición, realismo, restricciones, continuidad visual y elementos prohibidos.]
+Esto permite que el usuario sepa tanto el nombre como el directorio donde debe guardar
+la imagen.
 
-## Especificaciones técnicas generales
+Respeta exactamente:
 
-[Formato, relación de aspecto, resolución, espacio negativo, transparencia y demás requisitos.]
+- carpetas;
+- nombre del archivo;
+- mayúsculas y minúsculas;
+- guiones;
+- extensión.
 
-## Imagen 1 — [nombre descriptivo]
+Si el código todavía no define la ruta, selecciona una ruta coherente con la estructura
+actual del proyecto.
 
-- Archivo exacto: `[nombre.ext]`
-- Ruta exacta: `[ruta/completa/nombre.ext]`
-- Utilizada en: `[componente, página o sección]`
-- Relación de aspecto: `[valor]`
-- Resolución recomendada: `[ancho × alto]`
-- Texto alternativo: `[alt text]`
-- Prompt: `[prompt completo y autosuficiente]`
+### Restricción importante
 
-[Repetir la estructura para cada imagen del lote.]
-
-### 5. Reglas de precisión
-
-- Las rutas y filenames deben escribirse también dentro de las instrucciones dadas al agente generador, no solamente fuera del prompt.
-- Conserva exactamente mayúsculas, minúsculas, guiones, extensiones y directorios usados por el código.
-- No reemplaces una ruta existente sin advertirlo.
-- Si una misma imagen se usa en varios lugares, indícalo.
-- Si el código espera variantes desktop/mobile, trátalas como imágenes distintas.
-- Si faltan datos esenciales, pregunta antes de preparar el documento.
-- El resultado debe estar listo para copiar y pegar, sin que el usuario tenga que reorganizarlo o reescribir instrucciones.
+La respuesta final debe parecerse al prompt que una persona le escribiría directamente
+a ChatGPT para generar varias imágenes consecutivas. No debe parecer documentación
+técnica destinada a explicar el proceso.
