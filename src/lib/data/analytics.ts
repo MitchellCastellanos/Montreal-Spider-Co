@@ -27,6 +27,16 @@ function deviceFromUA(ua: string): string {
   return "desktop";
 }
 
+/** Order matters: Edge/Opera UAs also match Chrome, and Chrome UAs also match Safari. */
+function browserFromUA(ua: string): string {
+  if (/edg\//i.test(ua)) return "Edge";
+  if (/opr\/|opera/i.test(ua)) return "Opera";
+  if (/firefox\//i.test(ua)) return "Firefox";
+  if (/chrome\/|crios\//i.test(ua)) return "Chrome";
+  if (/safari\//i.test(ua)) return "Safari";
+  return "Other";
+}
+
 export interface TrackPageViewInput {
   path: string;
   locale: string;
@@ -36,6 +46,7 @@ export interface TrackPageViewInput {
   utmCampaign: string;
   ip: string;
   userAgent: string;
+  country: string;
 }
 
 /** Returns true if the hit was recorded (false if skipped — no DB, bot, or admin route). */
@@ -66,6 +77,8 @@ export async function trackPageView(input: TrackPageViewInput): Promise<boolean>
         utmMedium: input.utmMedium.slice(0, 100),
         utmCampaign: input.utmCampaign.slice(0, 100),
         device: deviceFromUA(input.userAgent),
+        browser: browserFromUA(input.userAgent),
+        country: /^[A-Za-z]{2}$/.test(input.country) ? input.country.toUpperCase() : "",
         visitorHash: hashVisitor(input.ip, input.userAgent),
       },
     });
@@ -88,6 +101,10 @@ export interface RangeBreakdown {
   topReferrers: { referrer: string; views: number }[];
   devices: { device: string; views: number }[];
   locales: { locale: string; views: number }[];
+  countries: { country: string; views: number }[];
+  browsers: { browser: string; views: number }[];
+  campaigns: { source: string; views: number }[];
+  hourly: { hour: number; views: number }[];
 }
 
 const MAX_DAYS = 90;
@@ -126,16 +143,26 @@ export async function getDailySeries(days: number = MAX_DAYS): Promise<DailyPoin
   }
 }
 
-/** Top pages / referrers / devices / locales + totals for the last `days` days. */
+/** Top pages / referrers / devices / locales / countries / browsers / campaigns + totals for the last `days` days. */
 export async function getRangeBreakdown(days: number): Promise<RangeBreakdown> {
-  const empty: RangeBreakdown = { totals: { views: 0, uniques: 0 }, topPages: [], topReferrers: [], devices: [], locales: [] };
+  const empty: RangeBreakdown = {
+    totals: { views: 0, uniques: 0 },
+    topPages: [],
+    topReferrers: [],
+    devices: [],
+    locales: [],
+    countries: [],
+    browsers: [],
+    campaigns: [],
+    hourly: [],
+  };
   if (!prisma) return empty;
 
   const since = new Date();
   since.setDate(since.getDate() - days);
 
   try {
-    const [totalsRow, topPages, topReferrers, devices, locales] = await Promise.all([
+    const [totalsRow, topPages, topReferrers, devices, locales, countries, browsers, campaigns, hourlyRows] = await Promise.all([
       prisma.$queryRaw<{ views: bigint; uniques: bigint }[]>`
         SELECT COUNT(*)::bigint AS views, COUNT(DISTINCT "visitorHash")::bigint AS uniques
         FROM "PageView" WHERE "createdAt" >= ${since}
@@ -166,7 +193,35 @@ export async function getRangeBreakdown(days: number): Promise<RangeBreakdown> {
         _count: { _all: true },
         orderBy: { _count: { locale: "desc" } },
       }),
+      prisma.pageView.groupBy({
+        by: ["country"],
+        where: { createdAt: { gte: since }, country: { not: "" } },
+        _count: { _all: true },
+        orderBy: { _count: { country: "desc" } },
+        take: 10,
+      }),
+      prisma.pageView.groupBy({
+        by: ["browser"],
+        where: { createdAt: { gte: since }, browser: { not: "" } },
+        _count: { _all: true },
+        orderBy: { _count: { browser: "desc" } },
+      }),
+      prisma.pageView.groupBy({
+        by: ["utmSource"],
+        where: { createdAt: { gte: since }, utmSource: { not: "" } },
+        _count: { _all: true },
+        orderBy: { _count: { utmSource: "desc" } },
+        take: 10,
+      }),
+      prisma.$queryRaw<{ hour: number; views: bigint }[]>`
+        SELECT EXTRACT(HOUR FROM "createdAt")::int AS hour, COUNT(*)::bigint AS views
+        FROM "PageView" WHERE "createdAt" >= ${since}
+        GROUP BY 1
+      `,
     ]);
+
+    const hourlyByHour = new Map(hourlyRows.map((r) => [r.hour, Number(r.views)]));
+    const hourly = Array.from({ length: 24 }, (_, hour) => ({ hour, views: hourlyByHour.get(hour) ?? 0 }));
 
     return {
       totals: { views: Number(totalsRow[0]?.views ?? 0), uniques: Number(totalsRow[0]?.uniques ?? 0) },
@@ -174,6 +229,10 @@ export async function getRangeBreakdown(days: number): Promise<RangeBreakdown> {
       topReferrers: topReferrers.map((r) => ({ referrer: r.referrerHost || "Direct", views: r._count._all })),
       devices: devices.map((r) => ({ device: r.device, views: r._count._all })),
       locales: locales.map((r) => ({ locale: r.locale, views: r._count._all })),
+      countries: countries.map((r) => ({ country: r.country, views: r._count._all })),
+      browsers: browsers.map((r) => ({ browser: r.browser, views: r._count._all })),
+      campaigns: campaigns.map((r) => ({ source: r.utmSource, views: r._count._all })),
+      hourly,
     };
   } catch (e) {
     logDbFallback("getRangeBreakdown", e);

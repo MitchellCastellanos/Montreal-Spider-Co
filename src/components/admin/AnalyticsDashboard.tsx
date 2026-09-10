@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import type { DailyPoint, RangeBreakdown } from "@/lib/data/analytics";
+import { countryFlag, countryName } from "@/lib/countries";
 import AnalyticsChart from "./AnalyticsChart";
+import HourlyTraffic from "./HourlyTraffic";
 
 const RANGES = [
   { key: "7", label: "7 days" },
@@ -61,7 +63,7 @@ export default function AnalyticsDashboard({
         <AnalyticsChart data={sliced} />
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
         <BreakdownTable title="Top pages" rows={b.topPages.map((r) => ({ label: r.path, value: r.views }))} />
         <BreakdownTable
           title="Top referrers"
@@ -70,7 +72,23 @@ export default function AnalyticsDashboard({
         />
         <BreakdownTable title="By device" rows={b.devices.map((r) => ({ label: capitalize(r.device), value: r.views }))} />
         <BreakdownTable title="By language" rows={b.locales.map((r) => ({ label: r.locale === "fr" ? "Français" : "English", value: r.views }))} />
+        <BreakdownTable
+          title="Top countries"
+          rows={b.countries.map((r) => ({ label: `${countryFlag(r.country)} ${countryName(r.country)}`.trim(), value: r.views }))}
+          empty="No country data yet — only available in production."
+        />
+        <BreakdownTable title="By browser" rows={b.browsers.map((r) => ({ label: r.browser, value: r.views }))} />
+        <BreakdownTable
+          title="Top campaigns"
+          rows={b.campaigns.map((r) => ({ label: r.source, value: r.views }))}
+          empty="No UTM-tagged campaign traffic yet."
+        />
       </div>
+
+      <section className="card-glow mt-6 rounded-2xl p-5">
+        <h2 className="mb-4 font-display text-lg font-semibold text-cream">Traffic by hour</h2>
+        <HourlyTraffic data={b.hourly} />
+      </section>
     </div>
   );
 }
