@@ -414,7 +414,15 @@ export async function receiveSpecimenBatch(rows: ReceiveBatchRowInput[]): Promis
 
   const ids: string[] = [];
 
+  const priorStockByProduct = new Map<string, number>();
   await db.$transaction(async (tx) => {
+    for (const productId of new Set(rows.map((r) => r.productId))) {
+      priorStockByProduct.set(
+        productId,
+        await tx.specimen.count({ where: { productId, ...PURCHASABLE_WHERE } }),
+      );
+    }
+
     for (const row of rows) {
       const qty = Math.max(1, Math.min(200, Math.round(row.quantity)));
       const locationType = row.locationType ?? "warehouse";
@@ -488,9 +496,15 @@ export async function receiveSpecimenBatch(rows: ReceiveBatchRowInput[]): Promis
     if (!prev || row.purchasedAt > prev) arrivedByProduct.set(row.productId, row.purchasedAt);
   }
   for (const [productId, arrived] of arrivedByProduct) {
+    // Only flag as a "new arrival" when this batch brought a product back from zero
+    // stock (brand-new listing or restocked-from-sold-out) — a routine restock of a
+    // product that already had stock shouldn't re-trigger the "new arrival" badge.
+    const wasOutOfStock = (priorStockByProduct.get(productId) ?? 0) === 0;
     await db.product.update({
       where: { id: productId },
-      data: { arrived, newArrival: true, hideWhenSoldOut: false },
+      data: wasOutOfStock
+        ? { arrived, newArrival: true, hideWhenSoldOut: false }
+        : { arrived, hideWhenSoldOut: false },
     });
   }
 

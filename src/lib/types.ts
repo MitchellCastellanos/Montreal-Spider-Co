@@ -127,6 +127,15 @@ export interface Product {
   arrived: string;
 }
 
+const NEW_ARRIVAL_WINDOW_DAYS = 30;
+
+/** True when flagged as a new arrival and still within the display window — keeps the badge from sticking forever. */
+export function isNewArrival(p: Product, now: Date = new Date()): boolean {
+  if (!p.newArrival) return false;
+  const ageDays = (now.getTime() - new Date(p.arrived).getTime()) / 86_400_000;
+  return ageDays <= NEW_ARRIVAL_WINDOW_DAYS;
+}
+
 export function basePrice(p: Product): number {
   if (p.availability.length === 0) return 0;
   return Math.min(...p.availability.map((a) => a.price));

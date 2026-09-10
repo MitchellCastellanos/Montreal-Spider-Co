@@ -13,7 +13,7 @@ import { useProductDisplay } from "@/hooks/useProductDisplay";
 import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
 import { CARD_AVAILABILITY_MAX, cardAvailabilityUnits, cardUnitShowsSex } from "@/lib/product-display";
-import { basePrice, isAvailableAtDistributor, isPurchasableOnline, totalStock, type Product } from "@/lib/types";
+import { isAvailableAtDistributor, isNewArrival, isPurchasableOnline, totalStock, type Product } from "@/lib/types";
 import { unitHasDistributorStock } from "@/lib/unit-fulfillment";
 
 const expColor: Record<string, string> = {
@@ -60,8 +60,8 @@ export default function ProductCard({ product }: { product: Product }) {
             <SpeciesImage image={product.image} hue={product.hue} accent={product.accent} alt={imageAlt} sizes="(max-width: 768px) 50vw, 25vw" />
           </div>
           <div className="absolute left-3 top-3 flex flex-col gap-1.5">
-            {product.newArrival && <span className="badge bg-gold/20">{dict.shop.sortNewest}</span>}
-            {product.featured && !product.newArrival && (
+            {isNewArrival(product) && <span className="badge bg-gold/20">{dict.shop.sortNewest}</span>}
+            {product.featured && !isNewArrival(product) && (
               <span className="badge">{dict.home.featuredKicker}</span>
             )}
           </div>
@@ -159,26 +159,30 @@ export default function ProductCard({ product }: { product: Product }) {
 
         <div className="mt-auto flex items-end justify-between gap-2 pt-2">
           <div>
-            <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted">
-              {inStockUnits.length > 1 && selected ? (
-                <>
-                  {selected.sizeLabel}
-                  {cardUnitShowsSex(inStockUnits, selected) && (
-                    <SexBadge sex={selected.sex} className="normal-case tracking-normal" />
+            {selected ? (
+              <>
+                <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted">
+                  {inStockUnits.length > 1 ? (
+                    <>
+                      {selected.sizeLabel}
+                      {cardUnitShowsSex(inStockUnits, selected) && (
+                        <SexBadge sex={selected.sex} className="normal-case tracking-normal" />
+                      )}
+                    </>
+                  ) : (
+                    dict.common.from
                   )}
-                </>
-              ) : (
-                dict.common.from
-              )}
-            </p>
-            <p className="font-display text-xl font-bold text-cream">
-              {formatPrice(selected?.price ?? basePrice(product), locale)}{" "}
-              <span className="text-xs font-normal text-muted">{dict.common.plusTaxes}</span>
-            </p>
-            {online && (
-              <KlarnaBadge amount={selected?.price ?? basePrice(product)} className="mt-1" />
+                </p>
+                <p className="font-display text-xl font-bold text-cream">
+                  {formatPrice(selected.price, locale)}{" "}
+                  <span className="text-xs font-normal text-muted">{dict.common.plusTaxes}</span>
+                </p>
+                {online && <KlarnaBadge amount={selected.price} className="mt-1" />}
+                {low && <p className="text-[11px] text-gold-deep">{dict.common.lowStock}</p>}
+              </>
+            ) : (
+              <p className="font-display text-xl font-bold text-muted">{dict.common.soldOut}</p>
             )}
-            {low && <p className="text-[11px] text-gold-deep">{dict.common.lowStock}</p>}
           </div>
           <button
             disabled={!online || !selected}
