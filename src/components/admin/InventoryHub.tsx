@@ -412,7 +412,7 @@ export default function InventoryHub({
                     onSort={onSort}
                     className="px-3 py-3"
                   />
-                  <th className="px-3 py-3" />
+                  <th className="sticky right-0 z-10 border-l border-line bg-ink-soft px-3 py-3" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -597,7 +597,7 @@ function SpecimenRow({
           {s.includesEnclosure && <span className="ml-1 text-xs text-gold-deep" title="Includes terrarium">🏺</span>}
         </td>
         <td className="px-3 py-2 text-xs text-muted">{s.purchasedAt}</td>
-        <td className="px-3 py-2">
+        <td className="sticky right-0 z-10 border-l border-line bg-ink px-3 py-2">
           <div className="flex gap-1">
             {!locked && (
               <button
