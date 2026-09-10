@@ -14,6 +14,9 @@ export async function POST(req: Request) {
     const body = await req.json();
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "0.0.0.0";
     const userAgent = req.headers.get("user-agent") || "";
+    // Vercel's edge network sets this on every request that reaches a deployment
+    // — no third-party geo-IP lookup needed. Empty outside Vercel.
+    const country = req.headers.get("x-vercel-ip-country") || "";
 
     await trackPageView({
       path: typeof body.path === "string" ? body.path : "/",
@@ -24,6 +27,7 @@ export async function POST(req: Request) {
       utmCampaign: typeof body.utmCampaign === "string" ? body.utmCampaign : "",
       ip,
       userAgent,
+      country,
     });
   } catch {
     // swallow — tracking must never surface an error to the client

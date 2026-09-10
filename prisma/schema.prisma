@@ -974,6 +974,9 @@ model PageView {
   utmMedium    String   @default("")
   utmCampaign  String   @default("")
   device       String   @default("desktop")
+  /** Browser family parsed from the user agent, e.g. "Chrome", "Safari". */
+  browser      String   @default("")
+  /** ISO 3166-1 alpha-2 country code from the platform's edge geolocation header — never a precise location. */
   country      String   @default("")
   visitorHash  String
   createdAt    DateTime @default(now())
