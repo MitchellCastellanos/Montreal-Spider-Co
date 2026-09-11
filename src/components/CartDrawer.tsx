@@ -1,13 +1,13 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
+import Image from "next/image";
 import { useCart } from "@/context/CartContext";
 import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
 import { productDisplaySubtitle, productDisplayTitle, productImageAlt } from "@/lib/product-display";
 import LocaleLink from "./LocaleLink";
 import SexBadge from "./SexBadge";
-import SpiderGraphic from "./SpiderGraphic";
 import SpeciesImage from "./SpeciesImage";
 
 export default function CartDrawer() {
@@ -49,7 +49,14 @@ export default function CartDrawer() {
               {resolved.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center text-center text-muted">
                   <div className="w-28 opacity-40">
-                    <SpiderGraphic hue={42} animate={false} />
+                    <Image
+                      src="/images/spider-silhouette.png"
+                      alt=""
+                      width={512}
+                      height={512}
+                      className="h-auto w-full"
+                      aria-hidden="true"
+                    />
                   </div>
                   <p className="mt-4">{c.miniEmpty}</p>
                   <LocaleLink href="/shop" onClick={closeCart} className="btn btn-ghost mt-5">
