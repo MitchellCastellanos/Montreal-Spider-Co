@@ -40,9 +40,9 @@ export default async function BlogIndexPage({ params }: { params: Promise<{ loca
                     sizes="(max-width: 768px) 100vw, 50vw"
                     className="object-cover transition-transform duration-700 group-hover:scale-105"
                   />
-                  <span className="absolute left-3 top-3 badge backdrop-blur-sm">{t(post.category, loc)}</span>
                 </div>
                 <div className="flex flex-1 flex-col p-6">
+                  <span className="badge mb-3 self-start">{t(post.category, loc)}</span>
                   <h2 className="font-display text-xl font-semibold text-cream group-hover:text-gold-bright">{t(post.title, loc)}</h2>
                   <p className="mt-2 flex-1 text-sm leading-relaxed text-bone">{t(post.summary, loc)}</p>
                   <div className="mt-4 flex items-center justify-between text-xs text-muted">
