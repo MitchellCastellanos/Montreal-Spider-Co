@@ -359,7 +359,7 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
     sample: {
       subject: "Re: your question about Grammostola pulchra",
       bodyHtml: paragraphsFromPlainText(
-        "Hello Alex,\n\nThank you for contacting us — how can we help?\n\nYes, we have a few 2\" Grammostola pulchra slings in stock right now.\n\nSincerely,\nThe Montreal Spider Co team.",
+        "Hi Alex,\n\nThank you for reaching out —\n\nYes, we have a few 2\" Grammostola pulchra slings in stock right now.\n\nIf you have any other questions, we're here to help.\n\nThe Montreal Spider Co. team.",
       ),
     },
     render(locale, data) {
