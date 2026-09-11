@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { isAdminAuthed } from "@/lib/auth";
 import { recordContactReply } from "@/lib/data/contact-messages";
-import { sendNotification } from "@/lib/notifications/service";
+import { sendNotificationDetailed } from "@/lib/notifications/service";
 import { paragraphsFromPlainText } from "@/lib/email-templates";
 import type { ActionState } from "./actions";
 
@@ -27,7 +27,7 @@ export async function replyToContactMessageAction(_prev: ActionState, formData: 
   if (!EMAIL_RE.test(to)) return { error: "Enter a valid email address." };
   if (!subject || !body) return { error: "Write a subject and a message before sending." };
 
-  const sent = await sendNotification({
+  const result = await sendNotificationDetailed({
     templateId: "admin-composed",
     event: "contact.replied",
     to,
@@ -35,7 +35,7 @@ export async function replyToContactMessageAction(_prev: ActionState, formData: 
     data: { subject, bodyHtml: paragraphsFromPlainText(body) },
     context: { contactMessageId: id },
   });
-  if (!sent) return { error: "Could not send — check that RESEND_API_KEY is configured." };
+  if (!result.ok) return { error: result.error };
 
   try {
     await recordContactReply(id, subject, body);
@@ -59,14 +59,14 @@ export async function sendComposedEmailAction(_prev: ActionState, formData: Form
   if (!EMAIL_RE.test(to)) return { error: "Enter a valid destination email address." };
   if (!subject || !body) return { error: "Write a subject and a message before sending." };
 
-  const sent = await sendNotification({
+  const result = await sendNotificationDetailed({
     templateId: "admin-composed",
     event: "admin.email_sent",
     to,
     locale,
     data: { subject, bodyHtml: paragraphsFromPlainText(body) },
   });
-  if (!sent) return { error: "Could not send — check that RESEND_API_KEY is configured." };
+  if (!result.ok) return { error: result.error };
 
   return { ok: true };
 }

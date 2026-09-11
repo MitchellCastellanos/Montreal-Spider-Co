@@ -93,11 +93,16 @@ async function logEmail(entry: {
   }
 }
 
+export type NotificationResult = { ok: true } | { ok: false; error: string };
+
 /**
  * Render + deliver + log one notification. Never throws — failures are logged
- * so a broken email can never break a business transaction.
+ * so a broken email can never break a business transaction. Returns the actual
+ * failure reason (unknown template, no recipient, Resend not configured, or
+ * the error Resend returned) instead of a boolean, so a caller that shows the
+ * result to a human — the admin Messages panel — doesn't have to guess why.
  */
-export async function sendNotification(input: NotificationInput): Promise<boolean> {
+export async function sendNotificationDetailed(input: NotificationInput): Promise<NotificationResult> {
   const template = getEmailTemplate(input.templateId);
   if (!template) {
     console.error(`[notifications] unknown template "${input.templateId}" for event ${input.event}`);
@@ -110,7 +115,7 @@ export async function sendNotification(input: NotificationInput): Promise<boolea
       error: "Unknown template",
       context: input.context,
     });
-    return false;
+    return { ok: false, error: `Unknown email template "${input.templateId}".` };
   }
 
   const email = template.render(input.locale ?? "en", input.data);
@@ -125,7 +130,7 @@ export async function sendNotification(input: NotificationInput): Promise<boolea
       error: "No recipient",
       context: input.context,
     });
-    return false;
+    return { ok: false, error: "No recipient email address." };
   }
 
   if (!resendConfigured) {
@@ -139,7 +144,7 @@ export async function sendNotification(input: NotificationInput): Promise<boolea
       error: "Resend not configured",
       context: input.context,
     });
-    return false;
+    return { ok: false, error: "Email is not configured — set RESEND_API_KEY." };
   }
 
   try {
@@ -162,7 +167,7 @@ export async function sendNotification(input: NotificationInput): Promise<boolea
       status: "sent",
       context: input.context,
     });
-    return true;
+    return { ok: true };
   } catch (e) {
     const message = e instanceof Error ? e.message : "Send failed";
     console.error(`[notifications] ${input.templateId} to ${input.to} failed:`, message);
@@ -175,8 +180,17 @@ export async function sendNotification(input: NotificationInput): Promise<boolea
       error: message,
       context: input.context,
     });
-    return false;
+    return { ok: false, error: message };
   }
+}
+
+/**
+ * Render + deliver + log one notification. Never throws — failures are logged
+ * so a broken email can never break a business transaction.
+ */
+export async function sendNotification(input: NotificationInput): Promise<boolean> {
+  const result = await sendNotificationDetailed(input);
+  return result.ok;
 }
 
 /** Internal staff notification (Admin inbox). */
