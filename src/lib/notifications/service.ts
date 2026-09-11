@@ -21,8 +21,22 @@ const accountFromEmail = process.env.RESEND_ACCOUNT_FROM_EMAIL ?? `hello@${siteH
 const contactFromEmail = process.env.RESEND_CONTACT_FROM_EMAIL ?? `contact@${siteHostname}`;
 const reportsFromEmail = process.env.RESEND_REPORTS_FROM_EMAIL ?? `reports@${siteHostname}`;
 
-const partnerFromDisplay = `Partners @ ${SITE.name} <${partnerFromEmail}>`;
-const reportsFromDisplay = `${SITE.name} Reports <${reportsFromEmail}>`;
+/**
+ * Builds a "Display Name <email>" sender string so inboxes show a real name
+ * instead of deriving one from the local part (e.g. "hello@..." showing up
+ * as just "hello"). Every stream is "{Prefix} @ {SITE.name}" except the
+ * plain hello/account address, which is just the brand name.
+ */
+function fromDisplay(prefix: string | null, email: string): string {
+  const name = prefix ? `${prefix} @ ${SITE.name}` : SITE.name;
+  return `${name} <${email}>`;
+}
+
+const ordersFromDisplay = fromDisplay("Orders", fromEmail);
+const accountFromDisplay = fromDisplay(null, accountFromEmail);
+const contactFromDisplay = fromDisplay("Contact", contactFromEmail);
+const reportsFromDisplay = fromDisplay("Reports", reportsFromEmail);
+const partnerFromDisplay = fromDisplay("Partners", partnerFromEmail);
 
 const adminEmail = process.env.ORDERS_ADMIN_EMAIL ?? SITE.email;
 
@@ -39,9 +53,9 @@ const REPORT_TEMPLATE_IDS = new Set(["distributor-sale-alert"]);
 function resolveFromEmail(templateId: string): string {
   if (templateId.startsWith("partner-")) return partnerFromDisplay;
   if (templateId.startsWith("internal-") || REPORT_TEMPLATE_IDS.has(templateId)) return reportsFromDisplay;
-  if (templateId === "contact-received") return contactFromEmail;
-  if (ACCOUNT_TEMPLATE_IDS.has(templateId)) return accountFromEmail;
-  return fromEmail;
+  if (templateId === "contact-received") return contactFromDisplay;
+  if (ACCOUNT_TEMPLATE_IDS.has(templateId)) return accountFromDisplay;
+  return ordersFromDisplay;
 }
 
 /** BCC the admin inbox whenever a message goes out to a distributor (consignment) location. */
@@ -61,15 +75,17 @@ export interface FromIdentity {
  * of guessing one that Resend will reject.
  */
 export function listFromIdentities(): FromIdentity[] {
-  const candidates: FromIdentity[] = [
-    { id: "contact", label: `Contact — ${contactFromEmail}`, email: contactFromEmail },
-    { id: "orders", label: `Orders — ${fromEmail}`, email: fromEmail },
-    { id: "account", label: `Hello / Account — ${accountFromEmail}`, email: accountFromEmail },
-    { id: "reports", label: `Reports — ${reportsFromEmail}`, email: reportsFromEmail },
-    { id: "partners", label: `Partners — ${partnerFromEmail}`, email: partnerFromEmail },
+  const candidates: { id: string; label: string; rawEmail: string; display: string }[] = [
+    { id: "contact", label: `Contact — ${contactFromEmail}`, rawEmail: contactFromEmail, display: contactFromDisplay },
+    { id: "orders", label: `Orders — ${fromEmail}`, rawEmail: fromEmail, display: ordersFromDisplay },
+    { id: "account", label: `Hello / Account — ${accountFromEmail}`, rawEmail: accountFromEmail, display: accountFromDisplay },
+    { id: "reports", label: `Reports — ${reportsFromEmail}`, rawEmail: reportsFromEmail, display: reportsFromDisplay },
+    { id: "partners", label: `Partners — ${partnerFromEmail}`, rawEmail: partnerFromEmail, display: partnerFromDisplay },
   ];
   const seen = new Set<string>();
-  return candidates.filter((c) => (seen.has(c.email) ? false : (seen.add(c.email), true)));
+  return candidates
+    .filter((c) => (seen.has(c.rawEmail) ? false : (seen.add(c.rawEmail), true)))
+    .map(({ id, label, display }) => ({ id, label, email: display }));
 }
 
 export interface NotificationInput {
