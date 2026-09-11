@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useI18n } from "@/i18n/I18nProvider";
-import SpiderGraphic from "@/components/SpiderGraphic";
 
 export default function ResetPasswordView({ token }: { token: string }) {
   const { dict, locale } = useI18n();
@@ -50,7 +50,14 @@ export default function ResetPasswordView({ token }: { token: string }) {
       <div className="mx-auto max-w-md">
         <div className="mb-6 text-center">
           <div className="mx-auto w-24 opacity-50">
-            <SpiderGraphic hue={42} animate={false} />
+            <Image
+              src="/images/spider-silhouette.png"
+              alt=""
+              width={512}
+              height={512}
+              className="h-auto w-full"
+              aria-hidden="true"
+            />
           </div>
           <h1 className="mt-4 font-display text-3xl font-bold text-cream">{a.resetPasswordTitle}</h1>
         </div>

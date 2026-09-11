@@ -124,7 +124,7 @@ export async function resetPasswordWithToken(
     return { error: "Invalid reset request." };
   }
 
-  const customer = await prisma.customer.findUnique({ where: { resetTokenHash: hashResetToken(token) } });
+  const customer = await prisma.customer.findFirst({ where: { resetTokenHash: hashResetToken(token) } });
   if (!customer || !customer.resetTokenExpiresAt || customer.resetTokenExpiresAt < new Date()) {
     return { error: "This reset link is invalid or has expired." };
   }

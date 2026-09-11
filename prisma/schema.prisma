@@ -398,7 +398,7 @@ model Customer {
   name             String
   phone            String       @default("")
   stripeCustomerId String?      @unique
-  resetTokenHash       String?      @unique
+  resetTokenHash       String?
   resetTokenExpiresAt  DateTime?
   experience       Experience?
   referralCode     String       @unique @default(cuid())
