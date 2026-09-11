@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sendNotification, notifyStaff } from "@/lib/notifications/service";
+import { createContactMessage } from "@/lib/data/contact-messages";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SUBJECT_LABELS: Record<string, string> = {
@@ -38,6 +39,12 @@ export async function POST(req: Request) {
   }
 
   const subjectLabel = SUBJECT_LABELS[subjectKey] ?? SUBJECT_LABELS.general;
+
+  try {
+    await createContactMessage({ name, email, phone, subject: subjectLabel, message, locale });
+  } catch (e) {
+    console.error("[contact] failed to store message:", e);
+  }
 
   await notifyStaff({
     templateId: "internal-contact-message",

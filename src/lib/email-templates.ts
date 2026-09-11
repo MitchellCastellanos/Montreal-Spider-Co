@@ -91,6 +91,30 @@ function get(data: Record<string, string>, key: string, fallback = ""): string {
   return v == null || v === "" ? fallback : v;
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
+ * Turns a plain-text draft (blank line = new paragraph, single line break = <br>)
+ * into the same paragraph markup the other templates use. Used by the admin
+ * Messages panel so a free-typed reply or one-off email gets the branded layout.
+ */
+export function paragraphsFromPlainText(text: string): string {
+  return text
+    .replace(/\r\n/g, "\n")
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map((block) => p(escapeHtml(block).replace(/\n/g, "<br />")))
+    .join("");
+}
+
 /** Interpolate {token} placeholders from data (falls back to the sample value, then ""). */
 function fill(text: string, data: Record<string, string>, sample: Record<string, string>): string {
   return text.replace(/\{(\w+)\}/g, (_, key: string) => data[key] ?? sample[key] ?? "");
@@ -327,6 +351,29 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       ],
     },
   }),
+  {
+    id: "admin-composed",
+    label: "Admin — composed email (internal)",
+    description:
+      "Used by Admin → Messages when staff reply to a contact message or send a one-off email — same branding as the automated emails.",
+    sample: {
+      subject: "Re: your question about Grammostola pulchra",
+      bodyHtml: paragraphsFromPlainText(
+        "Hello Alex,\n\nThank you for contacting us — how can we help?\n\nYes, we have a few 2\" Grammostola pulchra slings in stock right now.\n\nSincerely,\nThe Montreal Spider Co team.",
+      ),
+    },
+    render(locale, data) {
+      const subject = get(data, "subject", `A message from ${SITE.name}`);
+      const bodyHtml = get(data, "bodyHtml", "");
+      const html = layout({ locale, preview: subject, bodyHtml });
+      const text = bodyHtml
+        .replace(/<br\s*\/?>/g, "\n")
+        .replace(/<\/p>/g, "\n\n")
+        .replace(/<[^>]+>/g, "")
+        .trim();
+      return { subject, html, text };
+    },
+  },
   {
     id: "distributor-sale-alert",
     label: "Distributor stock sold (staff)",
@@ -1024,4 +1071,15 @@ export const EMAIL_TEMPLATE_META: EmailTemplateMeta[] = EMAIL_TEMPLATES.map((tpl
 
 export function getEmailTemplate(id: string): EmailTemplate | undefined {
   return EMAIL_TEMPLATES.find((tpl) => tpl.id === id);
+}
+
+/**
+ * Renders the branded "admin-composed" template from a plain-text draft. Pure —
+ * no "server-only" in this module — so the admin Messages panel can call it
+ * client-side for an instant preview, with the exact same output the send
+ * action produces.
+ */
+export function renderAdminComposedEmail(locale: EmailLocale, subject: string, bodyText: string): RenderedEmail {
+  const template = getEmailTemplate("admin-composed")!;
+  return template.render(locale, { subject, bodyHtml: paragraphsFromPlainText(bodyText) });
 }

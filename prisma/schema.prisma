@@ -560,6 +560,41 @@ model Conversation {
   @@index([status, updatedAt])
 }
 
+enum ContactMessageStatus {
+  new
+  replied
+}
+
+/** One submission from the site's /contact form — read and answered from Admin → Messages. */
+model ContactMessage {
+  id        String               @id @default(cuid())
+  name      String
+  email     String
+  phone     String               @default("")
+  /** Human-readable subject label (e.g. "General question") — not a free-text field on the public form. */
+  subject   String               @default("")
+  message   String
+  locale    String               @default("en")
+  status    ContactMessageStatus @default(new)
+  createdAt DateTime             @default(now())
+  replies   ContactReply[]
+
+  @@index([status, createdAt])
+  @@index([email])
+}
+
+/** A branded reply sent from Admin → Messages to a ContactMessage. */
+model ContactReply {
+  id               String         @id @default(cuid())
+  contactMessageId String
+  contactMessage   ContactMessage @relation(fields: [contactMessageId], references: [id], onDelete: Cascade)
+  subject          String
+  body             String
+  createdAt        DateTime       @default(now())
+
+  @@index([contactMessageId])
+}
+
 model ChatMessage {
   id             String       @id @default(cuid())
   conversationId String
