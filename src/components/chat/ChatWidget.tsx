@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import type PusherClient from "pusher-js";
@@ -47,6 +47,13 @@ function ChatIcon({ className }: { className?: string }) {
 }
 
 const TEASER_DISMISSED_KEY = "msc_chat_teaser_dismissed";
+const SUGGESTION_COUNT = 3;
+
+/** Random subset (no repeats), so two browser sessions rarely see the same starter prompts. */
+function pickSuggestions(pool: readonly string[], count: number): string[] {
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
+}
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
 
 function stripChatParam(): void {
@@ -76,6 +83,8 @@ export default function ChatWidget() {
   const [sending, setSending] = useState(false);
 
   const identified = Boolean(name && email);
+  // Picked once per conversation, not on every render — varies across browser sessions without flickering mid-chat.
+  const suggestions = useMemo(() => pickSuggestions(c.suggestions, SUGGESTION_COUNT), [conversationId, c.suggestions]);
   const [gateName, setGateName] = useState("");
   const [gateEmail, setGateEmail] = useState("");
   const [gateError, setGateError] = useState<string | null>(null);
@@ -226,8 +235,8 @@ export default function ChatWidget() {
     }
   };
 
-  const send = async () => {
-    const text = input.trim();
+  const send = async (override?: string) => {
+    const text = (override ?? input).trim();
     if (!text || sending) return;
     setSending(true);
     setInput("");
@@ -436,7 +445,23 @@ export default function ChatWidget() {
             ) : (
               <>
                 <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
-                  {messages.length === 0 && <div className="rounded-xl bg-ink px-3 py-2 text-sm text-bone">{c.greeting}</div>}
+                  {messages.length === 0 && (
+                    <>
+                      <div className="rounded-xl bg-ink px-3 py-2 text-sm text-bone">{c.greeting}</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {suggestions.map((s) => (
+                          <button
+                            key={s}
+                            onClick={() => void send(s)}
+                            disabled={sending}
+                            className="rounded-full border border-gold/30 bg-gold/5 px-3 py-1.5 text-xs text-bone transition hover:border-gold/60 hover:text-cream disabled:opacity-50"
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
 
                   {messages.map((m) =>
                     m.sender === "system" ? (
@@ -446,7 +471,7 @@ export default function ChatWidget() {
                     ) : (
                       <div key={m.id} className={`flex ${m.sender === "visitor" ? "justify-end" : "justify-start"}`}>
                         <div className="max-w-[80%] space-y-1.5">
-                          <div className={`rounded-xl px-3 py-2 text-sm ${m.sender === "visitor" ? "bg-gold/15 text-cream" : "bg-ink text-bone"}`}>
+                          <div className={`whitespace-pre-wrap rounded-xl px-3 py-2 text-sm ${m.sender === "visitor" ? "bg-gold/15 text-cream" : "bg-ink text-bone"}`}>
                             {m.content}
                           </div>
                           {m.products && m.products.length > 0 && <ProductCards products={m.products} />}

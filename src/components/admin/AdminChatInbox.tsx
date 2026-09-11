@@ -245,7 +245,7 @@ export default function AdminChatInbox({ initialSelectedId }: { initialSelectedI
                   <div key={m.id} className={`flex ${m.sender === "staff" ? "justify-end" : "justify-start"}`}>
                     <div className="max-w-[75%] space-y-1.5">
                       <div
-                        className={`rounded-lg px-3 py-2 text-sm ${
+                        className={`whitespace-pre-wrap rounded-lg px-3 py-2 text-sm ${
                           m.sender === "staff" ? "bg-gold/15 text-cream" : m.sender === "bot" ? "bg-ink text-bone" : "bg-ink-soft text-bone"
                         }`}
                       >

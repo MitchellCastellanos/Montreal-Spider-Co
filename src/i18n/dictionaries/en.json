@@ -692,6 +692,16 @@
     "placeholder": "Type a message…",
     "send": "Send",
     "greeting": "Hi! Ask me anything about our tarantulas, orders, or care — or ask for a human any time.",
+    "suggestions": [
+      "Do you have any beginner-friendly species?",
+      "Can you recommend a fast-growing species?",
+      "What arboreal species do you have in stock?",
+      "What's your most docile tarantula?",
+      "Anything good in stock under $50?",
+      "What's new in stock this week?",
+      "Which species stays small as an adult?",
+      "What's a good first tarantula on a budget?"
+    ],
     "gateIntro": "Tell us who you are so we can help you faster.",
     "namePlaceholder": "Your name",
     "identifySubmit": "Start chatting",
