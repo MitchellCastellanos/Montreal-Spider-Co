@@ -2,11 +2,13 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/db";
 import { SITE } from "@/lib/site";
+import { getStorefrontProducts } from "@/lib/data/products";
+import { basePrice, totalStock, type Experience, type SpiderType, type Temperament } from "@/lib/types";
 
 export const botConfigured = Boolean(process.env.ANTHROPIC_API_KEY);
 
 const MODEL = process.env.ANTHROPIC_CHAT_MODEL || "claude-haiku-4-5-20251001";
-const MAX_TOOL_TURNS = 3;
+const MAX_TOOL_TURNS = 4;
 
 export type HistoryMessage = { sender: "visitor" | "bot" | "staff" | "system"; content: string };
 export type BotResult = { reply: string; escalate: boolean; escalateReason?: string };
@@ -18,14 +20,30 @@ function systemPrompt(locale: string, visitorName?: string): string {
 
 Reply in ${lang} by default, but match the visitor's language if they write in another one. Keep replies short and conversational (2-4 sentences), no markdown headers or bullet lists unless genuinely clearer that way.
 
-What you can help with: general tarantula care and husbandry questions, explaining how ordering/pickup/delivery works, the site's "Verified Origin" traceability program, and looking up a specific order's status (use the check_order_status tool — you need the order number and the email it was placed under).
+What you can help with: general tarantula care and husbandry questions, explaining how ordering/pickup/delivery works, the site's "Verified Origin" traceability program, recommending specimens we actually have in stock right now (use the search_inventory tool — always call it before recommending or quoting a price, never guess from memory since stock changes constantly), and looking up a specific order's status (use the check_order_status tool — you need the order number and the email it was placed under).
 
-What you must NOT do: never invent current stock, prices, or exact shipping/delivery dates — those change constantly. Instead point the visitor to ${SITE.url}/shop, ${SITE.url}/delivery or ${SITE.url}/pickup-points, or offer to get a human who can check.
+When a visitor describes what they want (experience level, temperament, terrestrial/arboreal/fossorial, budget, a genus or common name), call search_inventory with whatever criteria you can infer and recommend from the real results, each with its real price and a link. If nothing matches, say so plainly and either loosen the criteria and try again or suggest browsing ${SITE.url}/shop. Never invent exact shipping/delivery dates — point to ${SITE.url}/delivery or ${SITE.url}/pickup-points, or offer a human.
 
 Call the escalate_to_human tool (with a one-sentence reason a staff member will read) whenever: the visitor explicitly asks for a person/human/real staff; you don't know the answer; the question needs a judgment call (custom requests, complaints, anything account- or payment-specific beyond a basic order-status lookup); or the visitor seems frustrated. Don't be stingy about escalating — a quick handoff beats a wrong or vague answer. When you escalate, still send a short reassuring reply telling them a team member is joining.`;
 }
 
 const TOOLS: Anthropic.Tool[] = [
+  {
+    name: "search_inventory",
+    description:
+      "Search Montreal Spider Co.'s live, current stock of tarantulas for sale — real prices and quantities, not a catalog. Use this whenever recommending a species or answering what's in stock / how much something costs. All filters are optional and combine together; omit ones the visitor didn't specify.",
+    input_schema: {
+      type: "object",
+      properties: {
+        experience: { type: "string", enum: ["beginner", "intermediate", "advanced"], description: "Keeper experience level the species suits." },
+        type: { type: "string", enum: ["terrestrial", "arboreal", "fossorial"] },
+        temperament: { type: "string", enum: ["docile", "skittish", "defensive"] },
+        keyword: { type: "string", description: "Free-text match against genus, scientific name, or common name, e.g. \"Grammostola\" or \"golden knee\"." },
+        maxPrice: { type: "number", description: "Maximum price in CAD." },
+        limit: { type: "number", description: "Max results to return, default 5, max 8." },
+      },
+    },
+  },
   {
     name: "check_order_status",
     description: "Look up the status of a customer's order by order number and the email address it was placed under.",
@@ -50,6 +68,39 @@ const TOOLS: Anthropic.Tool[] = [
     },
   },
 ];
+
+async function searchInventory(args: {
+  experience?: Experience;
+  type?: SpiderType;
+  temperament?: Temperament;
+  keyword?: string;
+  maxPrice?: number;
+  limit?: number;
+}): Promise<string> {
+  const products = await getStorefrontProducts();
+  let results = products.filter((p) => totalStock(p) > 0);
+
+  if (args.experience) results = results.filter((p) => p.experience === args.experience);
+  if (args.type) results = results.filter((p) => p.type === args.type);
+  if (args.temperament) results = results.filter((p) => p.temperament === args.temperament);
+  if (typeof args.maxPrice === "number") results = results.filter((p) => basePrice(p) <= args.maxPrice!);
+  if (args.keyword?.trim()) {
+    const kw = args.keyword.trim().toLowerCase();
+    results = results.filter(
+      (p) => p.scientific.toLowerCase().includes(kw) || p.genus.toLowerCase().includes(kw) || p.common.en.toLowerCase().includes(kw),
+    );
+  }
+
+  results = results.sort((a, b) => basePrice(a) - basePrice(b)).slice(0, Math.min(Math.max(args.limit ?? 5, 1), 8));
+
+  if (results.length === 0) return "No specimens currently in stock match those filters.";
+  return results
+    .map(
+      (p) =>
+        `${p.common.en} (${p.scientific}) — ${p.experience}, ${p.type}, ${p.temperament} temperament — from $${basePrice(p).toFixed(2)} CAD, ${totalStock(p)} in stock — ${SITE.url}/en/product/${p.slug}`,
+    )
+    .join("\n");
+}
 
 async function checkOrderStatus(orderNumber: string, email: string): Promise<string> {
   if (!prisma) return "Order lookup isn't available right now — a human will need to check manually.";
@@ -111,7 +162,10 @@ export async function runBotTurn(locale: string, history: HistoryMessage[], visi
 
     const toolResults: Anthropic.ToolResultBlockParam[] = [];
     for (const use of toolUses) {
-      if (use.name === "escalate_to_human") {
+      if (use.name === "search_inventory") {
+        const result = await searchInventory(use.input as Parameters<typeof searchInventory>[0]);
+        toolResults.push({ type: "tool_result", tool_use_id: use.id, content: result });
+      } else if (use.name === "escalate_to_human") {
         escalate = true;
         escalateReason = (use.input as { reason?: string })?.reason;
         toolResults.push({ type: "tool_result", tool_use_id: use.id, content: "Acknowledged — staff has been alerted." });
