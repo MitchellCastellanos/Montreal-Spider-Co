@@ -86,7 +86,6 @@ export default function ChatWidget() {
   const [showOfflineForm, setShowOfflineForm] = useState(false);
   const [offlineMessage, setOfflineMessage] = useState("");
   const [offlineSending, setOfflineSending] = useState(false);
-  const [offlineSent, setOfflineSent] = useState(false);
 
   const identified = Boolean(name && email);
   // Picked once per conversation, not on every render — varies across browser sessions without flickering mid-chat.
@@ -300,8 +299,8 @@ export default function ChatWidget() {
       if (res.ok) {
         if (data.message) mergeMessages([data.message]);
         setStatus("waiting_human");
-        setOfflineSent(true);
         setOfflineMessage("");
+        setShowOfflineForm(false);
       }
     } finally {
       setOfflineSending(false);
@@ -340,7 +339,6 @@ export default function ChatWidget() {
     setResumeSent(false);
     setShowOfflineForm(false);
     setOfflineMessage("");
-    setOfflineSent(false);
   };
 
   if (isAdmin || !loaded) return null;
@@ -487,6 +485,26 @@ export default function ChatWidget() {
                   {resumeSent && <p className="text-xs text-ok">{c.resumeSent}</p>}
                 </div>
               </div>
+            ) : showOfflineForm ? (
+              <div className="flex flex-1 flex-col justify-center gap-4 overflow-y-auto px-4 py-4">
+                <p className="text-sm text-bone">{c.offlineIntro}</p>
+                <textarea
+                  className="input min-h-24 resize-none text-sm"
+                  value={offlineMessage}
+                  onChange={(e) => setOfflineMessage(e.target.value)}
+                  placeholder={c.placeholder}
+                />
+                <button
+                  onClick={() => void submitOfflineMessage()}
+                  disabled={offlineSending || !offlineMessage.trim()}
+                  className="btn btn-gold w-full text-sm"
+                >
+                  {offlineSending ? dict.common.loading : c.offlineSubmit}
+                </button>
+                <button onClick={() => setShowOfflineForm(false)} className="text-xs text-muted hover:text-bone">
+                  {dict.common.back}
+                </button>
+              </div>
             ) : (
               <>
                 <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
@@ -552,33 +570,8 @@ export default function ChatWidget() {
                         {c.send}
                       </button>
                     </div>
-                    {showOfflineForm && !offlineSent && (
-                      <div className="mt-2 rounded-lg bg-ink p-2 text-xs">
-                        <p className="text-bone">{c.offlineIntro}</p>
-                        <div className="mt-1.5 flex gap-1.5">
-                          <input
-                            className="input flex-1 text-xs"
-                            value={offlineMessage}
-                            onChange={(e) => setOfflineMessage(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") void submitOfflineMessage();
-                            }}
-                            placeholder={c.placeholder}
-                          />
-                          <button
-                            onClick={() => void submitOfflineMessage()}
-                            disabled={offlineSending || !offlineMessage.trim()}
-                            className="btn btn-ghost text-xs"
-                          >
-                            {c.offlineSubmit}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    {offlineSent && <p className="mt-2 text-xs text-ok">{c.offlineSent}</p>}
-
                     <div className="mt-2 flex items-center gap-3">
-                      {status === "bot" && !showOfflineForm && (
+                      {status === "bot" && (
                         <button onClick={() => void escalate()} className="text-xs text-muted hover:text-gold-bright">
                           {c.talkToHuman}
                         </button>
