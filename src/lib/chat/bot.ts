@@ -9,7 +9,7 @@ import type { ProductCard } from "@/lib/chat/types";
 export const botConfigured = Boolean(process.env.ANTHROPIC_API_KEY);
 
 const MODEL = process.env.ANTHROPIC_CHAT_MODEL || "claude-haiku-4-5-20251001";
-const MAX_TOOL_TURNS = 4;
+const MAX_TOOL_TURNS = 5;
 
 export type HistoryMessage = { sender: "visitor" | "bot" | "staff" | "system"; content: string };
 export type BotResult = { reply: string; escalate: boolean; escalateReason?: string; products?: ProductCard[] };
@@ -23,7 +23,7 @@ Reply in ${lang} by default, but match the visitor's language if they write in a
 
 What you can help with: general tarantula care and husbandry questions, explaining how ordering/pickup/delivery works, the site's "Verified Origin" traceability program, recommending specimens we actually have in stock right now (use the search_inventory tool — always call it before recommending or quoting a price, never guess from memory since stock changes constantly), and looking up a specific order's status (use the check_order_status tool — you need the order number and the email it was placed under).
 
-When a visitor describes what they want (experience level, temperament, terrestrial/arboreal/fossorial, budget, a genus, a common name, or a colloquial one like "giant" or "tiny" — translate that yourself into a real filter or keyword, e.g. "giant" → try type/genus known for large size such as Theraphosa or Lasiodora, before asking the visitor to clarify), call search_inventory with whatever criteria you can infer. Recommend from the real results in ONE brief, upbeat sentence — name at most one or two standout picks by name and say why they fit, then point to the cards ("take a look at these picks!"). Do NOT restate every result's price, temperament, or spec in your text — the app already shows a photo card with name and price for each specimen the tool returns, right under your message, so repeating that list in words is redundant and makes the reply feel bloated. If nothing matches, say so in one sentence and either loosen the criteria and try again yourself, or suggest browsing ${SITE.url}/shop. Never invent exact shipping/delivery dates — point to ${SITE.url}/delivery or ${SITE.url}/pickup-points, or offer a human.
+When a visitor describes what they want (experience level, temperament, terrestrial/arboreal/fossorial, budget, a genus, a common name, or a colloquial one like "giant" or "tiny" — translate that yourself into a real filter or keyword, e.g. "giant" → try type/genus known for large size such as Theraphosa or Lasiodora, before asking the visitor to clarify), call search_inventory with whatever criteria you can infer. Look at the results and judge which one — or two or three, at most, if they're genuinely close alternatives — is the actual best fit. Then call recommend_products with ONLY those slugs, in priority order (best match first): this is what actually renders as photo cards for the visitor, so it must exactly match what you're about to say. Never call recommend_products with the whole search result set as a fallback — if you're recommending one, send one slug. In your reply, name just the pick(s) you recommended, in ONE brief, upbeat sentence explaining why, then point to the cards below your message ("check it out below!"). Do NOT restate price, temperament, or specs in your text — the cards already show that, so repeating it in words is redundant and makes the reply feel bloated. If nothing matches, say so in one sentence and either loosen the criteria and try search_inventory again yourself, or suggest browsing ${SITE.url}/shop. Never invent exact shipping/delivery dates — point to ${SITE.url}/delivery or ${SITE.url}/pickup-points, or offer a human.
 
 Call the escalate_to_human tool (with a one-sentence reason a staff member will read) whenever: the visitor explicitly asks for a person/human/real staff; you don't know the answer; the question needs a judgment call (custom requests, complaints, anything account- or payment-specific beyond a basic order-status lookup); or the visitor seems frustrated. Don't be stingy about escalating — a quick handoff beats a wrong or vague answer. When you escalate, still send a short reassuring reply telling them a team member is joining.`;
 }
@@ -43,6 +43,22 @@ const TOOLS: Anthropic.Tool[] = [
         maxPrice: { type: "number", description: "Maximum price in CAD." },
         limit: { type: "number", description: "Max results to return, default 5, max 8." },
       },
+    },
+  },
+  {
+    name: "recommend_products",
+    description:
+      "Choose which specimen(s) to actually show the visitor as photo cards — this is what renders, in this exact order, right under your reply. Call it after search_inventory, with only the slug(s) you're genuinely recommending (usually 1, at most 3), best match first. It must match what your text says — don't dump the full search result set here.",
+    input_schema: {
+      type: "object",
+      properties: {
+        slugs: {
+          type: "array",
+          items: { type: "string" },
+          description: "Product slugs from search_inventory results, in priority order (best match first).",
+        },
+      },
+      required: ["slugs"],
     },
   },
   {
@@ -70,17 +86,14 @@ const TOOLS: Anthropic.Tool[] = [
   },
 ];
 
-async function searchInventory(
-  locale: string,
-  args: {
-    experience?: Experience;
-    type?: SpiderType;
-    temperament?: Temperament;
-    keyword?: string;
-    maxPrice?: number;
-    limit?: number;
-  },
-): Promise<{ text: string; products: ProductCard[] }> {
+async function searchInventory(args: {
+  experience?: Experience;
+  type?: SpiderType;
+  temperament?: Temperament;
+  keyword?: string;
+  maxPrice?: number;
+  limit?: number;
+}): Promise<string> {
   const products = await getStorefrontProducts();
   let results = products.filter((p) => totalStock(p) > 0);
 
@@ -97,24 +110,38 @@ async function searchInventory(
 
   results = results.sort((a, b) => basePrice(a) - basePrice(b)).slice(0, Math.min(Math.max(args.limit ?? 5, 1), 8));
 
-  if (results.length === 0) return { text: "No specimens currently in stock match those filters.", products: [] };
+  if (results.length === 0) return "No specimens currently in stock match those filters.";
 
-  const productCards: ProductCard[] = results.map((p) => ({
-    slug: p.slug,
-    name: p.common.en,
-    price: basePrice(p),
-    image: p.image ?? null,
-    url: `${SITE.url}/${locale}/product/${p.slug}`,
-  }));
-
-  const text = results
+  return results
     .map(
       (p) =>
-        `${p.common.en} (${p.scientific}) — ${p.experience}, ${p.type}, ${p.temperament} temperament — from $${basePrice(p).toFixed(2)} CAD, ${totalStock(p)} in stock`,
+        `slug=${p.slug} — ${p.common.en} (${p.scientific}) — ${p.experience}, ${p.type}, ${p.temperament} temperament — from $${basePrice(p).toFixed(2)} CAD, ${totalStock(p)} in stock`,
     )
     .join("\n");
+}
 
-  return { text, products: productCards };
+/** What actually renders as cards — the model's explicit pick(s), in its chosen order, not the raw search results. */
+async function recommendProducts(locale: string, slugs: string[]): Promise<{ text: string; products: ProductCard[] }> {
+  if (!slugs?.length) return { text: "No slugs given.", products: [] };
+
+  const storefront = await getStorefrontProducts();
+  const bySlug = new Map(storefront.map((p) => [p.slug, p]));
+
+  const products: ProductCard[] = [];
+  for (const slug of slugs) {
+    const p = bySlug.get(slug.trim());
+    if (!p || totalStock(p) === 0) continue;
+    products.push({
+      slug: p.slug,
+      name: p.common.en,
+      price: basePrice(p),
+      image: p.image ?? null,
+      url: `${SITE.url}/${locale}/product/${p.slug}`,
+    });
+  }
+
+  if (products.length === 0) return { text: "None of those slugs matched current stock — call search_inventory again.", products: [] };
+  return { text: `Shown to the visitor as cards: ${products.map((p) => p.name).join(", ")}.`, products };
 }
 
 async function checkOrderStatus(orderNumber: string, email: string): Promise<string> {
@@ -179,7 +206,11 @@ export async function runBotTurn(locale: string, history: HistoryMessage[], visi
     const toolResults: Anthropic.ToolResultBlockParam[] = [];
     for (const use of toolUses) {
       if (use.name === "search_inventory") {
-        const result = await searchInventory(locale, use.input as Parameters<typeof searchInventory>[1]);
+        const text = await searchInventory(use.input as Parameters<typeof searchInventory>[0]);
+        toolResults.push({ type: "tool_result", tool_use_id: use.id, content: text });
+      } else if (use.name === "recommend_products") {
+        const input = use.input as { slugs?: string[] };
+        const result = await recommendProducts(locale, input.slugs ?? []);
         products = result.products;
         toolResults.push({ type: "tool_result", tool_use_id: use.id, content: result.text });
       } else if (use.name === "escalate_to_human") {
