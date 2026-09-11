@@ -26,10 +26,15 @@ const reportsFromEmail = process.env.RESEND_REPORTS_FROM_EMAIL ?? `reports@${sit
  * instead of deriving one from the local part (e.g. "hello@..." showing up
  * as just "hello"). Every stream is "{Prefix} @ {SITE.name}" except the
  * plain hello/account address, which is just the brand name.
+ *
+ * The name is quoted: unquoted, "@" and "." aren't valid inside an RFC 5322
+ * display name, and Resend's API rejects the whole `from` header for it
+ * ("Invalid `from` field") — quoting is what makes "Orders @ Montreal
+ * Spider Co." legal instead of just "Orders" with no company name at all.
  */
 function fromDisplay(prefix: string | null, email: string): string {
   const name = prefix ? `${prefix} @ ${SITE.name}` : SITE.name;
-  return `${name} <${email}>`;
+  return `"${name}" <${email}>`;
 }
 
 const ordersFromDisplay = fromDisplay("Orders", fromEmail);
