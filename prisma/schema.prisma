@@ -567,6 +567,8 @@ model ChatMessage {
   sender         ChatSender
   /** Message text. For `system` announcements, the staff display name (e.g. "Mitch"). */
   content        String
+  /** Structured attachments (e.g. { products: [...] } for bot inventory recommendations) — rendered as cards, never parsed from the text. */
+  meta           Json         @default("{}")
   createdAt      DateTime     @default(now())
 
   @@index([conversationId, createdAt])

@@ -41,7 +41,12 @@ export async function POST(req: Request) {
     const result = await runBotTurn(locale, history as { sender: "visitor" | "bot"; content: string }[], conversation.name ?? undefined);
 
     const botMessage = await prisma.chatMessage.create({
-      data: { conversationId: conversation.id, sender: "bot", content: result.reply },
+      data: {
+        conversationId: conversation.id,
+        sender: "bot",
+        content: result.reply,
+        ...(result.products?.length ? { meta: { products: result.products } } : {}),
+      },
     });
     await publishMessage(conversation.id, serializeMessage(botMessage));
     created.push(botMessage);

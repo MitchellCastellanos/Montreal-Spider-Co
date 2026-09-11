@@ -5,10 +5,38 @@ import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import type PusherClient from "pusher-js";
 import { useI18n } from "@/i18n/I18nProvider";
+import type { ProductCard } from "@/lib/chat/types";
 
 type Sender = "visitor" | "bot" | "staff" | "system";
 type Status = "bot" | "waiting_human" | "live" | "closed";
-type Msg = { id: string; sender: Sender; content: string; createdAt: string };
+type Msg = { id: string; sender: Sender; content: string; createdAt: string; products?: ProductCard[] };
+
+function ProductCards({ products }: { products: ProductCard[] }) {
+  return (
+    <div className="space-y-1.5">
+      {products.map((p) => (
+        <a
+          key={p.slug}
+          href={p.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 rounded-lg border border-line bg-ink/60 p-2 transition hover:border-gold/50"
+        >
+          {p.image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={p.image} alt={p.name} className="h-12 w-12 shrink-0 rounded-md object-cover" />
+          ) : (
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-ink text-lg">🕷️</span>
+          )}
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-medium text-cream">{p.name}</span>
+            <span className="block text-xs text-gold-bright">${p.price.toFixed(2)} CAD</span>
+          </span>
+        </a>
+      ))}
+    </div>
+  );
+}
 
 function ChatIcon({ className }: { className?: string }) {
   return (
@@ -410,8 +438,11 @@ export default function ChatWidget() {
                       </p>
                     ) : (
                       <div key={m.id} className={`flex ${m.sender === "visitor" ? "justify-end" : "justify-start"}`}>
-                        <div className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${m.sender === "visitor" ? "bg-gold/15 text-cream" : "bg-ink text-bone"}`}>
-                          {m.content}
+                        <div className="max-w-[80%] space-y-1.5">
+                          <div className={`rounded-xl px-3 py-2 text-sm ${m.sender === "visitor" ? "bg-gold/15 text-cream" : "bg-ink text-bone"}`}>
+                            {m.content}
+                          </div>
+                          {m.products && m.products.length > 0 && <ProductCards products={m.products} />}
                         </div>
                       </div>
                     ),

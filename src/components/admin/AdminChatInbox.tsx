@@ -4,10 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type PusherClient from "pusher-js";
 import { formatDate } from "@/lib/format";
+import type { ProductCard } from "@/lib/chat/types";
 
 type Status = "bot" | "waiting_human" | "live" | "closed";
 type Sender = "visitor" | "bot" | "staff" | "system";
-type Msg = { id: string; sender: Sender; content: string; createdAt: string };
+type Msg = { id: string; sender: Sender; content: string; createdAt: string; products?: ProductCard[] };
 
 type ConversationSummary = {
   id: string;
@@ -242,13 +243,39 @@ export default function AdminChatInbox({ initialSelectedId }: { initialSelectedI
                   </p>
                 ) : (
                   <div key={m.id} className={`flex ${m.sender === "staff" ? "justify-end" : "justify-start"}`}>
-                    <div
-                      className={`max-w-[75%] rounded-lg px-3 py-2 text-sm ${
-                        m.sender === "staff" ? "bg-gold/15 text-cream" : m.sender === "bot" ? "bg-ink text-bone" : "bg-ink-soft text-bone"
-                      }`}
-                    >
-                      <span className="mb-0.5 block text-[10px] uppercase tracking-wide text-muted">{m.sender}</span>
-                      {m.content}
+                    <div className="max-w-[75%] space-y-1.5">
+                      <div
+                        className={`rounded-lg px-3 py-2 text-sm ${
+                          m.sender === "staff" ? "bg-gold/15 text-cream" : m.sender === "bot" ? "bg-ink text-bone" : "bg-ink-soft text-bone"
+                        }`}
+                      >
+                        <span className="mb-0.5 block text-[10px] uppercase tracking-wide text-muted">{m.sender}</span>
+                        {m.content}
+                      </div>
+                      {m.products && m.products.length > 0 && (
+                        <div className="space-y-1">
+                          {m.products.map((p) => (
+                            <a
+                              key={p.slug}
+                              href={p.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 rounded-lg border border-line bg-ink p-1.5 text-xs transition hover:border-gold/50"
+                            >
+                              {p.image ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={p.image} alt={p.name} className="h-8 w-8 shrink-0 rounded object-cover" />
+                              ) : (
+                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-ink-soft">🕷️</span>
+                              )}
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-cream">{p.name}</span>
+                                <span className="block text-gold-bright">${p.price.toFixed(2)} CAD</span>
+                              </span>
+                            </a>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ),
