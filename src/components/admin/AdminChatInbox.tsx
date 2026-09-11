@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import type PusherClient from "pusher-js";
 import { formatDate } from "@/lib/format";
 
@@ -37,9 +38,13 @@ const STATUS_STYLE: Record<Status, string> = {
   closed: "bg-ink text-muted",
 };
 
-export default function AdminChatInbox() {
+export default function AdminChatInbox({ initialSelectedId }: { initialSelectedId?: string } = {}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const locale = pathname?.match(/^\/(en|fr)\//)?.[1] ?? "en";
+
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null);
   const [detail, setDetail] = useState<ConversationDetail | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [reply, setReply] = useState("");
@@ -162,6 +167,11 @@ export default function AdminChatInbox() {
     }
   };
 
+  const selectConversation = (id: string) => {
+    setSelectedId(id);
+    router.replace(`/${locale}/admin/chat/${id}`, { scroll: false });
+  };
+
   const closeConversation = async () => {
     if (!selectedId) return;
     await fetch(`/api/admin/chat/${selectedId}/close`, { method: "POST" });
@@ -179,7 +189,7 @@ export default function AdminChatInbox() {
           {conversations.map((c) => (
             <li key={c.id}>
               <button
-                onClick={() => setSelectedId(c.id)}
+                onClick={() => selectConversation(c.id)}
                 className={`w-full rounded-xl border px-3 py-2 text-left transition ${
                   selectedId === c.id ? "border-gold/50 bg-gold/10" : "border-line bg-ink hover:border-gold/30"
                 }`}
