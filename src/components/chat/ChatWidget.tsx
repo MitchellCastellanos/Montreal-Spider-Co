@@ -19,6 +19,7 @@ function ChatIcon({ className }: { className?: string }) {
 }
 
 const TEASER_DISMISSED_KEY = "msc_chat_teaser_dismissed";
+const EMAIL_RE = /^\S+@\S+\.\S+$/;
 
 function stripChatParam(): void {
   if (typeof window === "undefined") return;
@@ -40,15 +41,17 @@ export default function ChatWidget() {
   const [loaded, setLoaded] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("bot");
+  const [name, setName] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
 
-  const [showEmailPrompt, setShowEmailPrompt] = useState(false);
-  const [emailPromptDismissed, setEmailPromptDismissed] = useState(false);
-  const [emailInput, setEmailInput] = useState("");
-  const [emailSaved, setEmailSaved] = useState(false);
+  const identified = Boolean(name && email);
+  const [gateName, setGateName] = useState("");
+  const [gateEmail, setGateEmail] = useState("");
+  const [gateError, setGateError] = useState<string | null>(null);
+  const [identifying, setIdentifying] = useState(false);
 
   const [showResume, setShowResume] = useState(false);
   const [resumeEmail, setResumeEmail] = useState("");
@@ -78,6 +81,7 @@ export default function ChatWidget() {
         if (data.conversation) {
           setConversationId(data.conversation.id);
           setStatus(data.conversation.status);
+          setName(data.conversation.name);
           setEmail(data.conversation.email);
           mergeMessages(data.messages ?? []);
         }
@@ -138,13 +142,6 @@ export default function ChatWidget() {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, open]);
 
-  useEffect(() => {
-    if (emailPromptDismissed || email) return;
-    const hasVisitor = messages.some((m) => m.sender === "visitor");
-    const hasReply = messages.some((m) => m.sender === "bot" || m.sender === "staff");
-    if (hasVisitor && hasReply) setShowEmailPrompt(true);
-  }, [messages, email, emailPromptDismissed]);
-
   // Draw the eye with a proactive greeting bubble a couple of seconds after load —
   // but never for a returning visitor who's already mid-conversation, and only once per tab.
   useEffect(() => {
@@ -169,6 +166,38 @@ export default function ChatWidget() {
     }
   };
 
+  const submitIdentify = async () => {
+    const trimmedName = gateName.trim();
+    const trimmedEmail = gateEmail.trim();
+    if (!trimmedName || !EMAIL_RE.test(trimmedEmail)) {
+      setGateError(c.identifyError);
+      return;
+    }
+    setGateError(null);
+    setIdentifying(true);
+    try {
+      const res = await fetch("/api/chat/identify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: trimmedName, email: trimmedEmail, locale }),
+      });
+      const data = await res.json();
+      if (res.ok && data.conversation) {
+        setConversationId(data.conversation.id);
+        setStatus(data.conversation.status);
+        setName(data.conversation.name);
+        setEmail(data.conversation.email);
+        mergeMessages(data.messages ?? []);
+      } else {
+        setGateError(c.errorGeneric);
+      }
+    } catch {
+      setGateError(c.errorGeneric);
+    } finally {
+      setIdentifying(false);
+    }
+  };
+
   const send = async () => {
     const text = input.trim();
     if (!text || sending) return;
@@ -185,13 +214,6 @@ export default function ChatWidget() {
       const data = await res.json();
       if (res.ok) {
         mergeMessages(data.messages ?? []);
-        if (!conversationId) {
-          const conv = await fetch("/api/chat/conversation").then((r) => r.json());
-          if (conv.conversation) {
-            setConversationId(conv.conversation.id);
-            setStatus(conv.conversation.status);
-          }
-        }
       } else {
         setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
       }
@@ -205,21 +227,6 @@ export default function ChatWidget() {
   const escalate = async () => {
     setStatus("waiting_human");
     await fetch("/api/chat/escalate", { method: "POST" });
-  };
-
-  const saveEmail = async () => {
-    const value = emailInput.trim();
-    if (!value) return;
-    const res = await fetch("/api/chat/email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: value }),
-    });
-    if (res.ok) {
-      setEmail(value);
-      setEmailSaved(true);
-      setShowEmailPrompt(false);
-    }
   };
 
   const requestResume = async () => {
@@ -237,11 +244,12 @@ export default function ChatWidget() {
     await fetch("/api/chat/new", { method: "POST" });
     setConversationId(null);
     setStatus("bot");
+    setName(null);
     setEmail(null);
     setMessages([]);
-    setEmailPromptDismissed(false);
-    setShowEmailPrompt(false);
-    setEmailSaved(false);
+    setGateName("");
+    setGateEmail("");
+    setGateError(null);
     setShowResume(false);
     setResumeSent(false);
   };
@@ -321,116 +329,129 @@ export default function ChatWidget() {
             <header className="flex items-center justify-between border-b border-line bg-ink px-4 py-3">
               <div>
                 <p className="font-display text-sm font-bold text-cream">{c.title}</p>
-                <p className="text-xs text-muted">{statusLabel}</p>
+                <p className="text-xs text-muted">{identified ? statusLabel : c.subtitle}</p>
               </div>
               <button onClick={() => setOpen(false)} aria-label={dict.nav.close} className="text-xl leading-none text-bone hover:text-gold-bright">
                 ×
               </button>
             </header>
 
-            <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
-              {messages.length === 0 && <div className="rounded-xl bg-ink px-3 py-2 text-sm text-bone">{c.greeting}</div>}
-
-              {messages.map((m) =>
-                m.sender === "system" ? (
-                  <p key={m.id} className="text-center text-xs text-muted">
-                    {c.staffJoined.replace("{name}", m.content)}
-                  </p>
-                ) : (
-                  <div key={m.id} className={`flex ${m.sender === "visitor" ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${m.sender === "visitor" ? "bg-gold/15 text-cream" : "bg-ink text-bone"}`}>
-                      {m.content}
-                    </div>
-                  </div>
-                ),
-              )}
-
-              {showEmailPrompt && (
-                <div className="rounded-xl border border-gold/30 bg-gold/5 p-3 text-sm">
-                  <p className="font-medium text-cream">{c.emailPromptTitle}</p>
-                  <p className="mt-1 text-xs text-bone">{c.emailPromptBody}</p>
-                  <div className="mt-2 flex gap-2">
-                    <input
-                      className="input flex-1 text-sm"
-                      type="email"
-                      value={emailInput}
-                      onChange={(e) => setEmailInput(e.target.value)}
-                      placeholder={c.emailPlaceholder}
-                    />
-                    <button onClick={() => void saveEmail()} className="btn btn-gold text-sm">
-                      {c.emailSubmit}
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowEmailPrompt(false);
-                      setEmailPromptDismissed(true);
+            {!identified ? (
+              <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+                <p className="text-sm text-bone">{c.gateIntro}</p>
+                <div className="space-y-2">
+                  <input
+                    className="input text-sm"
+                    value={gateName}
+                    onChange={(e) => setGateName(e.target.value)}
+                    placeholder={c.namePlaceholder}
+                  />
+                  <input
+                    className="input text-sm"
+                    type="email"
+                    value={gateEmail}
+                    onChange={(e) => setGateEmail(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void submitIdentify();
                     }}
-                    className="mt-2 text-xs text-muted hover:text-bone"
-                  >
-                    {dict.nav.close}
+                    placeholder={c.emailPlaceholder}
+                  />
+                  {gateError && <p className="text-xs text-danger">{gateError}</p>}
+                  <button onClick={() => void submitIdentify()} disabled={identifying} className="btn btn-gold w-full text-sm">
+                    {identifying ? dict.common.loading : c.identifySubmit}
                   </button>
                 </div>
-              )}
-              {emailSaved && <p className="text-center text-xs text-ok">{c.emailSaved}</p>}
-            </div>
 
-            {status === "closed" ? (
-              <footer className="border-t border-line p-3">
-                <button onClick={() => void startNewChat()} className="btn btn-gold w-full text-sm">
-                  {c.newChat}
-                </button>
-              </footer>
+                <div className="border-t border-line pt-3">
+                  {!showResume && !resumeSent && (
+                    <button onClick={() => setShowResume(true)} className="text-xs text-muted hover:text-gold-bright">
+                      {c.resumeLink}
+                    </button>
+                  )}
+                  {showResume && !resumeSent && (
+                    <div className="rounded-lg bg-ink p-2 text-xs">
+                      <div className="mb-1.5 flex items-center justify-between">
+                        <p className="font-medium text-cream">{c.resumeTitle}</p>
+                        <button
+                          onClick={() => setShowResume(false)}
+                          aria-label={dict.nav.close}
+                          className="text-sm leading-none text-muted hover:text-bone"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <p className="text-bone">{c.resumeBody}</p>
+                      <div className="mt-1.5 flex gap-1.5">
+                        <input
+                          className="input flex-1 text-xs"
+                          type="email"
+                          value={resumeEmail}
+                          onChange={(e) => setResumeEmail(e.target.value)}
+                          placeholder={c.emailPlaceholder}
+                        />
+                        <button onClick={() => void requestResume()} className="btn btn-ghost text-xs">
+                          {c.resumeSubmit}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {resumeSent && <p className="text-xs text-ok">{c.resumeSent}</p>}
+                </div>
+              </div>
             ) : (
-              <footer className="border-t border-line p-3">
-                {messages.length === 0 && !showResume && (
-                  <button onClick={() => setShowResume(true)} className="mb-2 text-xs text-muted hover:text-gold-bright">
-                    {c.resumeLink}
-                  </button>
-                )}
-                {showResume && !resumeSent && (
-                  <div className="mb-2 rounded-lg bg-ink p-2 text-xs">
-                    <p className="text-bone">{c.resumeBody}</p>
-                    <div className="mt-1.5 flex gap-1.5">
-                      <input
-                        className="input flex-1 text-xs"
-                        type="email"
-                        value={resumeEmail}
-                        onChange={(e) => setResumeEmail(e.target.value)}
-                        placeholder={c.emailPlaceholder}
+              <>
+                <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
+                  {messages.length === 0 && <div className="rounded-xl bg-ink px-3 py-2 text-sm text-bone">{c.greeting}</div>}
+
+                  {messages.map((m) =>
+                    m.sender === "system" ? (
+                      <p key={m.id} className="text-center text-xs text-muted">
+                        {c.staffJoined.replace("{name}", m.content)}
+                      </p>
+                    ) : (
+                      <div key={m.id} className={`flex ${m.sender === "visitor" ? "justify-end" : "justify-start"}`}>
+                        <div className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${m.sender === "visitor" ? "bg-gold/15 text-cream" : "bg-ink text-bone"}`}>
+                          {m.content}
+                        </div>
+                      </div>
+                    ),
+                  )}
+                </div>
+
+                {status === "closed" ? (
+                  <footer className="border-t border-line p-3">
+                    <button onClick={() => void startNewChat()} className="btn btn-gold w-full text-sm">
+                      {c.newChat}
+                    </button>
+                  </footer>
+                ) : (
+                  <footer className="border-t border-line p-3">
+                    <div className="flex items-end gap-2">
+                      <textarea
+                        className="input flex-1 resize-none text-sm"
+                        rows={1}
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            void send();
+                          }
+                        }}
+                        placeholder={c.placeholder}
                       />
-                      <button onClick={() => void requestResume()} className="btn btn-ghost text-xs">
-                        {c.resumeSubmit}
+                      <button onClick={() => void send()} disabled={sending || !input.trim()} className="btn btn-gold text-sm">
+                        {c.send}
                       </button>
                     </div>
-                  </div>
+                    {status === "bot" && (
+                      <button onClick={() => void escalate()} className="mt-2 text-xs text-muted hover:text-gold-bright">
+                        {c.talkToHuman}
+                      </button>
+                    )}
+                  </footer>
                 )}
-                {resumeSent && <p className="mb-2 text-xs text-ok">{c.resumeSent}</p>}
-
-                <div className="flex items-end gap-2">
-                  <textarea
-                    className="input flex-1 resize-none text-sm"
-                    rows={1}
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        void send();
-                      }
-                    }}
-                    placeholder={c.placeholder}
-                  />
-                  <button onClick={() => void send()} disabled={sending || !input.trim()} className="btn btn-gold text-sm">
-                    {c.send}
-                  </button>
-                </div>
-                {status === "bot" && (
-                  <button onClick={() => void escalate()} className="mt-2 text-xs text-muted hover:text-gold-bright">
-                    {c.talkToHuman}
-                  </button>
-                )}
-              </footer>
+              </>
             )}
           </motion.div>
         )}

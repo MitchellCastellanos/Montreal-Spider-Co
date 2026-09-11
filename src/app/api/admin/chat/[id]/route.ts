@@ -23,6 +23,7 @@ export async function GET(_req: Request, { params }: Params) {
     conversation: {
       id: conversation.id,
       status: conversation.status,
+      name: conversation.name,
       email: conversation.email,
       locale: conversation.locale,
       customerName: conversation.customer?.name ?? null,
