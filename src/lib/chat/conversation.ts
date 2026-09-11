@@ -49,7 +49,7 @@ export async function escalateConversation(conversationId: string, reason?: stri
   if (alreadyAlerted) return;
 
   const adminUrl = `${SITE.url}/en/admin/chat/${conversationId}`;
-  const visitorLabel = conv.email || "an anonymous visitor";
+  const visitorLabel = conv.name && conv.email ? `${conv.name} (${conv.email})` : conv.email || "an anonymous visitor";
   const reasonText = reason || "The visitor asked to speak with a person.";
 
   await sendTelegramAlert(`💬 <b>Chat needs you</b>\n${visitorLabel}\n"${reasonText}"\n${adminUrl}`);

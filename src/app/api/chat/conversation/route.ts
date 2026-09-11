@@ -17,7 +17,7 @@ export async function GET() {
   if (!conversation) return NextResponse.json({ conversation: null, messages: [] });
 
   return NextResponse.json({
-    conversation: { id: conversation.id, status: conversation.status, email: conversation.email },
+    conversation: { id: conversation.id, status: conversation.status, name: conversation.name, email: conversation.email },
     messages: conversation.messages.map(serializeMessage),
   });
 }

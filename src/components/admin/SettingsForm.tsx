@@ -36,6 +36,18 @@ export default function SettingsForm({ settings, editable }: { settings: StoreSe
         </section>
 
         <section className="card-glow rounded-2xl p-5">
+          <h2 className="mb-4 font-display text-lg font-semibold text-cream">Live chat</h2>
+          <label className="field max-w-[280px]">
+            <span>Staff name shown to visitors</span>
+            <input type="text" name="chatStaffName" defaultValue={settings.chatStaffName} placeholder="Mitch" className="input" />
+          </label>
+          <p className="mt-2 text-xs text-muted">
+            Shown as &ldquo;{settings.chatStaffName || "Mitch"} joined the chat&rdquo; the first time you reply from{" "}
+            <code className="text-cream">/admin/chat</code>.
+          </p>
+        </section>
+
+        <section className="card-glow rounded-2xl p-5">
           <h2 className="mb-4 font-display text-lg font-semibold text-cream">Reviews</h2>
           <label className="field">
             <span>Google review link</span>

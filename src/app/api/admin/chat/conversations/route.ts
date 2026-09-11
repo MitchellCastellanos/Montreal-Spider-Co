@@ -20,6 +20,7 @@ export async function GET() {
     conversations: conversations.map((c) => ({
       id: c.id,
       status: c.status,
+      name: c.name,
       email: c.email,
       customerName: c.customer?.name ?? null,
       locale: c.locale,

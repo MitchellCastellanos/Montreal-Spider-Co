@@ -542,7 +542,8 @@ model Conversation {
   visitorId  String             @unique
   customerId String?
   customer   Customer?          @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  /** Captured for cross-device resume and follow-up (survey, etc.) — set once the visitor shares it. */
+  /** Captured before the visitor can chat — used for cross-device resume, follow-up, and linking/creating the Customer record. */
+  name       String?
   email      String?
   locale     String             @default("en")
   status     ConversationStatus @default(bot)

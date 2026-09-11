@@ -375,6 +375,7 @@ export async function saveSettingsAction(_prev: ActionState, formData: FormData)
       pickupTerms: { en: str(formData, "pickupTermsEn"), fr: str(formData, "pickupTermsFr") },
       terms: { en: str(formData, "termsEn"), fr: str(formData, "termsFr") },
       googleReviewUrl: str(formData, "googleReviewUrl"),
+      chatStaffName: str(formData, "chatStaffName") || "Mitch",
     });
   } catch (e) {
     return { error: e instanceof Error ? e.message : "save_failed" };

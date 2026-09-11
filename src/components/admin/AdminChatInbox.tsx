@@ -12,6 +12,7 @@ type Msg = { id: string; sender: Sender; content: string; createdAt: string };
 type ConversationSummary = {
   id: string;
   status: Status;
+  name: string | null;
   email: string | null;
   customerName: string | null;
   locale: string;
@@ -22,6 +23,7 @@ type ConversationSummary = {
 type ConversationDetail = {
   id: string;
   status: Status;
+  name: string | null;
   email: string | null;
   locale: string;
   customerName: string | null;
@@ -195,7 +197,7 @@ export default function AdminChatInbox({ initialSelectedId }: { initialSelectedI
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-sm font-medium text-cream">{c.customerName || c.email || "Anonymous visitor"}</span>
+                  <span className="truncate text-sm font-medium text-cream">{c.customerName || c.name || c.email || "Anonymous visitor"}</span>
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${STATUS_STYLE[c.status]}`}>
                     {STATUS_LABEL[c.status]}
                   </span>
@@ -219,7 +221,7 @@ export default function AdminChatInbox({ initialSelectedId }: { initialSelectedI
           <div className="flex h-full flex-col">
             <div className="mb-3 flex items-center justify-between gap-2 border-b border-line pb-3">
               <div>
-                <p className="font-medium text-cream">{detail.customerName || detail.email || "Anonymous visitor"}</p>
+                <p className="font-medium text-cream">{detail.customerName || detail.name || detail.email || "Anonymous visitor"}</p>
                 <p className="text-xs text-muted">
                   {detail.customerEmail || detail.email || "No email on file"}
                   {detail.customerPhone && ` · ${detail.customerPhone}`} · {detail.locale.toUpperCase()}

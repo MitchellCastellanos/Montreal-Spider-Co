@@ -11,9 +11,10 @@ const MAX_TOOL_TURNS = 3;
 export type HistoryMessage = { sender: "visitor" | "bot" | "staff" | "system"; content: string };
 export type BotResult = { reply: string; escalate: boolean; escalateReason?: string };
 
-function systemPrompt(locale: string): string {
+function systemPrompt(locale: string, visitorName?: string): string {
   const lang = locale === "fr" ? "French" : "English";
-  return `You are the friendly customer-support assistant embedded on ${SITE.name} (${SITE.url}), a licensed tarantula breeder/seller in ${SITE.city}, ${SITE.region}, Canada. Visitors are pet keepers — beginners and experienced hobbyists alike.
+  const nameLine = visitorName ? `\n\nThe visitor's name is ${visitorName} — feel free to address them by it, naturally, not in every message.` : "";
+  return `You are the friendly customer-support assistant embedded on ${SITE.name} (${SITE.url}), a licensed tarantula breeder/seller in ${SITE.city}, ${SITE.region}, Canada. Visitors are pet keepers — beginners and experienced hobbyists alike.${nameLine}
 
 Reply in ${lang} by default, but match the visitor's language if they write in another one. Keep replies short and conversational (2-4 sentences), no markdown headers or bullet lists unless genuinely clearer that way.
 
@@ -66,7 +67,7 @@ function fallbackReply(locale: string): string {
     : "Thanks for your message! A member of our team will get back to you shortly.";
 }
 
-export async function runBotTurn(locale: string, history: HistoryMessage[]): Promise<BotResult> {
+export async function runBotTurn(locale: string, history: HistoryMessage[], visitorName?: string): Promise<BotResult> {
   if (!botConfigured) {
     return { reply: fallbackReply(locale), escalate: true, escalateReason: "Chat bot is not configured (missing ANTHROPIC_API_KEY)." };
   }
@@ -86,7 +87,7 @@ export async function runBotTurn(locale: string, history: HistoryMessage[]): Pro
       response = await client.messages.create({
         model: MODEL,
         max_tokens: 500,
-        system: systemPrompt(locale),
+        system: systemPrompt(locale, visitorName),
         tools: TOOLS,
         messages,
       });
