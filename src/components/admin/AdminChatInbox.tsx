@@ -32,6 +32,8 @@ type ConversationDetail = {
   customerPhone: string | null;
 };
 
+type HistoryEntry = { id: string; status: Status; updatedAt: string; messageCount: number };
+
 const STATUS_ORDER: Record<Status, number> = { waiting_human: 0, live: 1, bot: 2, closed: 3 };
 const STATUS_LABEL: Record<Status, string> = { waiting_human: "Needs you", live: "Live", bot: "Bot", closed: "Closed" };
 const STATUS_STYLE: Record<Status, string> = {
@@ -47,8 +49,10 @@ export default function AdminChatInbox({ initialSelectedId }: { initialSelectedI
   const locale = pathname?.match(/^\/(en|fr)\//)?.[1] ?? "en";
 
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [showClosed, setShowClosed] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null);
   const [detail, setDetail] = useState<ConversationDetail | null>(null);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
@@ -70,10 +74,11 @@ export default function AdminChatInbox({ initialSelectedId }: { initialSelectedI
 
   const loadDetail = useCallback(async (id: string) => {
     const res = await fetch(`/api/admin/chat/${id}`);
-    const data = (await res.json()) as { conversation?: ConversationDetail; messages?: Msg[] };
+    const data = (await res.json()) as { conversation?: ConversationDetail; messages?: Msg[]; history?: HistoryEntry[] };
     if (data.conversation) {
       setDetail(data.conversation);
       setMessages(data.messages ?? []);
+      setHistory(data.history ?? []);
     }
   }, []);
 
@@ -86,6 +91,7 @@ export default function AdminChatInbox({ initialSelectedId }: { initialSelectedI
     else {
       setDetail(null);
       setMessages([]);
+      setHistory([]);
     }
   }, [selectedId, loadDetail]);
 
@@ -189,7 +195,9 @@ export default function AdminChatInbox({ initialSelectedId }: { initialSelectedI
         {loadingList && <p className="px-1 text-sm text-muted">Loading…</p>}
         {!loadingList && conversations.length === 0 && <p className="px-1 text-sm text-muted">No conversations yet.</p>}
         <ul className="space-y-1.5">
-          {conversations.map((c) => (
+          {conversations
+            .filter((c) => showClosed || c.status !== "closed")
+            .map((c) => (
             <li key={c.id}>
               <button
                 onClick={() => selectConversation(c.id)}
@@ -214,6 +222,11 @@ export default function AdminChatInbox({ initialSelectedId }: { initialSelectedI
             </li>
           ))}
         </ul>
+        {conversations.some((c) => c.status === "closed") && (
+          <button onClick={() => setShowClosed((v) => !v)} className="mt-2 w-full px-1 text-left text-xs text-muted hover:text-bone">
+            {showClosed ? "Hide closed conversations" : `Show closed conversations (${conversations.filter((c) => c.status === "closed").length})`}
+          </button>
+        )}
       </div>
 
       <div className="min-w-0 rounded-2xl border border-line bg-ink-soft/40 p-4">
@@ -234,6 +247,22 @@ export default function AdminChatInbox({ initialSelectedId }: { initialSelectedI
                 </button>
               )}
             </div>
+
+            {history.length > 0 && (
+              <div className="mb-3 flex flex-wrap items-center gap-1.5 text-xs">
+                <span className="text-muted">Also chatted before:</span>
+                {history.map((h) => (
+                  <button
+                    key={h.id}
+                    onClick={() => selectConversation(h.id)}
+                    className="rounded-full border border-line bg-ink px-2.5 py-1 text-bone transition hover:border-gold/50 hover:text-cream"
+                  >
+                    {formatDate(h.updatedAt, "en")} · {h.messageCount} msg{h.messageCount === 1 ? "" : "s"}
+                    {h.status === "closed" ? "" : ` · ${STATUS_LABEL[h.status]}`}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div ref={listRef} className="mb-3 max-h-[50vh] flex-1 space-y-2 overflow-y-auto">
               {messages.map((m) =>

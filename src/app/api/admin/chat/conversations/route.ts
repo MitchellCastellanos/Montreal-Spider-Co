@@ -7,9 +7,11 @@ export async function GET() {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 503 });
 
+  // Closed conversations are kept, not deleted — included here (sorted last on the client)
+  // so nothing a visitor "ended" ever actually disappears from the admin's view.
   const conversations = await prisma.conversation.findMany({
-    where: { status: { not: "closed" } },
     orderBy: { updatedAt: "desc" },
+    take: 300,
     include: {
       customer: { select: { name: true, email: true } },
       messages: { orderBy: { createdAt: "desc" }, take: 1 },

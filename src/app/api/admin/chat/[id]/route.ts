@@ -19,6 +19,24 @@ export async function GET(_req: Request, { params }: Params) {
   });
   if (!conversation) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
+  // Other conversations from the same person — nothing a visitor "ended" is ever lost,
+  // it's just a separate thread the admin can jump back into.
+  const history = conversation.customerId
+    ? await prisma.conversation.findMany({
+        where: { customerId: conversation.customerId, id: { not: conversation.id } },
+        orderBy: { updatedAt: "desc" },
+        take: 10,
+        select: { id: true, status: true, updatedAt: true, _count: { select: { messages: true } } },
+      })
+    : conversation.email
+      ? await prisma.conversation.findMany({
+          where: { email: conversation.email, id: { not: conversation.id } },
+          orderBy: { updatedAt: "desc" },
+          take: 10,
+          select: { id: true, status: true, updatedAt: true, _count: { select: { messages: true } } },
+        })
+      : [];
+
   return NextResponse.json({
     conversation: {
       id: conversation.id,
@@ -31,5 +49,11 @@ export async function GET(_req: Request, { params }: Params) {
       customerPhone: conversation.customer?.phone ?? null,
     },
     messages: conversation.messages.map(serializeMessage),
+    history: history.map((h) => ({
+      id: h.id,
+      status: h.status,
+      updatedAt: h.updatedAt.toISOString(),
+      messageCount: h._count.messages,
+    })),
   });
 }
