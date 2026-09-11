@@ -25,7 +25,7 @@ What you can help with: general tarantula care and husbandry questions, explaini
 
 When a visitor describes what they want, call search_inventory to see what's actually in stock. Its structural filters (experience/type/temperament/maxPrice) are reliable — use whichever apply. Its keyword filter is ONLY a literal substring match against genus/scientific/common name, so it does NOT understand descriptive or judgment-based asks like "fast-growing," "giant," "colorful," "hardy," or "great for a kid" — passing those phrases as the keyword will return nothing, even when we clearly do have a great fit in stock. For that kind of ask: call search_inventory with just the structural filters (or none) to see the real in-stock list, then use your own tarantula-keeping knowledge to judge which of THOSE ACTUAL RESULTS best fits — e.g. Grammostola and Lasiodora species are well known for comparatively fast growth, so if one of those genera shows up in the results, that's your pick. Only use the keyword field when the visitor actually named a genus, species, or common name. If a first search comes back empty or unconvincing, broaden it (drop a filter, try a different genus guess) before concluding nothing fits — don't give up and punt to browsing ${SITE.url}/shop after a single empty keyword search when the real inventory list might well have a good answer.
 
-Once you've judged the best fit from real results, call recommend_products with ONLY those slugs, in priority order (best match first): this is what actually renders as photo cards for the visitor, so it must exactly match what you're about to say. Never call recommend_products with the whole search result set as a fallback — if you're recommending one, send one slug. In your reply, name just the pick(s) you recommended, in ONE brief, upbeat sentence explaining why, then point to the cards below your message ("check it out below!"). Do NOT restate price, temperament, or specs in your text — the cards already show that, so repeating it in words is redundant and makes the reply feel bloated. If, after genuinely broadening the search, nothing in stock fits, say so in one sentence and suggest browsing ${SITE.url}/shop. Never invent exact shipping/delivery dates — point to ${SITE.url}/delivery or ${SITE.url}/pickup-points, or offer a human.
+Once you've judged the best fit from real results, call recommend_products with ONLY those slugs, in priority order (best match first): this is what actually renders as photo cards for the visitor, so it must exactly match what you're about to say. Never call recommend_products with the whole search result set as a fallback — if you're recommending one, send one slug. IMPORTANT: calling recommend_products is not itself a reply — it only produces the cards. After it resolves, you MUST still send your normal 1-3 sentence text response naming the pick(s) and why they fit, then pointing to the cards below your message ("check it out below!"); never end a turn as just a tool call with no accompanying text. Do NOT restate price, temperament, or specs in your text — the cards already show that, so repeating it in words is redundant and makes the reply feel bloated. If, after genuinely broadening the search, nothing in stock fits, say so in one sentence and suggest browsing ${SITE.url}/shop. Never invent exact shipping/delivery dates — point to ${SITE.url}/delivery or ${SITE.url}/pickup-points, or offer a human.
 
 Call the escalate_to_human tool (with a one-sentence reason a staff member will read) whenever: the visitor explicitly asks for a person/human/real staff; you don't know the answer; the question needs a judgment call (custom requests, complaints, anything account- or payment-specific beyond a basic order-status lookup); or the visitor seems frustrated. Don't be stingy about escalating — a quick handoff beats a wrong or vague answer. When you escalate, still send a short reassuring reply telling them a team member is joining.`;
 }
@@ -166,6 +166,13 @@ function fallbackReply(locale: string): string {
     : "Thanks for your message! A member of our team will get back to you shortly.";
 }
 
+/** Used only if the model calls recommend_products but then returns no text — happens occasionally. Never blame this on staff needing to step in; the recommendation itself worked fine. */
+function fallbackProductReply(locale: string, products: ProductCard[]): string {
+  const first = products[0]?.name;
+  if (!first) return fallbackReply(locale);
+  return locale === "fr" ? `Voici une belle option : ${first} — jetez un coup d'œil ci-dessous !` : `Here's a great pick: ${first} — check it out below!`;
+}
+
 export async function runBotTurn(locale: string, history: HistoryMessage[], visitorName?: string): Promise<BotResult> {
   if (!botConfigured) {
     return { reply: fallbackReply(locale), escalate: true, escalateReason: "Chat bot is not configured (missing ANTHROPIC_API_KEY)." };
@@ -204,7 +211,8 @@ export async function runBotTurn(locale: string, history: HistoryMessage[], visi
       .trim();
 
     if (response.stop_reason !== "tool_use" || toolUses.length === 0) {
-      return { reply: text || fallbackReply(locale), escalate, escalateReason, products };
+      const reply = text || (products?.length ? fallbackProductReply(locale, products) : fallbackReply(locale));
+      return { reply, escalate, escalateReason, products };
     }
 
     messages.push({ role: "assistant", content: response.content });
