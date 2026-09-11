@@ -677,6 +677,8 @@
     "bubbleLabel": "Chat with us",
     "title": "Montreal Spider Co.",
     "subtitle": "Ask us anything",
+    "teaserTitle": "Hi there! 👋",
+    "teaserBody": "Have a question? Chat with us.",
     "placeholder": "Type a message…",
     "send": "Send",
     "greeting": "Hi! Ask me anything about our tarantulas, orders, or care — or ask for a human any time.",
