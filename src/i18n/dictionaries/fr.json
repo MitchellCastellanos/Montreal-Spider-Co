@@ -697,6 +697,8 @@
     "identifySubmit": "Commencer à clavarder",
     "identifyError": "Veuillez entrer votre nom et un courriel valide.",
     "talkToHuman": "Parler à une personne",
+    "endConversation": "Terminer cette conversation",
+    "endConversationConfirm": "Terminer la conversation? Vous pourrez toujours en démarrer une nouvelle.",
     "staffJoined": "{name} a rejoint la conversation",
     "statusWaiting": "En attente d'un membre de l'équipe…",
     "statusLive": "Un membre de l'équipe est présent",

@@ -257,6 +257,12 @@ export default function ChatWidget() {
     await fetch("/api/chat/escalate", { method: "POST" });
   };
 
+  const endConversation = async () => {
+    if (typeof window !== "undefined" && !window.confirm(c.endConversationConfirm)) return;
+    setStatus("closed");
+    await fetch("/api/chat/close", { method: "POST" });
+  };
+
   const requestResume = async () => {
     const value = resumeEmail.trim();
     if (!value) return;
@@ -272,11 +278,12 @@ export default function ChatWidget() {
     await fetch("/api/chat/new", { method: "POST" });
     setConversationId(null);
     setStatus("bot");
+    // Pre-fill the gate with who they already told us — most people starting over are the same visitor, not a new one.
+    setGateName(name ?? "");
+    setGateEmail(email ?? "");
     setName(null);
     setEmail(null);
     setMessages([]);
-    setGateName("");
-    setGateEmail("");
     setGateError(null);
     setShowResume(false);
     setResumeSent(false);
@@ -475,11 +482,16 @@ export default function ChatWidget() {
                         {c.send}
                       </button>
                     </div>
-                    {status === "bot" && (
-                      <button onClick={() => void escalate()} className="mt-2 text-xs text-muted hover:text-gold-bright">
-                        {c.talkToHuman}
+                    <div className="mt-2 flex items-center gap-3">
+                      {status === "bot" && (
+                        <button onClick={() => void escalate()} className="text-xs text-muted hover:text-gold-bright">
+                          {c.talkToHuman}
+                        </button>
+                      )}
+                      <button onClick={() => void endConversation()} className="text-xs text-muted hover:text-danger">
+                        {c.endConversation}
                       </button>
-                    )}
+                    </div>
                   </footer>
                 )}
               </>
