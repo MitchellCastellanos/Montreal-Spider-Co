@@ -697,6 +697,8 @@
     "identifySubmit": "Start chatting",
     "identifyError": "Please enter your name and a valid email.",
     "talkToHuman": "Talk to a human",
+    "endConversation": "End this conversation",
+    "endConversationConfirm": "End the conversation? You can always start a new one.",
     "staffJoined": "{name} joined the chat",
     "statusWaiting": "Waiting for a team member…",
     "statusLive": "A team member is here",
