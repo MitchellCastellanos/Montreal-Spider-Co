@@ -692,6 +692,16 @@
     "placeholder": "Écrivez un message…",
     "send": "Envoyer",
     "greeting": "Bonjour! Posez-moi vos questions sur nos mygales, vos commandes ou les soins — ou demandez à parler à une personne en tout temps.",
+    "suggestions": [
+      "Avez-vous des espèces pour débutants?",
+      "Pouvez-vous recommander une espèce à croissance rapide?",
+      "Quelles espèces arboricoles avez-vous en stock?",
+      "Quelle est votre mygale la plus docile?",
+      "Avez-vous quelque chose à moins de 50$?",
+      "Quoi de neuf en stock cette semaine?",
+      "Quelle espèce reste petite à l'âge adulte?",
+      "Quelle est une bonne première mygale pour un budget limité?"
+    ],
     "gateIntro": "Dites-nous qui vous êtes pour qu'on puisse vous aider plus vite.",
     "namePlaceholder": "Votre nom",
     "identifySubmit": "Commencer à clavarder",
