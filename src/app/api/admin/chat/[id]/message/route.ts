@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/auth";
 import { serializeMessage } from "@/lib/chat/conversation";
 import { publishMessage, publishConversationUpdate } from "@/lib/chat/pusher";
-import { getSettings } from "@/lib/data/settings";
+import { getChatSettings } from "@/lib/chat/settings";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -28,8 +28,8 @@ export async function POST(req: Request, { params }: Params) {
   const created = [];
 
   if (conversation.status !== "live") {
-    const settings = await getSettings();
-    const staffName = settings.chatStaffName || "Our team";
+    const settings = await getChatSettings();
+    const staffName = settings.staffName || "Our team";
     const joinMessage = await prisma.chatMessage.create({
       data: { conversationId: id, sender: "system", content: staffName },
     });

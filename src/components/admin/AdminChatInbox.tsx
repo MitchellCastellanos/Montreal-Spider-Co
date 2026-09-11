@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import type PusherClient from "pusher-js";
 import { formatDate } from "@/lib/format";
 import type { ProductCard } from "@/lib/chat/types";
+import AdminChatSettings from "./AdminChatSettings";
 
 type Status = "bot" | "waiting_human" | "live" | "closed";
 type Sender = "visitor" | "bot" | "staff" | "system";
@@ -50,6 +51,7 @@ export default function AdminChatInbox({ initialSelectedId }: { initialSelectedI
 
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [showClosed, setShowClosed] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null);
   const [detail, setDetail] = useState<ConversationDetail | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -189,7 +191,18 @@ export default function AdminChatInbox({ initialSelectedId }: { initialSelectedI
   };
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+    <div>
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="font-display text-2xl font-bold text-cream">Live chat</h1>
+        <button onClick={() => setShowSettings((v) => !v)} className="btn btn-ghost text-sm">
+          {showSettings ? "Back to inbox" : "Settings"}
+        </button>
+      </div>
+
+      {showSettings ? (
+        <AdminChatSettings />
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
       <div className="rounded-2xl border border-line bg-ink-soft/40 p-3">
         <p className="mb-2 px-1 font-display text-sm font-bold text-cream">Conversations</p>
         {loadingList && <p className="px-1 text-sm text-muted">Loading…</p>}
@@ -332,6 +345,8 @@ export default function AdminChatInbox({ initialSelectedId }: { initialSelectedI
           </div>
         )}
       </div>
+        </div>
+      )}
     </div>
   );
 }

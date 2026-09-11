@@ -6,7 +6,7 @@ import { DEFAULT_SETTINGS, type StoreSettings } from "./setting-defaults";
 export { DEFAULT_SETTINGS, resolvePickupTerms } from "./setting-defaults";
 export type { StoreSettings } from "./setting-defaults";
 
-const KEYS = ["pickupWindowDays", "pickupTerms", "terms", "googleReviewUrl", "chatStaffName"] as const;
+const KEYS = ["pickupWindowDays", "pickupTerms", "terms", "googleReviewUrl"] as const;
 
 export async function getSettings(): Promise<StoreSettings> {
   if (!prisma) return DEFAULT_SETTINGS;
@@ -32,7 +32,6 @@ export async function getSettings(): Promise<StoreSettings> {
       fr: tm?.valueFr || DEFAULT_SETTINGS.terms.fr,
     },
     googleReviewUrl: map.get("googleReviewUrl")?.valueEn || DEFAULT_SETTINGS.googleReviewUrl,
-    chatStaffName: map.get("chatStaffName")?.valueEn || DEFAULT_SETTINGS.chatStaffName,
   };
 }
 
@@ -44,7 +43,6 @@ export async function updateSettings(input: StoreSettings): Promise<void> {
     { key: "pickupTerms", valueEn: input.pickupTerms.en, valueFr: input.pickupTerms.fr },
     { key: "terms", valueEn: input.terms.en, valueFr: input.terms.fr },
     { key: "googleReviewUrl", valueEn: input.googleReviewUrl, valueFr: input.googleReviewUrl },
-    { key: "chatStaffName", valueEn: input.chatStaffName, valueFr: input.chatStaffName },
   ];
   await db.$transaction(
     rows.map((r) =>
