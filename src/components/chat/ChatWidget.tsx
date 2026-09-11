@@ -82,6 +82,12 @@ export default function ChatWidget() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
 
+  const [withinHours, setWithinHours] = useState(true);
+  const [showOfflineForm, setShowOfflineForm] = useState(false);
+  const [offlineMessage, setOfflineMessage] = useState("");
+  const [offlineSending, setOfflineSending] = useState(false);
+  const [offlineSent, setOfflineSent] = useState(false);
+
   const identified = Boolean(name && email);
   // Picked once per conversation, not on every render — varies across browser sessions without flickering mid-chat.
   const suggestions = useMemo(() => pickSuggestions(c.suggestions, SUGGESTION_COUNT), [conversationId, c.suggestions]);
@@ -138,6 +144,16 @@ export default function ChatWidget() {
       cancelled = true;
     };
   }, [mergeMessages, isAdmin]);
+
+  useEffect(() => {
+    if (isAdmin) return;
+    fetch("/api/chat/hours")
+      .then((r) => r.json())
+      .then((d) => {
+        if (typeof d.withinHours === "boolean") setWithinHours(d.withinHours);
+      })
+      .catch(() => {});
+  }, [isAdmin]);
 
   // Realtime updates: Pusher when configured, otherwise poll while the panel is open.
   useEffect(() => {
@@ -262,8 +278,34 @@ export default function ChatWidget() {
   };
 
   const escalate = async () => {
+    if (!withinHours) {
+      setShowOfflineForm(true);
+      return;
+    }
     setStatus("waiting_human");
     await fetch("/api/chat/escalate", { method: "POST" });
+  };
+
+  const submitOfflineMessage = async () => {
+    const text = offlineMessage.trim();
+    if (!text || offlineSending) return;
+    setOfflineSending(true);
+    try {
+      const res = await fetch("/api/chat/escalate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (data.message) mergeMessages([data.message]);
+        setStatus("waiting_human");
+        setOfflineSent(true);
+        setOfflineMessage("");
+      }
+    } finally {
+      setOfflineSending(false);
+    }
   };
 
   const endConversation = async () => {
@@ -296,6 +338,9 @@ export default function ChatWidget() {
     setGateError(null);
     setShowResume(false);
     setResumeSent(false);
+    setShowOfflineForm(false);
+    setOfflineMessage("");
+    setOfflineSent(false);
   };
 
   if (isAdmin || !loaded) return null;
@@ -507,8 +552,33 @@ export default function ChatWidget() {
                         {c.send}
                       </button>
                     </div>
+                    {showOfflineForm && !offlineSent && (
+                      <div className="mt-2 rounded-lg bg-ink p-2 text-xs">
+                        <p className="text-bone">{c.offlineIntro}</p>
+                        <div className="mt-1.5 flex gap-1.5">
+                          <input
+                            className="input flex-1 text-xs"
+                            value={offlineMessage}
+                            onChange={(e) => setOfflineMessage(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") void submitOfflineMessage();
+                            }}
+                            placeholder={c.placeholder}
+                          />
+                          <button
+                            onClick={() => void submitOfflineMessage()}
+                            disabled={offlineSending || !offlineMessage.trim()}
+                            className="btn btn-ghost text-xs"
+                          >
+                            {c.offlineSubmit}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {offlineSent && <p className="mt-2 text-xs text-ok">{c.offlineSent}</p>}
+
                     <div className="mt-2 flex items-center gap-3">
-                      {status === "bot" && (
+                      {status === "bot" && !showOfflineForm && (
                         <button onClick={() => void escalate()} className="text-xs text-muted hover:text-gold-bright">
                           {c.talkToHuman}
                         </button>
