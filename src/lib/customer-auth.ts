@@ -88,6 +88,58 @@ export async function loginCustomer(email: string, password: string): Promise<Cu
   return getCustomerProfile(customer.id);
 }
 
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+function hashResetToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+/** Generates a one-time reset token for the given email, if an account exists. */
+export async function createPasswordResetToken(
+  email: string,
+): Promise<{ token: string; customer: Customer } | null> {
+  if (!prisma) return null;
+  const normalized = email.trim().toLowerCase();
+  const customer = await prisma.customer.findUnique({ where: { email: normalized } });
+  if (!customer) return null;
+
+  const token = crypto.randomBytes(32).toString("hex");
+  await prisma.customer.update({
+    where: { id: customer.id },
+    data: {
+      resetTokenHash: hashResetToken(token),
+      resetTokenExpiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+    },
+  });
+  return { token, customer };
+}
+
+/** Consumes a reset token: sets the new password and signs the customer in. */
+export async function resetPasswordWithToken(
+  token: string,
+  newPassword: string,
+): Promise<{ customer: CustomerProfile } | { error: string }> {
+  if (!prisma) return { error: "Database not configured." };
+  if (!token || !newPassword || newPassword.length < 8) {
+    return { error: "Invalid reset request." };
+  }
+
+  const customer = await prisma.customer.findUnique({ where: { resetTokenHash: hashResetToken(token) } });
+  if (!customer || !customer.resetTokenExpiresAt || customer.resetTokenExpiresAt < new Date()) {
+    return { error: "This reset link is invalid or has expired." };
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  await prisma.customer.update({
+    where: { id: customer.id },
+    data: { passwordHash, resetTokenHash: null, resetTokenExpiresAt: null },
+  });
+  await setCustomerCookie(customer.id);
+  const profile = await getCustomerProfile(customer.id);
+  if (!profile) return { error: "Could not reset password." };
+  return { customer: profile };
+}
+
 export async function registerCustomer(input: {
   email: string;
   password: string;

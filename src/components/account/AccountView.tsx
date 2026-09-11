@@ -14,9 +14,9 @@ type Tab = "profile" | "orders" | "wishlist" | "guides" | "preferences" | "refer
 
 export default function AccountView({ pickups }: { pickups: PickupOption[] }) {
   const { dict, locale } = useI18n();
-  const { user, ready, login, register, signOut, refresh } = useAuth();
+  const { user, ready, login, register, signOut, refresh, requestPasswordReset } = useAuth();
   const a = dict.account;
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -24,6 +24,8 @@ export default function AccountView({ pickups }: { pickups: PickupOption[] }) {
   const [pwd, setPwd] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("profile");
+  const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   if (!ready) {
     return <div className="container-x py-20 text-muted">{dict.common.loading}</div>;
@@ -47,6 +49,55 @@ export default function AccountView({ pickups }: { pickups: PickupOption[] }) {
           : await login(email, pwd);
       if (error) setErr(error);
     };
+
+    if (mode === "forgot") {
+      const submitForgot = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setErr(null);
+        if (!email) {
+          setErr(a.errorFields);
+          return;
+        }
+        setResetLoading(true);
+        await requestPasswordReset(email, locale);
+        setResetLoading(false);
+        setResetSent(true);
+      };
+      return (
+        <div className="container-x py-16">
+          <div className="mx-auto max-w-md">
+            <div className="mb-6 text-center">
+              <div className="mx-auto w-24 opacity-50">
+                <SpiderGraphic hue={42} animate={false} />
+              </div>
+              <h1 className="mt-4 font-display text-3xl font-bold text-cream">{a.forgotPassword}</h1>
+              <p className="mt-2 text-sm text-bone">{a.forgotPasswordHint}</p>
+            </div>
+            {resetSent ? (
+              <div className="card-glow rounded-2xl p-6 text-center text-sm text-bone">{a.resetLinkSent}</div>
+            ) : (
+              <form onSubmit={submitForgot} className="card-glow space-y-4 rounded-2xl p-6">
+                <label className="field">
+                  <span>{dict.common.email}</span>
+                  <input type="email" className="input" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
+                </label>
+                {err && <p className="text-sm text-danger">{err}</p>}
+                <button className="btn btn-gold w-full" disabled={resetLoading}>{a.sendResetLink}</button>
+              </form>
+            )}
+            <p className="mt-5 text-center text-sm text-bone">
+              <button
+                onClick={() => { setMode("signin"); setErr(null); setResetSent(false); }}
+                className="font-semibold text-gold-bright hover:underline"
+              >
+                {a.backToSignIn}
+              </button>
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="container-x py-16">
         <div className="mx-auto max-w-md">
@@ -82,6 +133,17 @@ export default function AccountView({ pickups }: { pickups: PickupOption[] }) {
               <span>{dict.common.password}</span>
               <input type="password" className="input" value={pwd} onChange={(e) => setPwd(e.target.value)} autoComplete={mode === "signin" ? "current-password" : "new-password"} minLength={8} required />
             </label>
+            {mode === "signin" && (
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={() => { setMode("forgot"); setErr(null); setResetSent(false); }}
+                  className="text-sm text-gold-bright hover:underline"
+                >
+                  {a.forgotPassword}
+                </button>
+              </div>
+            )}
             {err && <p className="text-sm text-danger">{err}</p>}
             <button className="btn btn-gold w-full">{mode === "signin" ? a.signIn : a.signUp}</button>
           </form>

@@ -91,6 +91,8 @@ interface AuthCtx {
     referralCode?: string;
   }) => Promise<string | null>;
   signOut: () => Promise<void>;
+  requestPasswordReset: (email: string, locale: string) => Promise<void>;
+  resetPassword: (token: string, password: string) => Promise<string | null>;
   updateProfile: (patch: Partial<Pick<User, "name" | "phone" | "experience">> & {
     preferences?: Partial<CustomerPreferences>;
   }) => Promise<void>;
@@ -166,6 +168,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
+  const requestPasswordReset = useCallback(async (email: string, locale: string) => {
+    await fetch("/api/auth/forgot-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, locale }),
+    });
+  }, []);
+
+  const resetPassword = useCallback(async (token: string, password: string) => {
+    const res = await fetch("/api/auth/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, password }),
+    });
+    const data = await readJson<{ user?: User; error?: string }>(res);
+    if (!res.ok) return data.error ?? "Reset failed.";
+    setUser(data.user ?? null);
+    return null;
+  }, []);
+
   const updateProfile = useCallback(
     async (patch: Partial<Pick<User, "name" | "phone" | "experience">> & {
       preferences?: Partial<CustomerPreferences>;
@@ -222,6 +244,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     login,
     register,
     signOut,
+    requestPasswordReset,
+    resetPassword,
     updateProfile,
     addAddress,
     removeAddress,
