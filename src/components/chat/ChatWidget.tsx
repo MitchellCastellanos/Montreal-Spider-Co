@@ -143,9 +143,9 @@ export default function ChatWidget() {
   }, [messages, open]);
 
   // Draw the eye with a proactive greeting bubble a couple of seconds after load —
-  // but never for a returning visitor who's already mid-conversation, and only once per tab.
+  // once per tab session, skipped only while a human is already (or about to be) on the line.
   useEffect(() => {
-    if (isAdmin || !loaded || open || conversationId || messages.length > 0) return;
+    if (isAdmin || !loaded || open || status === "live" || status === "waiting_human") return;
     let dismissed = false;
     try {
       dismissed = sessionStorage.getItem(TEASER_DISMISSED_KEY) === "1";
@@ -155,7 +155,7 @@ export default function ChatWidget() {
     if (dismissed) return;
     const timer = setTimeout(() => setShowTeaser(true), 2200);
     return () => clearTimeout(timer);
-  }, [isAdmin, loaded, open, conversationId, messages.length]);
+  }, [isAdmin, loaded, open, status]);
 
   const dismissTeaser = () => {
     setShowTeaser(false);
