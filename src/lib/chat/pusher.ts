@@ -1,5 +1,8 @@
 import "server-only";
 import Pusher from "pusher";
+import type { ChatMessagePayload } from "@/lib/chat/types";
+
+export type { ChatMessagePayload };
 
 export const realtimeConfigured = Boolean(
   process.env.PUSHER_APP_ID && process.env.PUSHER_KEY && process.env.PUSHER_SECRET && process.env.PUSHER_CLUSTER,
@@ -20,13 +23,6 @@ function getClient(): Pusher | null {
   }
   return client;
 }
-
-export type ChatMessagePayload = {
-  id: string;
-  sender: "visitor" | "bot" | "staff" | "system";
-  content: string;
-  createdAt: string;
-};
 
 /** Per-conversation channel — the widget and the admin detail panel both subscribe here. */
 export function conversationChannel(conversationId: string): string {

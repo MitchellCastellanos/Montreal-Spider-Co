@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { SITE } from "@/lib/site";
 import { getStorefrontProducts } from "@/lib/data/products";
 import { basePrice, totalStock, type Experience, type SpiderType, type Temperament } from "@/lib/types";
+import type { ProductCard } from "@/lib/chat/types";
 
 export const botConfigured = Boolean(process.env.ANTHROPIC_API_KEY);
 
@@ -11,7 +12,7 @@ const MODEL = process.env.ANTHROPIC_CHAT_MODEL || "claude-haiku-4-5-20251001";
 const MAX_TOOL_TURNS = 4;
 
 export type HistoryMessage = { sender: "visitor" | "bot" | "staff" | "system"; content: string };
-export type BotResult = { reply: string; escalate: boolean; escalateReason?: string };
+export type BotResult = { reply: string; escalate: boolean; escalateReason?: string; products?: ProductCard[] };
 
 function systemPrompt(locale: string, visitorName?: string): string {
   const lang = locale === "fr" ? "French" : "English";
@@ -22,7 +23,7 @@ Reply in ${lang} by default, but match the visitor's language if they write in a
 
 What you can help with: general tarantula care and husbandry questions, explaining how ordering/pickup/delivery works, the site's "Verified Origin" traceability program, recommending specimens we actually have in stock right now (use the search_inventory tool — always call it before recommending or quoting a price, never guess from memory since stock changes constantly), and looking up a specific order's status (use the check_order_status tool — you need the order number and the email it was placed under).
 
-When a visitor describes what they want (experience level, temperament, terrestrial/arboreal/fossorial, budget, a genus or common name), call search_inventory with whatever criteria you can infer and recommend from the real results, each with its real price and a link. If nothing matches, say so plainly and either loosen the criteria and try again or suggest browsing ${SITE.url}/shop. Never invent exact shipping/delivery dates — point to ${SITE.url}/delivery or ${SITE.url}/pickup-points, or offer a human.
+When a visitor describes what they want (experience level, temperament, terrestrial/arboreal/fossorial, budget, a genus or common name), call search_inventory with whatever criteria you can infer and recommend from the real results — mention the species and its real price in your own words, briefly. Never paste a URL or the tool's raw output into your reply: the app automatically shows a photo card with a link for every specimen the tool returns, right under your message, so your text only needs the recommendation itself. If nothing matches, say so plainly and either loosen the criteria and try again or suggest browsing ${SITE.url}/shop. Never invent exact shipping/delivery dates — point to ${SITE.url}/delivery or ${SITE.url}/pickup-points, or offer a human.
 
 Call the escalate_to_human tool (with a one-sentence reason a staff member will read) whenever: the visitor explicitly asks for a person/human/real staff; you don't know the answer; the question needs a judgment call (custom requests, complaints, anything account- or payment-specific beyond a basic order-status lookup); or the visitor seems frustrated. Don't be stingy about escalating — a quick handoff beats a wrong or vague answer. When you escalate, still send a short reassuring reply telling them a team member is joining.`;
 }
@@ -69,14 +70,17 @@ const TOOLS: Anthropic.Tool[] = [
   },
 ];
 
-async function searchInventory(args: {
-  experience?: Experience;
-  type?: SpiderType;
-  temperament?: Temperament;
-  keyword?: string;
-  maxPrice?: number;
-  limit?: number;
-}): Promise<string> {
+async function searchInventory(
+  locale: string,
+  args: {
+    experience?: Experience;
+    type?: SpiderType;
+    temperament?: Temperament;
+    keyword?: string;
+    maxPrice?: number;
+    limit?: number;
+  },
+): Promise<{ text: string; products: ProductCard[] }> {
   const products = await getStorefrontProducts();
   let results = products.filter((p) => totalStock(p) > 0);
 
@@ -93,13 +97,24 @@ async function searchInventory(args: {
 
   results = results.sort((a, b) => basePrice(a) - basePrice(b)).slice(0, Math.min(Math.max(args.limit ?? 5, 1), 8));
 
-  if (results.length === 0) return "No specimens currently in stock match those filters.";
-  return results
+  if (results.length === 0) return { text: "No specimens currently in stock match those filters.", products: [] };
+
+  const productCards: ProductCard[] = results.map((p) => ({
+    slug: p.slug,
+    name: p.common.en,
+    price: basePrice(p),
+    image: p.image ?? null,
+    url: `${SITE.url}/${locale}/product/${p.slug}`,
+  }));
+
+  const text = results
     .map(
       (p) =>
-        `${p.common.en} (${p.scientific}) — ${p.experience}, ${p.type}, ${p.temperament} temperament — from $${basePrice(p).toFixed(2)} CAD, ${totalStock(p)} in stock — ${SITE.url}/en/product/${p.slug}`,
+        `${p.common.en} (${p.scientific}) — ${p.experience}, ${p.type}, ${p.temperament} temperament — from $${basePrice(p).toFixed(2)} CAD, ${totalStock(p)} in stock`,
     )
     .join("\n");
+
+  return { text, products: productCards };
 }
 
 async function checkOrderStatus(orderNumber: string, email: string): Promise<string> {
@@ -131,6 +146,7 @@ export async function runBotTurn(locale: string, history: HistoryMessage[], visi
 
   let escalate = false;
   let escalateReason: string | undefined;
+  let products: ProductCard[] | undefined;
 
   for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
     let response: Anthropic.Message;
@@ -155,7 +171,7 @@ export async function runBotTurn(locale: string, history: HistoryMessage[], visi
       .trim();
 
     if (response.stop_reason !== "tool_use" || toolUses.length === 0) {
-      return { reply: text || fallbackReply(locale), escalate, escalateReason };
+      return { reply: text || fallbackReply(locale), escalate, escalateReason, products };
     }
 
     messages.push({ role: "assistant", content: response.content });
@@ -163,8 +179,9 @@ export async function runBotTurn(locale: string, history: HistoryMessage[], visi
     const toolResults: Anthropic.ToolResultBlockParam[] = [];
     for (const use of toolUses) {
       if (use.name === "search_inventory") {
-        const result = await searchInventory(use.input as Parameters<typeof searchInventory>[0]);
-        toolResults.push({ type: "tool_result", tool_use_id: use.id, content: result });
+        const result = await searchInventory(locale, use.input as Parameters<typeof searchInventory>[1]);
+        products = result.products;
+        toolResults.push({ type: "tool_result", tool_use_id: use.id, content: result.text });
       } else if (use.name === "escalate_to_human") {
         escalate = true;
         escalateReason = (use.input as { reason?: string })?.reason;
@@ -184,5 +201,6 @@ export async function runBotTurn(locale: string, history: HistoryMessage[], visi
     reply: locale === "fr" ? "Un membre de notre équipe prend le relais dans un instant." : "A team member is taking it from here.",
     escalate: true,
     escalateReason: escalateReason ?? "Bot reached its tool-call limit.",
+    products,
   };
 }

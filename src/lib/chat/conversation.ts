@@ -1,17 +1,20 @@
 import "server-only";
 import type { ChatMessage } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { type ChatMessagePayload, publishConversationUpdate } from "@/lib/chat/pusher";
+import { publishConversationUpdate } from "@/lib/chat/pusher";
 import { sendTelegramAlert } from "@/lib/chat/telegram";
 import { notifyStaff } from "@/lib/notifications/service";
 import { SITE } from "@/lib/site";
+import type { ChatMessagePayload, ProductCard } from "@/lib/chat/types";
 
 export function serializeMessage(m: ChatMessage): ChatMessagePayload {
+  const meta = (m.meta as { products?: ProductCard[] } | null) ?? {};
   return {
     id: m.id,
     sender: m.sender,
     content: m.content,
     createdAt: m.createdAt.toISOString(),
+    products: meta.products?.length ? meta.products : undefined,
   };
 }
 
