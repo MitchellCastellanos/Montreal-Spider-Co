@@ -29,7 +29,7 @@ const STATUS_STYLE: Record<ContactStatus, string> = {
 };
 
 function defaultReplyDraft(name: string): string {
-  return `Hello ${name || "there"},\n\nThank you for contacting us — how can we help?\n\n\n\nSincerely,\nThe Montreal Spider Co team.`;
+  return `Hi ${name || "there"},\n\nThank you for reaching out —\n\n\n\nIf you have any other questions, we're here to help.\n\nThe Montreal Spider Co. team.`;
 }
 
 function EmailPreview({ subject, body, locale }: { subject: string; body: string; locale: "en" | "fr" }) {
