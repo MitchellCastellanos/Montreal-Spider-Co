@@ -213,7 +213,28 @@ export async function runBotTurn(locale: string, history: HistoryMessage[], visi
       .trim();
 
     if (response.stop_reason !== "tool_use" || toolUses.length === 0) {
-      const reply = text || (products?.length ? fallbackProductReply(locale, products) : fallbackReply(locale));
+      if (text) return { reply: text, escalate, escalateReason, products };
+
+      // Occasionally ends a turn right after a tool call with no reply text — ask once more,
+      // with no tools offered this time, so it's forced to actually answer instead of tool-calling again.
+      try {
+        const retry = await client.messages.create({
+          model: MODEL,
+          max_tokens: 300,
+          system: systemPrompt(locale, visitorName),
+          messages: [...messages, { role: "user", content: "(Reminder: you haven't sent your reply yet — send it now.)" }],
+        });
+        const retryText = retry.content
+          .filter((b): b is Anthropic.TextBlock => b.type === "text")
+          .map((b) => b.text)
+          .join("\n")
+          .trim();
+        if (retryText) return { reply: retryText, escalate, escalateReason, products };
+      } catch (e) {
+        console.error("[chat/bot] empty-reply retry failed:", e);
+      }
+
+      const reply = products?.length ? fallbackProductReply(locale, products) : fallbackReply(locale);
       return { reply, escalate, escalateReason, products };
     }
 
