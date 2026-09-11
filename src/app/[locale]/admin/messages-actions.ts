@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { isAdminAuthed } from "@/lib/auth";
 import { recordContactReply } from "@/lib/data/contact-messages";
-import { sendNotificationDetailed } from "@/lib/notifications/service";
+import { sendNotificationDetailed, listFromIdentities } from "@/lib/notifications/service";
 import { paragraphsFromPlainText } from "@/lib/email-templates";
 import type { ActionState } from "./actions";
 
@@ -27,6 +27,8 @@ export async function replyToContactMessageAction(_prev: ActionState, formData: 
   if (!EMAIL_RE.test(to)) return { error: "Enter a valid email address." };
   if (!subject || !body) return { error: "Write a subject and a message before sending." };
 
+  const contactFrom = listFromIdentities().find((f) => f.id === "contact")?.email;
+
   const result = await sendNotificationDetailed({
     templateId: "admin-composed",
     event: "contact.replied",
@@ -34,6 +36,7 @@ export async function replyToContactMessageAction(_prev: ActionState, formData: 
     locale,
     data: { subject, bodyHtml: paragraphsFromPlainText(body) },
     context: { contactMessageId: id },
+    from: contactFrom,
   });
   if (!result.ok) return { error: result.error };
 
@@ -55,9 +58,13 @@ export async function sendComposedEmailAction(_prev: ActionState, formData: Form
   const subject = str(formData, "subject");
   const body = str(formData, "body");
   const locale = str(formData, "emailLocale") === "fr" ? "fr" : "en";
+  const fromId = str(formData, "from");
 
   if (!EMAIL_RE.test(to)) return { error: "Enter a valid destination email address." };
   if (!subject || !body) return { error: "Write a subject and a message before sending." };
+
+  const identities = listFromIdentities();
+  const from = (identities.find((f) => f.id === fromId) ?? identities[0])?.email;
 
   const result = await sendNotificationDetailed({
     templateId: "admin-composed",
@@ -65,6 +72,7 @@ export async function sendComposedEmailAction(_prev: ActionState, formData: Form
     to,
     locale,
     data: { subject, bodyHtml: paragraphsFromPlainText(body) },
+    from,
   });
   if (!result.ok) return { error: result.error };
 

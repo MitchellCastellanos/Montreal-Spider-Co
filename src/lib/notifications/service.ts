@@ -49,6 +49,29 @@ export function distributorBcc(isDistributor: boolean): string | undefined {
   return isDistributor ? adminEmail : undefined;
 }
 
+export interface FromIdentity {
+  id: string;
+  label: string;
+  email: string;
+}
+
+/**
+ * The "from" addresses this deployment actually has configured, for pickers like the
+ * admin Messages composer — so staff choose among addresses that are set up, instead
+ * of guessing one that Resend will reject.
+ */
+export function listFromIdentities(): FromIdentity[] {
+  const candidates: FromIdentity[] = [
+    { id: "contact", label: `Contact — ${contactFromEmail}`, email: contactFromEmail },
+    { id: "orders", label: `Orders — ${fromEmail}`, email: fromEmail },
+    { id: "account", label: `Hello / Account — ${accountFromEmail}`, email: accountFromEmail },
+    { id: "reports", label: `Reports — ${reportsFromEmail}`, email: reportsFromEmail },
+    { id: "partners", label: `Partners — ${partnerFromEmail}`, email: partnerFromEmail },
+  ];
+  const seen = new Set<string>();
+  return candidates.filter((c) => (seen.has(c.email) ? false : (seen.add(c.email), true)));
+}
+
 export interface NotificationInput {
   /** Template id from the registry in `email-templates.ts`. */
   templateId: string;
@@ -64,6 +87,8 @@ export interface NotificationInput {
   attachments?: { filename: string; content: Buffer; contentType?: string }[];
   /** Optional BCC recipient(s) — e.g. looping in the admin on distributor-facing mail. */
   bcc?: string | string[];
+  /** Overrides the template-id-based "from" address — e.g. the admin Messages composer's picker. */
+  from?: string;
 }
 
 async function logEmail(entry: {
@@ -150,7 +175,7 @@ export async function sendNotificationDetailed(input: NotificationInput): Promis
   try {
     const resend = new Resend(process.env.RESEND_API_KEY);
     const { error } = await resend.emails.send({
-      from: resolveFromEmail(input.templateId),
+      from: input.from || resolveFromEmail(input.templateId),
       to: input.to,
       bcc: input.bcc,
       subject: email.subject,

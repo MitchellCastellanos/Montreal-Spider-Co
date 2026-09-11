@@ -126,7 +126,7 @@ function ReplyPanel({ message }: { message: ContactMessageView }) {
   );
 }
 
-function ComposePanel() {
+function ComposePanel({ fromOptions }: { fromOptions: { id: string; label: string }[] }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(sendComposedEmailAction, {});
   const [topic, setTopic] = useState("");
   const [recipientName, setRecipientName] = useState("");
@@ -134,6 +134,7 @@ function ComposePanel() {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [emailLocale, setEmailLocale] = useState<"en" | "fr">("en");
+  const [fromId, setFromId] = useState(fromOptions[0]?.id ?? "");
   const [preview, setPreview] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -194,6 +195,7 @@ function ComposePanel() {
 
       <form action={action} className="space-y-3">
         <input type="hidden" name="emailLocale" value={emailLocale} />
+        <input type="hidden" name="from" value={fromId} />
 
         <div className="grid gap-3 sm:grid-cols-[1fr_1fr_140px]">
           <label className="field">
@@ -212,6 +214,18 @@ function ComposePanel() {
             </select>
           </label>
         </div>
+
+        <label className="field">
+          <span>Send from</span>
+          <select value={fromId} onChange={(e) => setFromId(e.target.value)} className="input">
+            {fromOptions.length === 0 && <option value="">No sender addresses configured</option>}
+            {fromOptions.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+        </label>
 
         <label className="field">
           <span>Message (paste ChatGPT&apos;s reply here, or write your own)</span>
@@ -236,7 +250,15 @@ function ComposePanel() {
   );
 }
 
-export default function ContactInbox({ messages, configured }: { messages: ContactMessageView[]; configured: boolean }) {
+export default function ContactInbox({
+  messages,
+  configured,
+  fromOptions,
+}: {
+  messages: ContactMessageView[];
+  configured: boolean;
+  fromOptions: { id: string; label: string }[];
+}) {
   const [tab, setTab] = useState<"inbox" | "compose">("inbox");
   const [selectedId, setSelectedId] = useState<string | null>(messages[0]?.id ?? null);
   const selected = messages.find((m) => m.id === selectedId) ?? null;
@@ -302,7 +324,7 @@ export default function ContactInbox({ messages, configured }: { messages: Conta
         </div>
       ) : (
         <div className="rounded-2xl border border-line bg-ink-soft/40 p-4">
-          <ComposePanel />
+          <ComposePanel fromOptions={fromOptions} />
         </div>
       )}
     </div>
