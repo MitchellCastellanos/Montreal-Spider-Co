@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useAuth, type Order } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice, formatDate } from "@/lib/format";
 import SexBadge from "@/components/SexBadge";
-import SpiderGraphic from "@/components/SpiderGraphic";
 import { PreferencesTab, ReferralTab, SavedGuidesTab, WishlistTab } from "@/components/account/AccountExtras";
 import type { PickupOption } from "@/components/checkout/PickupMeetupSection";
 
@@ -52,7 +52,14 @@ export default function AccountView({ pickups }: { pickups: PickupOption[] }) {
         <div className="mx-auto max-w-md">
           <div className="mb-6 text-center">
             <div className="mx-auto w-24 opacity-50">
-              <SpiderGraphic hue={42} animate={false} />
+              <Image
+                src="/images/spider-silhouette.png"
+                alt=""
+                width={512}
+                height={512}
+                className="h-auto w-full"
+                aria-hidden="true"
+              />
             </div>
             <h1 className="mt-4 font-display text-3xl font-bold text-cream">{mode === "signin" ? a.signIn : a.signUp}</h1>
             <p className="mt-2 text-sm text-bone">{a.signInToContinue}</p>
