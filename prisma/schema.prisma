@@ -424,6 +424,7 @@ model Customer {
   reviews          ProductReview[]
   coupons          Coupon[]
   orderMessages    OrderMessage[]
+  conversations    Conversation[]
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
@@ -514,6 +515,58 @@ model OrderMessage {
 
   @@index([orderId])
   @@index([customerId])
+}
+
+enum ConversationStatus {
+  /** The bot is answering; no human has been requested. */
+  bot
+  /** Visitor asked for a human, or the bot couldn't help — waiting for staff to pick it up. */
+  waiting_human
+  /** A staff member has joined and is replying directly. */
+  live
+  closed
+}
+
+enum ChatSender {
+  visitor
+  bot
+  staff
+  /** Announcements like "Mitch joined the chat" — not typed by anyone. */
+  system
+}
+
+/** One live-chat/chatbot conversation with a site visitor (anonymous or logged-in). */
+model Conversation {
+  id         String             @id @default(cuid())
+  /** Unguessable id stored in the visitor's cookie — how an anonymous browser owns this thread. */
+  visitorId  String             @unique
+  customerId String?
+  customer   Customer?          @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  /** Captured for cross-device resume and follow-up (survey, etc.) — set once the visitor shares it. */
+  email      String?
+  locale     String             @default("en")
+  status     ConversationStatus @default(bot)
+  /** True once a "waiting_human" alert (Telegram/email) has been sent, so we never alert twice for the same wait. */
+  staffAlerted Boolean          @default(false)
+  messages   ChatMessage[]
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  @@index([customerId])
+  @@index([email])
+  @@index([status, updatedAt])
+}
+
+model ChatMessage {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         ChatSender
+  /** Message text. For `system` announcements, the staff display name (e.g. "Mitch"). */
+  content        String
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
 }
 
 model Address {
