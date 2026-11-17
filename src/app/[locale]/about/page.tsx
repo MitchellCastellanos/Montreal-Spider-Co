@@ -8,6 +8,7 @@ import Reveal from "@/components/Reveal";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { withVerifiedOriginLinks } from "@/lib/verified-origin-links";
 import Image from "next/image";
+import PhotoWatermark from "@/components/PhotoWatermark";
 import Link from "next/link";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
@@ -56,6 +57,7 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
                 className="object-cover"
               />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/60 to-transparent" />
+              <PhotoWatermark />
             </div>
           </Reveal>
           <Reveal delay={0.1}>
