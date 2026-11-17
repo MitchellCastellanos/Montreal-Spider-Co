@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import PhotoWatermark from "@/components/PhotoWatermark";
 import { isLocale, locales, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { BLOG_POSTS, getBlogPost } from "@/lib/blog";
@@ -79,6 +80,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ local
               sizes="(max-width: 1024px) 100vw, 896px"
               className="object-cover"
             />
+            <PhotoWatermark />
           </div>
         </Reveal>
         <div className="mx-auto max-w-2xl space-y-10">
