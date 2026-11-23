@@ -371,7 +371,7 @@ export async function saveSettingsAction(_prev: ActionState, formData: FormData)
   if (!(await isAdminAuthed())) return { error: "unauthorized" };
   try {
     await updateSettings({
-      pickupWindowDays: Math.max(1, Math.round(num(formData, "pickupWindowDays", 2))),
+      pickupBusinessDays: Math.max(1, Math.round(num(formData, "pickupBusinessDays", 5))),
       pickupTerms: { en: str(formData, "pickupTermsEn"), fr: str(formData, "pickupTermsFr") },
       terms: { en: str(formData, "termsEn"), fr: str(formData, "termsFr") },
       googleReviewUrl: str(formData, "googleReviewUrl"),

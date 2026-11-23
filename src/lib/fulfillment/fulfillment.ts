@@ -7,6 +7,8 @@ import { getSettings } from "@/lib/data/settings";
 import { markOrderSpecimensSold, releaseOrderSpecimens } from "@/lib/data/specimens";
 import { sendNotification, notifyStaff, distributorBcc } from "@/lib/notifications/service";
 import { partnerPickupUrl } from "@/lib/partner/auth";
+import { computeCollectBy, formatBusinessDays, formatDeadline, resolvePickupHours } from "@/lib/business-days";
+import { formatWeeklyHoursSummary } from "@/lib/opening-hours";
 
 /**
  * Fulfillment domain — everything that happens AFTER payment until physical
@@ -42,14 +44,8 @@ function fulfillmentMethodLabel(order: OrderWithRelations, locationName?: string
   return `Pickup — ${locationName ?? order.pickupId ?? "pickup point"}`;
 }
 
-function fmtDate(d: Date, locale: "en" | "fr"): string {
-  return d.toLocaleDateString(locale === "fr" ? "fr-CA" : "en-CA", {
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
+/** Deadline text in store time (the server runs in UTC) — e.g. "Friday, November 27, 4:30 p.m.". */
+const fmtDate = formatDeadline;
 
 function orderLocale(order: { locale: string }): "en" | "fr" {
   return order.locale === "fr" ? "fr" : "en";
@@ -127,7 +123,9 @@ export async function markReady(fulfillmentId: string, scheduledFor?: Date): Pro
 
   const settings = await getSettings();
   const readyAt = new Date();
-  const collectBy = new Date(readyAt.getTime() + settings.pickupWindowDays * 24 * 60 * 60 * 1000);
+  // Business days = days the pickup location is open (meetups use the default meetup hours).
+  const pickupHours = resolvePickupHours(f.location?.hours);
+  const collectBy = computeCollectBy(readyAt, settings.pickupBusinessDays, pickupHours);
 
   await db.$transaction([
     db.fulfillment.update({
@@ -148,7 +146,9 @@ export async function markReady(fulfillmentId: string, scheduledFor?: Date): Pro
       orderNumber: f.order.orderNumber,
       pickupName: f.location?.name ?? fulfillmentMethodLabel(f.order),
       pickupAddress: f.location?.address ?? "",
-      pickupWindow: `${settings.pickupWindowDays} ${locale === "fr" ? "jours" : "days"}`,
+      pickupWindow: formatBusinessDays(settings.pickupBusinessDays, locale),
+      collectBy: fmtDate(collectBy, locale),
+      pickupHours: f.location ? formatWeeklyHoursSummary(pickupHours, locale) : "",
     },
     context: { orderId: f.orderId, fulfillmentId },
   });
@@ -164,6 +164,7 @@ export async function markReady(fulfillmentId: string, scheduledFor?: Date): Pro
         customerName: f.order.name,
         itemLines: orderItemLines(f.order),
         confirmUrl: partnerPickupUrl(f.pickupToken, f.location.partnerToken),
+        collectBy: fmtDate(collectBy, "en"),
       },
       context: { orderId: f.orderId, fulfillmentId, locationId: f.location.id },
       bcc: distributorBcc(f.location.isDistributor),

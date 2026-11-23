@@ -1,5 +1,6 @@
 import { hasDatabase } from "@/lib/db";
 import { isLocale, type Locale } from "@/i18n/config";
+import { formatDeadline } from "@/lib/business-days";
 import { listFulfillments, type FulfillmentWithOrder } from "@/lib/fulfillment/fulfillment";
 import { listTasks } from "@/lib/data/tasks";
 import OperationsHub, { type FulfillmentRow } from "@/components/admin/OperationsHub";
@@ -26,7 +27,7 @@ function toRow(f: FulfillmentWithOrder): FulfillmentRow {
     items: f.order.lines.map((l) => `${l.qty}× ${l.nameEn} (${l.sizeLabelEn})`).join(" · "),
     total: f.order.total,
     readyAt: f.readyAt?.toISOString().slice(0, 10) ?? null,
-    collectBy: f.collectBy?.toISOString().slice(0, 10) ?? null,
+    collectBy: f.collectBy ? formatDeadline(f.collectBy, "en") : null,
     remindersSent: f.remindersSent,
     pickupToken: f.pickupToken,
     createdAt: f.createdAt.toISOString().slice(0, 10),
