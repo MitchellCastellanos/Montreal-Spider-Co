@@ -117,7 +117,7 @@ async function main() {
   } else {
   console.log("Seeding default settings…");
   const settings = [
-    { key: "pickupWindowDays", valueEn: String(DEFAULT_SETTINGS.pickupWindowDays), valueFr: String(DEFAULT_SETTINGS.pickupWindowDays) },
+    { key: "pickupBusinessDays", valueEn: String(DEFAULT_SETTINGS.pickupBusinessDays), valueFr: String(DEFAULT_SETTINGS.pickupBusinessDays) },
     { key: "pickupTerms", valueEn: DEFAULT_SETTINGS.pickupTerms.en, valueFr: DEFAULT_SETTINGS.pickupTerms.fr },
     { key: "terms", valueEn: DEFAULT_SETTINGS.terms.en, valueFr: DEFAULT_SETTINGS.terms.fr },
   ];

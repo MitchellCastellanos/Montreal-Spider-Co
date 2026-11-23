@@ -110,6 +110,51 @@ function TransitionButton({
   );
 }
 
+function ExtendDeadlineForm({ fulfillmentId }: { fulfillmentId: string }) {
+  const [open, setOpen] = useState(false);
+  const [state, formAction, pending] = useActionState<ActionState, FormData>(fulfillmentTransitionAction, {});
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="rounded-lg border border-gold/40 px-3 py-1.5 text-xs text-gold-bright transition hover:bg-gold/10"
+      >
+        Extend deadline…
+      </button>
+    );
+  }
+  return (
+    <form action={formAction} className="flex flex-wrap items-center gap-2 rounded-lg border border-gold/30 bg-ink p-2">
+      <input type="hidden" name="fulfillmentId" value={fulfillmentId} />
+      <input type="hidden" name="transition" value="extend" />
+      <label className="flex items-center gap-2 text-xs text-bone">
+        Extend by
+        <input
+          type="number"
+          name="extraDays"
+          min={1}
+          max={30}
+          defaultValue={2}
+          className="w-16 rounded-lg border border-line bg-ink-soft p-1.5 text-sm text-cream"
+        />
+        business days
+      </label>
+      <button
+        disabled={pending}
+        className="rounded-lg bg-gold/15 px-3 py-1.5 text-xs text-gold-bright ring-1 ring-gold/40 disabled:opacity-50"
+      >
+        {pending ? "…" : "Extend + email customer"}
+      </button>
+      <button type="button" onClick={() => setOpen(false)} className="text-xs text-muted hover:text-bone">
+        Close
+      </button>
+      {state.error && <span className="text-xs text-danger">{state.error}</span>}
+      {state.ok && <span className="text-xs text-emerald-300">Extended ✓</span>}
+    </form>
+  );
+}
+
 function FulfillmentCard({ f }: { f: FulfillmentRow }) {
   return (
     <div className="rounded-xl border border-line bg-ink-soft/40 p-4">
@@ -145,6 +190,7 @@ function FulfillmentCard({ f }: { f: FulfillmentRow }) {
           <>
             <TransitionButton fulfillmentId={f.id} transition="complete" label="Confirm handover → SOLD" />
             <TransitionButton fulfillmentId={f.id} transition="remind" label="Send reminder" />
+            <ExtendDeadlineForm fulfillmentId={f.id} />
             <TransitionButton
               fulfillmentId={f.id}
               transition="no-show"

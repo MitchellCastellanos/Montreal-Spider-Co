@@ -7,6 +7,8 @@ import { getSettings } from "@/lib/data/settings";
 import { markOrderSpecimensSold, releaseOrderSpecimens } from "@/lib/data/specimens";
 import { sendNotification, notifyStaff, distributorBcc } from "@/lib/notifications/service";
 import { partnerPickupUrl } from "@/lib/partner/auth";
+import { computeCollectBy, formatBusinessDays, formatDeadline, resolvePickupHours } from "@/lib/business-days";
+import { formatWeeklyHoursSummary } from "@/lib/opening-hours";
 
 /**
  * Fulfillment domain — everything that happens AFTER payment until physical
@@ -42,14 +44,8 @@ function fulfillmentMethodLabel(order: OrderWithRelations, locationName?: string
   return `Pickup — ${locationName ?? order.pickupId ?? "pickup point"}`;
 }
 
-function fmtDate(d: Date, locale: "en" | "fr"): string {
-  return d.toLocaleDateString(locale === "fr" ? "fr-CA" : "en-CA", {
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
+/** Deadline text in store time (the server runs in UTC) — e.g. "Friday, November 27, 4:30 p.m.". */
+const fmtDate = formatDeadline;
 
 function orderLocale(order: { locale: string }): "en" | "fr" {
   return order.locale === "fr" ? "fr" : "en";
@@ -127,7 +123,9 @@ export async function markReady(fulfillmentId: string, scheduledFor?: Date): Pro
 
   const settings = await getSettings();
   const readyAt = new Date();
-  const collectBy = new Date(readyAt.getTime() + settings.pickupWindowDays * 24 * 60 * 60 * 1000);
+  // Business days = days the pickup location is open (meetups use the default meetup hours).
+  const pickupHours = resolvePickupHours(f.location?.hours);
+  const collectBy = computeCollectBy(readyAt, settings.pickupBusinessDays, pickupHours);
 
   await db.$transaction([
     db.fulfillment.update({
@@ -148,7 +146,9 @@ export async function markReady(fulfillmentId: string, scheduledFor?: Date): Pro
       orderNumber: f.order.orderNumber,
       pickupName: f.location?.name ?? fulfillmentMethodLabel(f.order),
       pickupAddress: f.location?.address ?? "",
-      pickupWindow: `${settings.pickupWindowDays} ${locale === "fr" ? "jours" : "days"}`,
+      pickupWindow: formatBusinessDays(settings.pickupBusinessDays, locale),
+      collectBy: fmtDate(collectBy, locale),
+      pickupHours: f.location ? formatWeeklyHoursSummary(pickupHours, locale) : "",
     },
     context: { orderId: f.orderId, fulfillmentId },
   });
@@ -164,6 +164,7 @@ export async function markReady(fulfillmentId: string, scheduledFor?: Date): Pro
         customerName: f.order.name,
         itemLines: orderItemLines(f.order),
         confirmUrl: partnerPickupUrl(f.pickupToken, f.location.partnerToken),
+        collectBy: fmtDate(collectBy, "en"),
       },
       context: { orderId: f.orderId, fulfillmentId, locationId: f.location.id },
       bcc: distributorBcc(f.location.isDistributor),
@@ -232,6 +233,47 @@ export async function sendPickupReminder(fulfillmentId: string, final = false): 
     where: { id: fulfillmentId },
     data: { remindersSent: { increment: 1 }, lastReminderAt: new Date() },
   });
+}
+
+/**
+ * Give the customer more time: pushes the deadline out by N business days
+ * (per the pickup location's opening hours), counted from the current deadline
+ * — or from today if it has already passed. Resets the reminder cycle so the
+ * scheduler warns again before the new deadline, and emails the customer.
+ */
+export async function extendCollectBy(fulfillmentId: string, extraBusinessDays: number): Promise<Date> {
+  const db = requireDb();
+  const f = await getFulfillmentById(fulfillmentId);
+  if (!f) throw new Error("Fulfillment not found.");
+  if (f.status !== "ready") throw new Error("Only orders waiting for pickup can be extended.");
+  const days = Math.floor(extraBusinessDays);
+  if (!Number.isFinite(days) || days < 1 || days > 30) throw new Error("Enter between 1 and 30 business days.");
+
+  const now = new Date();
+  const base = f.collectBy && f.collectBy > now ? f.collectBy : now;
+  const collectBy = computeCollectBy(base, days, resolvePickupHours(f.location?.hours));
+
+  await db.fulfillment.update({
+    where: { id: fulfillmentId },
+    data: { collectBy, remindersSent: 0, lastReminderAt: null },
+  });
+
+  const locale = orderLocale(f.order);
+  await sendNotification({
+    templateId: "pickup-extended",
+    event: "fulfillment.extended",
+    to: f.order.email,
+    locale,
+    data: {
+      name: f.order.name,
+      orderNumber: f.order.orderNumber,
+      pickupName: f.location?.name ?? fulfillmentMethodLabel(f.order),
+      collectBy: fmtDate(collectBy, locale),
+    },
+    context: { orderId: f.orderId, fulfillmentId },
+  });
+
+  return collectBy;
 }
 
 async function refundOrder(

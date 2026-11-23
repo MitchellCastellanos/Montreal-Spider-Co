@@ -208,25 +208,29 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       orderNumber: "MSC-1042",
       pickupName: "Plateau pickup point",
       pickupAddress: "1234 Av. du Mont-Royal E, Montréal",
-      pickupWindow: "2 days",
+      pickupHours: "Tue–Sun, 12:00–19:00",
+      pickupWindow: "5 business days",
+      collectBy: "Friday, November 27, 7:00 p.m.",
     },
     render(locale, data) {
       const name = get(data, "name", "there");
       const orderNumber = get(data, "orderNumber", "MSC-0000");
       const pickupName = get(data, "pickupName", "your pickup point");
       const pickupAddress = get(data, "pickupAddress", "");
-      const pickupWindow = get(data, "pickupWindow", "2 days");
+      const pickupHours = get(data, "pickupHours", "");
+      const pickupWindow = get(data, "pickupWindow", "5 business days");
+      const collectBy = get(data, "collectBy", "");
       const isFr = locale === "fr";
       const subject = isFr
         ? `Votre commande est prête — ${orderNumber}`
         : `Your order is ready for pickup — ${orderNumber}`;
       const body = isFr
-        ? `${p(`Bonjour ${name},`)}${p(`Bonne nouvelle — votre commande <strong>${orderNumber}</strong> est prête à être récupérée.`)}${p(`<strong>Point de collecte :</strong> ${pickupName}${pickupAddress ? `<br />${pickupAddress}` : ""}`)}${p(`Veuillez la récupérer dans les <strong>${pickupWindow}</strong>. Apportez votre numéro de commande.`)}${p("— L'équipe " + SITE.name)}`
-        : `${p(`Hi ${name},`)}${p(`Good news — your order <strong>${orderNumber}</strong> is ready for pickup.`)}${p(`<strong>Pickup point:</strong> ${pickupName}${pickupAddress ? `<br />${pickupAddress}` : ""}`)}${p(`Please collect it within <strong>${pickupWindow}</strong>. Bring your order number with you.`)}${p("— The " + SITE.name + " team")}`;
+        ? `${p(`Bonjour ${name},`)}${p(`Bonne nouvelle — votre commande <strong>${orderNumber}</strong> est prête à être récupérée.`)}${p(`<strong>Point de collecte :</strong> ${pickupName}${pickupAddress ? `<br />${pickupAddress}` : ""}${pickupHours ? `<br />Heures d'ouverture : ${pickupHours}` : ""}`)}${p(`Vous avez <strong>${pickupWindow}</strong> pour la récupérer (selon les jours d'ouverture du point de collecte)${collectBy ? ` — <strong>date limite : ${collectBy}</strong>` : ""}. Apportez votre numéro de commande.`)}${p("— L'équipe " + SITE.name)}`
+        : `${p(`Hi ${name},`)}${p(`Good news — your order <strong>${orderNumber}</strong> is ready for pickup.`)}${p(`<strong>Pickup point:</strong> ${pickupName}${pickupAddress ? `<br />${pickupAddress}` : ""}${pickupHours ? `<br />Opening hours: ${pickupHours}` : ""}`)}${p(`You have <strong>${pickupWindow}</strong> to collect it (counted on the days the pickup point is open)${collectBy ? ` — <strong>deadline: ${collectBy}</strong>` : ""}. Bring your order number with you.`)}${p("— The " + SITE.name + " team")}`;
       const html = layout({ locale, preview: subject, bodyHtml: body });
       const text = isFr
-        ? `Bonjour ${name},\n\nVotre commande ${orderNumber} est prête à être récupérée.\n\nPoint de collecte: ${pickupName}\n${pickupAddress}\n\nVeuillez la récupérer dans les ${pickupWindow}.\n\n— ${SITE.name}`
-        : `Hi ${name},\n\nYour order ${orderNumber} is ready for pickup.\n\nPickup point: ${pickupName}\n${pickupAddress}\n\nPlease collect it within ${pickupWindow}.\n\n— ${SITE.name}`;
+        ? `Bonjour ${name},\n\nVotre commande ${orderNumber} est prête à être récupérée.\n\nPoint de collecte: ${pickupName}\n${pickupAddress}${pickupHours ? `\nHeures d'ouverture: ${pickupHours}` : ""}\n\nVous avez ${pickupWindow} pour la récupérer (selon les jours d'ouverture)${collectBy ? ` — date limite: ${collectBy}` : ""}.\n\n— ${SITE.name}`
+        : `Hi ${name},\n\nYour order ${orderNumber} is ready for pickup.\n\nPickup point: ${pickupName}\n${pickupAddress}${pickupHours ? `\nOpening hours: ${pickupHours}` : ""}\n\nYou have ${pickupWindow} to collect it (counted on the days the pickup point is open)${collectBy ? ` — deadline: ${collectBy}` : ""}.\n\n— ${SITE.name}`;
       return { subject, html, text };
     },
   },
@@ -450,12 +454,34 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       en: [
         "Hi {name},",
         "A friendly reminder that your order <strong>{orderNumber}</strong> is ready at <strong>{pickupName}</strong>.",
-        "Please collect it by <strong>{collectBy}</strong> so your spider spends as little time as possible in transit housing.",
+        "Please collect it by <strong>{collectBy}</strong> (pickup point closing time) so your spider spends as little time as possible in transit housing.",
       ],
       fr: [
         "Bonjour {name},",
         "Petit rappel : votre commande <strong>{orderNumber}</strong> est prête chez <strong>{pickupName}</strong>.",
-        "Merci de la récupérer avant le <strong>{collectBy}</strong> pour que votre mygale passe le moins de temps possible en contenant de transport.",
+        "Merci de la récupérer au plus tard le <strong>{collectBy}</strong> (heure de fermeture du point de collecte) pour que votre mygale passe le moins de temps possible en contenant de transport.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "pickup-extended",
+    label: "Pickup deadline extended",
+    description: "Tells a customer their pickup deadline was extended by our team.",
+    sample: { name: "Alex", orderNumber: "MSC-1042", pickupName: "Plateau pickup point", collectBy: "Friday, December 4, 7:00 p.m." },
+    subject: {
+      en: "More time to pick up order {orderNumber}",
+      fr: "Plus de temps pour récupérer la commande {orderNumber}",
+    },
+    paragraphs: {
+      en: [
+        "Hi {name},",
+        "We've extended the pickup deadline for order <strong>{orderNumber}</strong>, waiting at <strong>{pickupName}</strong>.",
+        "You can now collect it until <strong>{collectBy}</strong>.",
+      ],
+      fr: [
+        "Bonjour {name},",
+        "Nous avons prolongé le délai de cueillette de la commande <strong>{orderNumber}</strong>, qui vous attend chez <strong>{pickupName}</strong>.",
+        "Vous pouvez la récupérer jusqu'au <strong>{collectBy}</strong>.",
       ],
     },
   }),
@@ -486,7 +512,7 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
   simpleTemplate({
     id: "no-show-warning",
     label: "No-show warning",
-    description: "Sent when the pickup window has expired, before cancellation.",
+    description: "Sent when the pickup window (business days at the pickup point) has expired, before cancellation.",
     sample: { name: "Alex", orderNumber: "MSC-1042", graceHours: "24" },
     subject: {
       en: "Your pickup window for {orderNumber} has expired",
@@ -633,6 +659,7 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       customerName: "Alex",
       itemLines: "Grammostola pulchra (2 3/8″, unsexed)",
       confirmUrl: `${SITE.url}/en/p/pickup/sample-token`,
+      collectBy: "Friday, November 27, 7:00 p.m.",
     },
     subject: { en: "Pickup — {customerName} is collecting order {orderNumber}" },
     paragraphs: {
@@ -640,6 +667,7 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
         "Hi {partnerName},",
         "<strong>{customerName}</strong> will collect order <strong>{orderNumber}</strong>:",
         "<strong>{itemLines}</strong>",
+        "The customer has until <strong>{collectBy}</strong> (your closing time) to collect it, counted on your opening days. If it isn't collected by then, we'll handle the no-show and let you know.",
         "When you hand it over, tap the button below (or scan the specimen's QR) to confirm delivery — this settles the inventory automatically.",
       ],
     },

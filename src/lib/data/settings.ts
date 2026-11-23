@@ -6,7 +6,7 @@ import { DEFAULT_SETTINGS, type StoreSettings } from "./setting-defaults";
 export { DEFAULT_SETTINGS, resolvePickupTerms } from "./setting-defaults";
 export type { StoreSettings } from "./setting-defaults";
 
-const KEYS = ["pickupWindowDays", "pickupTerms", "terms", "googleReviewUrl"] as const;
+const KEYS = ["pickupBusinessDays", "pickupTerms", "terms", "googleReviewUrl"] as const;
 
 export async function getSettings(): Promise<StoreSettings> {
   if (!prisma) return DEFAULT_SETTINGS;
@@ -18,11 +18,11 @@ export async function getSettings(): Promise<StoreSettings> {
     return DEFAULT_SETTINGS;
   }
   const map = new Map(rows.map((r) => [r.key, r]));
-  const days = Number(map.get("pickupWindowDays")?.valueEn);
+  const days = Number(map.get("pickupBusinessDays")?.valueEn);
   const pt = map.get("pickupTerms");
   const tm = map.get("terms");
   return {
-    pickupWindowDays: Number.isFinite(days) && days > 0 ? days : DEFAULT_SETTINGS.pickupWindowDays,
+    pickupBusinessDays: Number.isFinite(days) && days > 0 ? Math.floor(days) : DEFAULT_SETTINGS.pickupBusinessDays,
     pickupTerms: {
       en: pt?.valueEn || DEFAULT_SETTINGS.pickupTerms.en,
       fr: pt?.valueFr || DEFAULT_SETTINGS.pickupTerms.fr,
@@ -39,7 +39,7 @@ export async function updateSettings(input: StoreSettings): Promise<void> {
   if (!prisma) throw new Error("Database not configured.");
   const db = prisma;
   const rows = [
-    { key: "pickupWindowDays", valueEn: String(input.pickupWindowDays), valueFr: String(input.pickupWindowDays) },
+    { key: "pickupBusinessDays", valueEn: String(input.pickupBusinessDays), valueFr: String(input.pickupBusinessDays) },
     { key: "pickupTerms", valueEn: input.pickupTerms.en, valueFr: input.pickupTerms.fr },
     { key: "terms", valueEn: input.terms.en, valueFr: input.terms.fr },
     { key: "googleReviewUrl", valueEn: input.googleReviewUrl, valueFr: input.googleReviewUrl },

@@ -12,7 +12,7 @@ export default function SettingsForm({ settings, editable }: { settings: StoreSe
   return (
     <div>
       <h1 className="mb-1 font-display text-2xl font-bold text-cream">Store settings</h1>
-      <p className="mb-6 text-sm text-muted">Pickup policy and terms &amp; conditions. Use <code className="text-cream">{"{days}"}</code> in the pickup policy to insert the window automatically.</p>
+      <p className="mb-6 text-sm text-muted">Pickup policy and terms &amp; conditions. Use <code className="text-cream">{"{days}"}</code> in the pickup policy to insert the number of business days automatically.</p>
 
       <form action={action} className="space-y-6">
         <input type="hidden" name="locale" value={locale} />
@@ -20,9 +20,14 @@ export default function SettingsForm({ settings, editable }: { settings: StoreSe
         <section className="card-glow rounded-2xl p-5">
           <h2 className="mb-4 font-display text-lg font-semibold text-cream">Pickup policy</h2>
           <label className="field max-w-[200px]">
-            <span>Pickup window (days)</span>
-            <input type="number" min="1" name="pickupWindowDays" defaultValue={settings.pickupWindowDays} className="input" />
+            <span>Pickup window (business days)</span>
+            <input type="number" min="1" name="pickupBusinessDays" defaultValue={settings.pickupBusinessDays} className="input" />
           </label>
+          <p className="mt-2 max-w-2xl text-xs text-muted">
+            Counted on the days the pickup location (distributor or pickup point) is open, per its opening hours. The day
+            the order becomes ready isn&apos;t counted; the customer can collect until the location closes on the last day.
+            Meetups and locations without hours use Mon–Sat, 9:30–16:30.
+          </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <label className="field">
               <span>Pickup terms (EN)</span>
