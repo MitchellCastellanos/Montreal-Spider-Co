@@ -464,6 +464,28 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
     },
   }),
   simpleTemplate({
+    id: "pickup-extended",
+    label: "Pickup deadline extended",
+    description: "Tells a customer their pickup deadline was extended by our team.",
+    sample: { name: "Alex", orderNumber: "MSC-1042", pickupName: "Plateau pickup point", collectBy: "Friday, December 4, 7:00 p.m." },
+    subject: {
+      en: "More time to pick up order {orderNumber}",
+      fr: "Plus de temps pour récupérer la commande {orderNumber}",
+    },
+    paragraphs: {
+      en: [
+        "Hi {name},",
+        "We've extended the pickup deadline for order <strong>{orderNumber}</strong>, waiting at <strong>{pickupName}</strong>.",
+        "You can now collect it until <strong>{collectBy}</strong>.",
+      ],
+      fr: [
+        "Bonjour {name},",
+        "Nous avons prolongé le délai de cueillette de la commande <strong>{orderNumber}</strong>, qui vous attend chez <strong>{pickupName}</strong>.",
+        "Vous pouvez la récupérer jusqu'au <strong>{collectBy}</strong>.",
+      ],
+    },
+  }),
+  simpleTemplate({
     id: "final-pickup-reminder",
     label: "Final pickup reminder",
     description: "Last reminder before the no-show deadline.",

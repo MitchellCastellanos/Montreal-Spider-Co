@@ -9,6 +9,7 @@ import {
   markReady,
   confirmPickup,
   sendPickupReminder,
+  extendCollectBy,
   processNoShow,
   cancelFulfillment,
 } from "@/lib/fulfillment/fulfillment";
@@ -76,6 +77,9 @@ export async function fulfillmentTransitionAction(_prev: ActionState, formData: 
         break;
       case "final-remind":
         await sendPickupReminder(id, true);
+        break;
+      case "extend":
+        await extendCollectBy(id, num(formData, "extraDays", 2));
         break;
       case "no-show":
         await processNoShow(id, num(formData, "noShowFee", 0));

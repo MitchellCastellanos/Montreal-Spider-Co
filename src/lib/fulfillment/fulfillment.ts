@@ -235,6 +235,47 @@ export async function sendPickupReminder(fulfillmentId: string, final = false): 
   });
 }
 
+/**
+ * Give the customer more time: pushes the deadline out by N business days
+ * (per the pickup location's opening hours), counted from the current deadline
+ * — or from today if it has already passed. Resets the reminder cycle so the
+ * scheduler warns again before the new deadline, and emails the customer.
+ */
+export async function extendCollectBy(fulfillmentId: string, extraBusinessDays: number): Promise<Date> {
+  const db = requireDb();
+  const f = await getFulfillmentById(fulfillmentId);
+  if (!f) throw new Error("Fulfillment not found.");
+  if (f.status !== "ready") throw new Error("Only orders waiting for pickup can be extended.");
+  const days = Math.floor(extraBusinessDays);
+  if (!Number.isFinite(days) || days < 1 || days > 30) throw new Error("Enter between 1 and 30 business days.");
+
+  const now = new Date();
+  const base = f.collectBy && f.collectBy > now ? f.collectBy : now;
+  const collectBy = computeCollectBy(base, days, resolvePickupHours(f.location?.hours));
+
+  await db.fulfillment.update({
+    where: { id: fulfillmentId },
+    data: { collectBy, remindersSent: 0, lastReminderAt: null },
+  });
+
+  const locale = orderLocale(f.order);
+  await sendNotification({
+    templateId: "pickup-extended",
+    event: "fulfillment.extended",
+    to: f.order.email,
+    locale,
+    data: {
+      name: f.order.name,
+      orderNumber: f.order.orderNumber,
+      pickupName: f.location?.name ?? fulfillmentMethodLabel(f.order),
+      collectBy: fmtDate(collectBy, locale),
+    },
+    context: { orderId: f.orderId, fulfillmentId },
+  });
+
+  return collectBy;
+}
+
 async function refundOrder(
   order: { id: string; orderNumber: string; total: number; stripePaymentIntentId: string | null; paymentMethod: string },
   keepFee: number,
