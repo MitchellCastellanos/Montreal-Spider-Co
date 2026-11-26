@@ -17,7 +17,11 @@ import { createLocation, updateLocation, getLocationById, type LocationInput } f
 import { updateSettings } from "@/lib/data/settings";
 import { sendTemplateTestEmail } from "@/lib/email";
 import { sendNotification, distributorBcc } from "@/lib/notifications/service";
-import { notifyPartnersOfWriteOff } from "@/lib/data/distributor-report";
+import {
+  loadPartnerHeldSpecimens,
+  notifyPartnersOfInventoryChange,
+  notifyPartnersOfWriteOff,
+} from "@/lib/data/distributor-report";
 import { addLibraryImage } from "@/lib/data/species-library";
 import { executeAndRecordSeoAudit } from "@/lib/data/seo-audits";
 import { pingIndexNow } from "@/lib/indexnow";
@@ -534,18 +538,27 @@ export async function transferSpecimensAction(_prev: ActionState, formData: Form
     return { error: "specimens_invalid" };
   }
 
+  const notes = str(formData, "notes");
   try {
     if (direction === "warehouse") {
-      await transferToWarehouse(specimenIds, str(formData, "notes"));
+      // Capture which partner stores hold these BEFORE they move away.
+      const heldBefore = await loadPartnerHeldSpecimens(specimenIds);
+      await transferToWarehouse(specimenIds, notes);
+      await notifyPartnersOfInventoryChange("removed", heldBefore, { notes });
     } else {
       const distributorPriceRaw = str(formData, "distributorPrice");
       const distributorPrice = distributorPriceRaw ? Number(distributorPriceRaw) : null;
+      const heldBefore = await loadPartnerHeldSpecimens(specimenIds);
       await transferToConsignment({
         specimenIds,
         locationId: str(formData, "locationId"),
-        notes: str(formData, "notes"),
+        notes,
         distributorPrice: Number.isFinite(distributorPrice) && distributorPrice! > 0 ? distributorPrice : null,
       });
+      // Partners that already held some of these (moved between stores) lose them.
+      const movedAway = heldBefore.filter((s) => s.locationId !== str(formData, "locationId"));
+      await notifyPartnersOfInventoryChange("removed", movedAway, { notes });
+      await notifyPartnersOfInventoryChange("added", await loadPartnerHeldSpecimens(specimenIds), { notes });
     }
   } catch (e) {
     return { error: e instanceof Error ? e.message : "transfer_failed" };
@@ -577,6 +590,11 @@ export async function sellSpecimensAction(_prev: ActionState, formData: FormData
   } catch (e) {
     return { error: e instanceof Error ? e.message : "sale_failed" };
   }
+
+  // Sold specimens keep their location, so partner-held ones are still findable.
+  await notifyPartnersOfInventoryChange("sale_recorded", await loadPartnerHeldSpecimens(specimenIds), {
+    notes: str(formData, "notes"),
+  });
 
   revalidatePath("/", "layout");
   redirect(`/${locale}/admin/inventory`);

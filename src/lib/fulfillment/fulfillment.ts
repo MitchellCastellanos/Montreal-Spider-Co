@@ -6,6 +6,7 @@ import { getStripe, stripeConfigured } from "@/lib/stripe";
 import { getSettings } from "@/lib/data/settings";
 import { markOrderSpecimensSold, releaseOrderSpecimens } from "@/lib/data/specimens";
 import { sendNotification, notifyStaff, distributorBcc } from "@/lib/notifications/service";
+import { loadPartnerHeldSpecimens, notifyPartnersOfInventoryChange } from "@/lib/data/distributor-report";
 import { partnerPickupUrl } from "@/lib/partner/auth";
 import { computeCollectBy, formatBusinessDays, formatDeadline, resolvePickupHours } from "@/lib/business-days";
 import { formatWeeklyHoursSummary } from "@/lib/opening-hours";
@@ -405,6 +406,14 @@ export async function cancelFulfillment(fulfillmentId: string, opts: CancelOptio
         amount: `$${amount.toFixed(2)} CAD`,
       },
       context: { orderId: f.orderId, fulfillmentId },
+    });
+  }
+
+  // Plain cancellation: tell each partner holding a reserved specimen it's free again.
+  // (No-shows already get their own summary below.)
+  if (!opts.isNoShow && releasedIds.length > 0) {
+    await notifyPartnersOfInventoryChange("reservation_released", await loadPartnerHeldSpecimens(releasedIds), {
+      orderNumber: f.order.orderNumber,
     });
   }
 

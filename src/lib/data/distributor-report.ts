@@ -197,6 +197,109 @@ export async function sendDistributorInventoryReport(
  * Specimens not held at a partner (warehouse/transit) are silently skipped —
  * write-offs there have no partner to notify.
  */
+const INVENTORY_CHANGE_NOTICES = {
+  added: { templateId: "partner-inventory-added", event: "inventory.added", attachReport: true },
+  removed: { templateId: "partner-inventory-removed", event: "inventory.removed", attachReport: true },
+  reservation_released: {
+    templateId: "partner-reservation-released",
+    event: "inventory.reservation_released",
+    attachReport: false,
+  },
+  sale_recorded: { templateId: "partner-sale-recorded", event: "inventory.sale_recorded", attachReport: false },
+} as const;
+
+export type PartnerInventoryChange = keyof typeof INVENTORY_CHANGE_NOTICES;
+
+/**
+ * Specimens physically held at a partner store (consignment, with a location).
+ * Call this BEFORE a change that moves them away (return to warehouse), and
+ * pass the result to `notifyPartnersOfInventoryChange` afterwards. Never throws.
+ */
+export async function loadPartnerHeldSpecimens(specimenIds: string[]) {
+  if (!prisma || specimenIds.length === 0) return [];
+  try {
+    return await prisma.specimen.findMany({
+      where: { id: { in: specimenIds }, locationType: "consignment", locationId: { not: null } },
+      include: { product: { select: { scientific: true } }, location: true },
+    });
+  } catch (e) {
+    console.error("[distributor-report] loading partner-held specimens failed:", e);
+    return [];
+  }
+}
+
+export type PartnerHeldSpecimen = Awaited<ReturnType<typeof loadPartnerHeldSpecimens>>[number];
+
+/**
+ * Emails each affected partner about an inventory change at their store
+ * (added / removed / reservation released / sale recorded). One email per
+ * partner, grouping their specimens. Skips partners without an email.
+ * Never throws — a failed notice must not break the inventory operation.
+ */
+export async function notifyPartnersOfInventoryChange(
+  kind: PartnerInventoryChange,
+  specimens: PartnerHeldSpecimen[],
+  opts: { notes?: string; orderNumber?: string } = {},
+): Promise<void> {
+  const notice = INVENTORY_CHANGE_NOTICES[kind];
+  const byLocationId = new Map<string, PartnerHeldSpecimen[]>();
+  for (const s of specimens) {
+    if (!s.locationId) continue;
+    const list = byLocationId.get(s.locationId) ?? [];
+    list.push(s);
+    byLocationId.set(s.locationId, list);
+  }
+
+  for (const [locationId, items] of byLocationId) {
+    const location = items[0].location;
+    if (!location?.email.trim()) continue;
+
+    try {
+      const itemLines = items
+        .map((s) => {
+          const base = `1× ${s.product.scientific} (${formatCmAsInches(s.sizeCm)}, ${s.sex})`;
+          if (kind !== "sale_recorded") return base;
+          const sold = s.salePrice ?? 0;
+          const owed = s.settlementPrice ?? sold;
+          return `${base} — sold $${sold.toFixed(2)} · owed to MSC $${owed.toFixed(2)}`;
+        })
+        .join("<br />");
+
+      let attachments: { filename: string; content: Buffer; contentType: string }[] | undefined;
+      if (notice.attachReport) {
+        const report = await getDistributorInventoryReport(locationId);
+        attachments = [
+          {
+            filename: `${reportFilenameBase(report)}.csv`,
+            content: Buffer.from(buildDistributorInventoryCsv(report), "utf-8"),
+            contentType: "text/csv",
+          },
+        ];
+      }
+
+      await sendNotification({
+        templateId: notice.templateId,
+        event: notice.event,
+        to: location.email,
+        data: {
+          partnerName: location.contactName || location.name,
+          storeName: location.name,
+          changeDate: new Date().toLocaleDateString("en-CA", { year: "numeric", month: "long", day: "numeric" }),
+          itemCount: String(items.length),
+          itemLines,
+          notes: opts.notes ?? "",
+          orderNumber: opts.orderNumber ?? "",
+        },
+        context: { locationId },
+        attachments,
+        bcc: distributorBcc(location.isDistributor),
+      });
+    } catch (e) {
+      console.error(`[distributor-report] ${kind} notice to location ${locationId} failed:`, e);
+    }
+  }
+}
+
 export async function notifyPartnersOfWriteOff(specimenIds: string[], notes = ""): Promise<void> {
   const db = requireDb();
   const specimens = await db.specimen.findMany({

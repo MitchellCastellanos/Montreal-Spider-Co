@@ -27,7 +27,11 @@ import {
   markStatementPaid,
   settleOutstandingBalance,
 } from "@/lib/data/settlement";
-import { sendDistributorInventoryReport } from "@/lib/data/distributor-report";
+import {
+  loadPartnerHeldSpecimens,
+  notifyPartnersOfInventoryChange,
+  sendDistributorInventoryReport,
+} from "@/lib/data/distributor-report";
 import { recordMolt, recordMeasurement } from "@/lib/data/growth";
 import { createTask, resolveTask } from "@/lib/data/tasks";
 import { sellSpecimensManual } from "@/lib/data/specimens";
@@ -401,6 +405,7 @@ export async function resolveTaskAsSoldAction(_prev: ActionState, formData: Form
       paymentMethod: (str(formData, "paymentMethod") || "cash") as PaymentMethod,
       notes,
     });
+    await notifyPartnersOfInventoryChange("sale_recorded", await loadPartnerHeldSpecimens([specimenId]), { notes });
     await resolveTask(taskId, notes || `Confirmed sold via ${salesChannel} — resolved from this task.`);
   } catch (e) {
     return fail(e, "sale_failed");

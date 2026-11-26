@@ -978,6 +978,97 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       ],
     },
   }),
+  simpleTemplate({
+    id: "partner-inventory-added",
+    label: "Partner — inventory added",
+    description:
+      "Notifies a partner that specimens were assigned to their store outside the restock flow (direct transfer). An updated inventory copy is attached.",
+    sample: {
+      partnerName: "Marie",
+      storeName: "Reptile Concept",
+      changeDate: "August 12, 2026",
+      itemCount: "2",
+      itemLines: "1× Grammostola pulchra (2 3/8″, unsexed)<br />1× Caribena versicolor (1 1/2″, female)",
+      notes: "",
+    },
+    subject: { en: "Inventory update — {itemCount} specimen(s) added at {storeName}" },
+    paragraphs: {
+      en: [
+        "Hi {partnerName},",
+        "The following MSC consignment inventory was assigned to <strong>{storeName}</strong>:",
+        "<strong>{itemLines}</strong>",
+        "{notes}",
+        "An updated inventory copy is attached to this email.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "partner-inventory-removed",
+    label: "Partner — inventory returned to MSC",
+    description:
+      "Notifies a partner that specimens were taken back from their store to the MSC warehouse. An updated inventory copy is attached.",
+    sample: {
+      partnerName: "Marie",
+      storeName: "Reptile Concept",
+      changeDate: "August 12, 2026",
+      itemCount: "1",
+      itemLines: "1× Grammostola pulchra (2 3/8″, unsexed)",
+      notes: "Returned to warehouse",
+    },
+    subject: { en: "Inventory update — {itemCount} specimen(s) removed from {storeName}" },
+    paragraphs: {
+      en: [
+        "Hi {partnerName},",
+        "The following MSC consignment inventory is being returned from <strong>{storeName}</strong> to our warehouse and is no longer part of your display:",
+        "<strong>{itemLines}</strong>",
+        "{notes}",
+        "An updated inventory copy is attached to this email.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "partner-reservation-released",
+    label: "Partner — reservation released",
+    description:
+      "Tells a partner that an order reserving specimens at their store was cancelled, so they can go back on display.",
+    sample: {
+      partnerName: "Marie",
+      storeName: "Reptile Concept",
+      orderNumber: "MSC-1042",
+      itemLines: "1× Grammostola pulchra (2 3/8″, unsexed)",
+    },
+    subject: { en: "Reservation released — order {orderNumber}" },
+    paragraphs: {
+      en: [
+        "Hi {partnerName},",
+        "Order <strong>{orderNumber}</strong> was cancelled. You no longer need to hold the following specimen(s) at <strong>{storeName}</strong> — they're back on display and available for sale:",
+        "<strong>{itemLines}</strong>",
+        "Nothing to do on your side.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "partner-sale-recorded",
+    label: "Partner — sale recorded by MSC",
+    description:
+      "Tells a partner that MSC recorded the sale of a specimen held at their store (manual sale or confirmed audit finding) and that it was added to their settlement ledger.",
+    sample: {
+      partnerName: "Marie",
+      storeName: "Reptile Concept",
+      itemLines: "1× Grammostola pulchra (2 3/8″, unsexed) — sold $140.00 · owed to MSC $95.00",
+      notes: "",
+    },
+    subject: { en: "Sale recorded at {storeName}" },
+    paragraphs: {
+      en: [
+        "Hi {partnerName},",
+        "We recorded the following sale(s) of MSC consignment inventory held at <strong>{storeName}</strong>:",
+        "<strong>{itemLines}</strong>",
+        "{notes}",
+        "This was added to your settlement ledger and will appear on your next monthly statement. If anything looks wrong, just reply to this email.",
+      ],
+    },
+  }),
 
   // -------------------------------------------------------------------------
   // Internal (MSC staff)
