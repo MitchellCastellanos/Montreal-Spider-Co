@@ -327,15 +327,19 @@ export default function AdminChatInbox({ initialSelectedId }: { initialSelectedI
             {detail.status === "closed" ? (
               <p className="text-sm text-muted">This conversation is closed.</p>
             ) : (
-              <div className="flex gap-2">
-                <input
-                  className="input flex-1 text-sm"
+              <div className="flex items-end gap-2">
+                <textarea
+                  className="input min-h-[10rem] flex-1 resize-y whitespace-pre-wrap text-sm"
+                  rows={7}
                   value={reply}
                   onChange={(e) => setReply(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") void sendReply();
+                    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                      e.preventDefault();
+                      void sendReply();
+                    }
                   }}
-                  placeholder="Type a reply…"
+                  placeholder="Type a reply… (Ctrl/Cmd + Enter to send)"
                 />
                 <button onClick={() => void sendReply()} disabled={sending || !reply.trim()} className="btn btn-gold text-sm">
                   Send
