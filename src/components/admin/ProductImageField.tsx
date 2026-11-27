@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { LibraryImage } from "@/lib/data/species-library";
+import SpeciesLookupPanel, { type LookupNames } from "./SpeciesLookupPanel";
 
 type Props = {
   storedImage: string | null;
@@ -11,6 +12,8 @@ type Props = {
   libraryImages: LibraryImage[];
   scientific?: string;
   genus?: string;
+  /** Fill the listing's names from the open-catalog lookup. */
+  onApplyNames?: (names: LookupNames) => void;
 };
 
 export default function ProductImageField({
@@ -18,6 +21,8 @@ export default function ProductImageField({
   speciesImage,
   defaultProductImage,
   libraryImages,
+  scientific = "",
+  onApplyNames,
 }: Props) {
   const [mode, setMode] = useState<"keep" | "upload" | "library" | "clear">("keep");
   const [preview, setPreview] = useState<string | null>(storedImage);
@@ -138,6 +143,15 @@ export default function ProductImageField({
           </label>
         </div>
       </div>
+
+      <SpeciesLookupPanel
+        scientific={scientific}
+        onApplyNames={(n) => onApplyNames?.(n)}
+        onPhotoImported={(url) => {
+          setLibraryUrl(url);
+          setMode("library");
+        }}
+      />
 
       {pickerOpen && (
         <div className="rounded-xl border border-line bg-ink-soft/60 p-4">

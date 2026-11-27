@@ -9,6 +9,14 @@ if (!process.env.DATABASE_URL) {
   process.exit(0);
 }
 
+// Vercel preview builds (PR / branch deployments) must never change the schema or data of the
+// database their env vars point at — that is usually production. Only production builds sync.
+// Set DB_DEPLOY_ON_PREVIEW=1 on a preview that has its OWN database (e.g. a Neon branch).
+if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== "production" && process.env.DB_DEPLOY_ON_PREVIEW !== "1") {
+  console.log(`[db-deploy] VERCEL_ENV=${process.env.VERCEL_ENV} — skipping schema sync, backfills & seed (production builds only).`);
+  process.exit(0);
+}
+
 if (!process.env.DIRECT_URL) {
   console.warn("[db-deploy] DIRECT_URL is not set. Prisma needs the direct (non-pooled) connection for schema changes — add it to your env.");
 }

@@ -42,7 +42,9 @@ function mapDistributorSnippet(d: DbLocation): DistributorSnippet {
  * raw stored value only (so the form can tell "no photo set" apart from "inherited").
  */
 function mapProduct(p: DbProductFull, opts?: { speciesImage?: string | null; defaultImage?: string | null }): Product {
-  const image = p.image ?? opts?.speciesImage ?? opts?.defaultImage ?? undefined;
+  const ownImage = p.image ?? opts?.speciesImage ?? undefined;
+  const image = ownImage ?? opts?.defaultImage ?? undefined;
+  const imageIsDefault = !ownImage && !!image;
   const distributorStocks: ProductDistributorStock[] = (p.distributorStocks ?? []).map((ds) => ({
     distributorId: ds.locationId,
     stock: ds.stock,
@@ -73,6 +75,7 @@ function mapProduct(p: DbProductFull, opts?: { speciesImage?: string | null; def
     hue: p.hue,
     accent: p.accent,
     image,
+    imageIsDefault,
     adultSize: asL(p.adultSizeEn, p.adultSizeFr),
     growth: asL(p.growthEn, p.growthFr),
     origin: asL(p.originEn, p.originFr),

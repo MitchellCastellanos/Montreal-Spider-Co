@@ -37,7 +37,7 @@ export default function CartView() {
             return (
             <div key={line.key} className="card-glow flex gap-4 rounded-2xl p-4">
               <LocaleLink href={`/product/${line.product.slug}`} className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-line" style={{ background: `radial-gradient(120% 120% at 50% 20%, hsl(${line.product.hue} 30% 16%), var(--ink))` }}>
-                <SpeciesImage image={line.product.image} hue={line.product.hue} accent={line.product.accent} alt={productImageAlt(line.product, locale)} sizes="96px" />
+                <SpeciesImage image={line.product.image} hue={line.product.hue} accent={line.product.accent} alt={productImageAlt(line.product, locale)} sizes="96px" watermark={false} />
               </LocaleLink>
               <div className="flex flex-1 flex-col">
                 <div className="flex items-start justify-between gap-3">

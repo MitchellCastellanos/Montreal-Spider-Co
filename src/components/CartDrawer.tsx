@@ -70,7 +70,7 @@ export default function CartDrawer() {
                     return (
                     <li key={line.key} className="flex gap-3 border-b border-line/60 pb-4">
                       <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-line bg-ink">
-                        <SpeciesImage image={line.product.image} hue={line.product.hue} accent={line.product.accent} alt={productImageAlt(line.product, locale)} sizes="64px" />
+                        <SpeciesImage image={line.product.image} hue={line.product.hue} accent={line.product.accent} alt={productImageAlt(line.product, locale)} sizes="64px" watermark={false} />
                       </div>
                       <div className="min-w-0 flex-1">
                         <LocaleLink

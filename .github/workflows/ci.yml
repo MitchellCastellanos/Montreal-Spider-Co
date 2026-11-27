@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    env:
+      # Placeholder values: `prisma validate` only parses the schema, it never connects.
+      DATABASE_URL: postgresql://user:pass@localhost:5432/db
+      DIRECT_URL: postgresql://user:pass@localhost:5432/db
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:validate
+      # Non-blocking for now: the baseline has 11 pre-existing react-hooks lint errors unrelated to CI setup.
+      # Remove `continue-on-error` once they are fixed.
+      - run: npm run lint
+        continue-on-error: true
+      - run: npm run typecheck
+      - run: npm test

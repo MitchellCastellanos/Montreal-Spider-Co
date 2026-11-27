@@ -113,6 +113,8 @@ export interface Product {
   accent: string;
   /** Optional product photo URL (Cloudinary or /public path). Falls back to placeholder. */
   image?: string;
+  /** True when `image` is the site-wide fallback photo (no species/listing photo) — no photo credit is shown on it. */
+  imageIsDefault?: boolean;
   adultSize: L;
   growth: L;
   origin: L;

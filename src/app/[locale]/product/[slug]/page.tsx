@@ -10,7 +10,9 @@ import { t } from "@/lib/types";
 import { localeHref } from "@/lib/href";
 import { formatPrice } from "@/lib/format";
 import { breadcrumbSchema, productSchema } from "@/lib/seo";
-import SpeciesImage from "@/components/SpeciesImage";
+import ProductHeroImage from "@/components/ProductHeroImage";
+import { ProductSelectionProvider } from "@/components/ProductSelection";
+import { getImageCredits } from "@/lib/data/species-library";
 import AddToCart from "@/components/AddToCart";
 import KlarnaBadge from "@/components/KlarnaBadge";
 import { SITE } from "@/lib/site";
@@ -74,6 +76,7 @@ export default async function ProductPage({
   const dict = await getDictionary(loc);
   const p = dict.product;
   const related = await getRelated(product);
+  const credits = await getImageCredits([product.image, ...product.availability.map((u) => u.photo)]);
 
   const specs = [
     { label: p.adultSize, value: t(product.adultSize, loc) },
@@ -120,22 +123,11 @@ export default async function ProductPage({
           <SpecimenFactsPanel slug={slug} />
         </Suspense>
 
+        <ProductSelectionProvider product={product}>
         <div className="grid gap-10 lg:grid-cols-2">
           {/* Visual */}
           <div className="lg:sticky lg:top-24 lg:self-start">
-            <div
-              className="relative aspect-square overflow-hidden rounded-3xl border border-line"
-              style={{ background: `radial-gradient(130% 130% at 50% 20%, hsl(${product.hue} 32% 18%), var(--ink))` }}
-            >
-              <SpeciesImage
-                image={product.image}
-                hue={product.hue}
-                accent={product.accent}
-                alt={productImageAlt(product, loc)}
-                sizes="(max-width: 1024px) 100vw, 50vw"
-                priority
-              />
-            </div>
+            <ProductHeroImage product={product} alt={productImageAlt(product, loc)} credits={credits} />
             <div className="mt-4 grid grid-cols-3 gap-3">
               {guarantees.map((g) => (
                 <div key={g} className="rounded-xl border border-line bg-ink-soft/40 p-3 text-center text-xs text-bone">
@@ -226,6 +218,7 @@ export default async function ProductPage({
             </Suspense>
           </div>
         </div>
+        </ProductSelectionProvider>
 
         <ProductReviews productId={product.id} />
 

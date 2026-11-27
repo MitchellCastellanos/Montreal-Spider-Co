@@ -5,7 +5,9 @@ import { redirect } from "next/navigation";
 import { isAdminAuthed } from "@/lib/auth";
 import { updateSpeciesImage, upsertSpeciesMinimal } from "@/lib/data/species";
 import { addLibraryImage } from "@/lib/data/species-library";
-import { hasStorage, uploadProductImage } from "@/lib/storage";
+import { hasStorage, uploadLibraryImage, uploadProductImage } from "@/lib/storage";
+import { lookupSpecies, type SpeciesLookupResult } from "@/lib/species-lookup";
+import { buildCreditNote, isAllowedPhotoUrl, isCommercialLicense } from "@/lib/species-lookup-utils";
 import type { ActionState } from "./actions";
 
 function str(formData: FormData, key: string): string {
@@ -67,4 +69,62 @@ export async function updateSpeciesImageAction(_prev: ActionState, formData: For
 
   revalidatePath("/", "layout");
   return { ok: true };
+}
+
+/** Search the free open catalogs (iNaturalist + GBIF) for names, taxonomy and 4 photo options. */
+export async function lookupSpeciesAction(name: string): Promise<SpeciesLookupResult | { error: string }> {
+  if (!(await isAdminAuthed())) return { error: "unauthorized" };
+  return lookupSpecies(String(name ?? ""));
+}
+
+const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
+
+/**
+ * Copy a chosen open-licence photo to MSC storage and add it to the species library with its credit.
+ * Only CC0 / CC BY photos from allow-listed hosts are accepted.
+ */
+export async function importLookupPhotoAction(input: {
+  url: string;
+  license: string;
+  creditName: string;
+  sourceUrl: string;
+  scientific: string;
+  genus: string;
+  label: string;
+}): Promise<{ url?: string; error?: string }> {
+  if (!(await isAdminAuthed())) return { error: "unauthorized" };
+  if (!hasStorage) return { error: "storage_unconfigured" };
+  if (!isAllowedPhotoUrl(input.url) || !isCommercialLicense(input.license)) return { error: "photo_not_allowed" };
+  if (!/^https:\/\/www\.inaturalist\.org\/photos\/\d+$/.test(input.sourceUrl)) return { error: "photo_not_allowed" };
+
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 15000);
+  try {
+    const res = await fetch(input.url, { signal: ctl.signal, redirect: "error", cache: "no-store" });
+    if (!res.ok) return { error: "download_failed" };
+    if (!(res.headers.get("content-type") ?? "").startsWith("image/")) return { error: "not_an_image" };
+    const declared = Number(res.headers.get("content-length") ?? 0);
+    if (declared > MAX_PHOTO_BYTES) return { error: "photo_too_large" };
+    const buf = await res.arrayBuffer();
+    if (buf.byteLength > MAX_PHOTO_BYTES) return { error: "photo_too_large" };
+
+    const url = await uploadLibraryImage(buf);
+    await addLibraryImage({
+      url,
+      label: input.label.slice(0, 120) || input.scientific.slice(0, 120),
+      scientific: input.scientific.slice(0, 120),
+      genus: input.genus.slice(0, 80),
+      notes: buildCreditNote({
+        creditName: input.creditName.slice(0, 120),
+        license: input.license,
+        sourceUrl: input.sourceUrl,
+      }),
+    });
+    revalidatePath("/", "layout");
+    return { url };
+  } catch {
+    return { error: "import_failed" };
+  } finally {
+    clearTimeout(timer);
+  }
 }

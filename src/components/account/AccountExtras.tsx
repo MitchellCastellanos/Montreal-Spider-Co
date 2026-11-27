@@ -68,7 +68,7 @@ export function WishlistTab() {
       {items.map((item) => (
         <div key={item.id} className="card-glow flex gap-3 rounded-xl p-4">
           <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg">
-            <SpeciesImage image={item.image} hue={item.hue} accent="#c9a24b" alt={item.scientific} sizes="80px" />
+            <SpeciesImage image={item.image} hue={item.hue} accent="#c9a24b" alt={item.scientific} sizes="80px" watermark={false} />
           </div>
           <div className="min-w-0 flex-1">
             <LocaleLink href={`/product/${item.slug}`} className="font-semibold text-cream hover:text-gold-bright">

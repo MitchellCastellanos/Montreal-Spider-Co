@@ -214,7 +214,9 @@
     "specimenStatusSold": "Ce spécimen a déjà trouvé son foyer — d'autres tailles sont peut-être encore disponibles ci-dessus.",
     "specimenStatusWrittenOff": "Ce spécimen n'est plus disponible.",
     "specimenDistributorCta": "Distributeur? Gérer ce spécimen",
-    "bundleEnclosure": "Terrarium inclus"
+    "bundleEnclosure": "Terrarium inclus",
+    "photoRepresentative": "Photo représentative",
+    "photoNotice": "Photo représentative de l’espèce, et non du spécimen vendu. Veuillez consulter l’offre sélectionnée pour connaître sa taille et son sexe. L’apparence peut varier selon l’âge et le stade de développement."
   },
   "cart": {
     "title": "Votre panier",

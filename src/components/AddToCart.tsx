@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSelectedUnitKey } from "@/components/ProductSelection";
 import { motion } from "framer-motion";
 import DistributorAvailabilityCta from "@/components/DistributorAvailabilityCta";
 import SexBadge from "@/components/SexBadge";
@@ -19,7 +20,7 @@ export default function AddToCart({ product }: { product: Product }) {
   const { dict, locale } = useI18n();
   const { add } = useCart();
   const available = product.availability.filter((s) => s.stock > 0);
-  const [unitKey, setUnitKey] = useState<string>(available[0]?.key ?? product.availability[0]?.key ?? "");
+  const [unitKey, setUnitKey] = useSelectedUnitKey(product);
   const [qty, setQty] = useState(1);
   const [pulse, setPulse] = useState(false);
 

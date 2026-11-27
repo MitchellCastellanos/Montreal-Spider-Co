@@ -424,6 +424,15 @@ export default function ProductForm({
             libraryImages={libraryImages}
             scientific={form.scientific}
             genus={form.genus}
+            onApplyNames={(n) => {
+              const commonEn = n.commonEn || form.commonEn;
+              patch({
+                ...(n.commonEn ? { commonEn: n.commonEn } : {}),
+                ...(n.commonFr ? { commonFr: n.commonFr } : {}),
+                ...(n.genus ? { genus: n.genus } : {}),
+                slug: slugTouched ? form.slug : deriveSlug(form.scientific, commonEn),
+              });
+            }}
           />
         </Section>
 

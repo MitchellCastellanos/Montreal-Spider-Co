@@ -57,7 +57,15 @@ export default function ProductCard({ product }: { product: Product }) {
           style={{ background: `radial-gradient(120% 120% at 50% 20%, hsl(${product.hue} 30% 16%), var(--ink))` }}
         >
           <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-110">
-            <SpeciesImage image={product.image} hue={product.hue} accent={product.accent} alt={imageAlt} sizes="(max-width: 768px) 50vw, 25vw" />
+            <SpeciesImage
+              image={selected?.photo ?? product.image}
+              isDefault={!selected?.photo && product.imageIsDefault}
+              label={dict.product.photoRepresentative}
+              hue={product.hue}
+              accent={product.accent}
+              alt={imageAlt}
+              sizes="(max-width: 768px) 50vw, 25vw"
+            />
           </div>
           <div className="absolute left-3 top-3 flex flex-col gap-1.5">
             {isNewArrival(product) && <span className="badge bg-gold/20">{dict.shop.sortNewest}</span>}

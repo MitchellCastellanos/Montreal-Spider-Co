@@ -2,6 +2,7 @@ import "server-only";
 import type { SpeciesLibraryImage } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { logDbFallback } from "@/lib/data/db-safe";
+import { formatCreditNote } from "@/lib/species-lookup-utils";
 
 export type LibraryImage = SpeciesLibraryImage;
 
@@ -99,5 +100,26 @@ export async function suggestLibraryImages(scientific: string, genus: string, sl
   } catch (e) {
     logDbFallback("suggestLibraryImages", e);
     return [];
+  }
+}
+
+/**
+ * Credit lines for photos imported from open catalogs (notes start with "Credit:").
+ * Returns a map of photo URL → human-readable credit; photos without a credit are omitted.
+ */
+export async function getImageCredits(urls: (string | null | undefined)[]): Promise<Record<string, string>> {
+  const wanted = Array.from(new Set(urls.filter((u): u is string => Boolean(u))));
+  if (!prisma || wanted.length === 0) return {};
+  try {
+    const rows = await prisma.speciesLibraryImage.findMany({
+      where: { url: { in: wanted }, notes: { startsWith: "Credit:" } },
+      select: { url: true, notes: true },
+    });
+    const out: Record<string, string> = {};
+    for (const r of rows) out[r.url] = formatCreditNote(r.notes);
+    return out;
+  } catch (e) {
+    logDbFallback("getImageCredits", e);
+    return {};
   }
 }

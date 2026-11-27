@@ -441,7 +441,7 @@ export default function CheckoutView({
                 return (
                 <li key={l.key} className="flex items-center gap-3">
                   <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-line bg-ink">
-                    <SpeciesImage image={l.product.image} hue={l.product.hue} accent={l.product.accent} alt={productImageAlt(l.product, locale)} sizes="48px" />
+                    <SpeciesImage image={l.product.image} hue={l.product.hue} accent={l.product.accent} alt={productImageAlt(l.product, locale)} sizes="48px" watermark={false} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm italic text-cream">{productDisplayTitle(l.product)}</p>
