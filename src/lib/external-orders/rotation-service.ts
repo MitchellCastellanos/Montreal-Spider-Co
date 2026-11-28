@@ -4,6 +4,7 @@ import { getExternalSettings } from "@/lib/external-orders/settings";
 import { breakdownAt, computeOfferPrice, DEFAULT_PRICING, passesProfitGate, type PricingParams } from "@/lib/external-orders/pricing";
 import { planRotation, type RotationOffer, type RotationPlan } from "@/lib/external-orders/rotation";
 import type { ExternalSettings } from "@/lib/external-orders/pure";
+import { isListed } from "@/lib/suppliers/tarcan";
 
 const LAST_RUN_KEY = "external_last_rotation";
 
@@ -21,6 +22,8 @@ export interface RotationRow {
   id: string;
   visits: number;
   eligible: boolean;
+  /** Offers created from the supplier catalog must still be listed there; manual offers have no such signal. */
+  listed: boolean | null;
   operatingProfit: number;
   operatingMarginPct: number;
   /** "publish" | "hide" | "keep" — what the plan does with it. */
@@ -61,7 +64,7 @@ export async function buildRotation(now = new Date()): Promise<RotationOverview>
   const db = requireDb();
   const settings = await getExternalSettings();
   const pricing = pricingFrom(settings);
-  const offers = await db.supplierOffer.findMany({ include: { product: { select: { slug: true } } } });
+  const offers = await db.supplierOffer.findMany({ include: { product: { select: { slug: true } }, item: true } });
   const slugToProduct = new Map(offers.map((o) => [o.product.slug, o.productId]));
   const visits = await visitsByProduct(settings.rotationWindowDays, slugToProduct, now);
 
@@ -69,10 +72,12 @@ export async function buildRotation(now = new Date()): Promise<RotationOverview>
   const input: RotationOffer[] = offers.map((o) => {
     // A margin-priced offer that isn't visible yet will be (re)priced when it goes live, so it only needs a reachable target.
     const price = o.priceMode === "margin" && !o.published ? (computeOfferPrice(o.unitCost, pricing)?.price ?? 0) : o.price;
-    const eligible = o.unitCost > 0 && price > 0 && passesProfitGate(price, o.unitCost, pricing);
+    const listed = o.item ? isListed(o.item, now) : null; // null = manual offer, availability unknown
+    const eligible = listed !== false && o.unitCost > 0 && price > 0 && passesProfitGate(price, o.unitCost, pricing);
     const b = breakdownAt(price, o.unitCost, pricing);
     rows[o.id] = {
       id: o.id,
+      listed,
       visits: visits[o.productId] ?? 0,
       eligible,
       operatingProfit: b.operatingProfit,
@@ -94,7 +99,10 @@ export async function buildRotation(now = new Date()): Promise<RotationOverview>
   for (const id of plan.unpublish) rows[id].action = "hide";
   for (const [id, reason] of Object.entries(plan.reasons)) if (rows[id]) rows[id].reason = reason;
   for (const o of offers) {
-    if (!rows[o.id].eligible && !rows[o.id].reason) rows[o.id].reason = o.unitCost > 0 ? "Below the profit target" : "No supplier cost set";
+    if (!rows[o.id].eligible) {
+      rows[o.id].reason =
+        rows[o.id].listed === false ? "Not listed at Tarantula Canada" : o.unitCost > 0 ? "Below the profit target" : "No supplier cost set";
+    }
   }
   return { plan, rows, windowDays: settings.rotationWindowDays };
 }

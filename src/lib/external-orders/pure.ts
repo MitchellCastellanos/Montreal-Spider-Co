@@ -30,6 +30,8 @@ export interface ExternalSettings {
   apologyCredit: number;
   /** Supplier opening hours — the confirm window only counts these days. */
   supplierHours: WeeklyHours;
+  /** Daily read of the supplier's public catalog (availability + cost). Off until explicitly enabled. */
+  syncEnabled: boolean;
   /** Rotation of visible offers: off, suggest (staff apply the plan) or auto (applied by the daily cron). */
   rotationMode: "off" | "suggest" | "auto";
   /** Max offers visible at once (pinned offers may exceed it). */
@@ -52,6 +54,7 @@ export const DEFAULT_EXTERNAL_SETTINGS: ExternalSettings = {
   apologyCredit: 10,
   // Placeholder until the supplier's real hours are confirmed (Admin → Special orders).
   supplierHours: DEFAULT_PICKUP_HOURS,
+  syncEnabled: false,
   rotationMode: "suggest",
   rotationSlots: 12,
   rotationMinDays: 7,

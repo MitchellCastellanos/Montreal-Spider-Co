@@ -5,6 +5,7 @@ import { countPurchasableStock } from "@/lib/data/specimens";
 import { hasDatabase, prisma } from "@/lib/db";
 import { getExternalSettings } from "@/lib/external-orders/settings";
 import { parseOfferKey } from "@/lib/external-orders/pure";
+import { isListed } from "@/lib/suppliers/tarcan";
 import { formatCmAsInches } from "@/lib/size-inches";
 import {
   type MeetupAvailability,
@@ -157,8 +158,8 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
     const offerId = parseOfferKey(item.unitKey);
     if (offerId) {
       // Server-side truth: price and limits come from the published offer, never from the client.
-      const offer = prisma ? await prisma.supplierOffer.findUnique({ where: { id: offerId } }) : null;
-      if (!offer || !offer.published || offer.productId !== product.id) {
+      const offer = prisma ? await prisma.supplierOffer.findUnique({ where: { id: offerId }, include: { item: true } }) : null;
+      if (!offer || !offer.published || offer.productId !== product.id || (offer.item && !isListed(offer.item, new Date()))) {
         throw new CheckoutError("This specimen is no longer available to order.", 400);
       }
       if (item.qty > offer.maxPerOrder) {

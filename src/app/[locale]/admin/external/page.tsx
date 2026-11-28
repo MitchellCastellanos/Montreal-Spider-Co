@@ -8,6 +8,8 @@ import { formatCmAsInches } from "@/lib/size-inches";
 import ExternalOrdersHub, { type HeldRow, type OfferRow } from "@/components/admin/ExternalOrdersHub";
 import { DAY_KEYS } from "@/lib/opening-hours";
 import { buildRotation, getLastRotation, type RotationOverview } from "@/lib/external-orders/rotation-service";
+import { listCatalog } from "@/lib/suppliers/catalog";
+import { getLastSyncRun } from "@/lib/suppliers/sync";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +62,7 @@ export default async function AdminExternalPage() {
     console.error("[admin/external] rotation preview failed:", e);
   }
   const lastRotation = await getLastRotation();
+  const [catalog, lastSync] = await Promise.all([listCatalog(now), getLastSyncRun()]);
 
   const open = DAY_KEYS.filter((d) => {
     const s = settings.supplierHours[d];
@@ -77,6 +80,7 @@ export default async function AdminExternalPage() {
         openDays: open,
         openTime: first?.open ?? "09:30",
         closeTime: first?.close ?? "16:30",
+        syncEnabled: settings.syncEnabled,
         rotationMode: settings.rotationMode,
         rotationSlots: settings.rotationSlots,
         rotationMinDays: settings.rotationMinDays,
@@ -98,6 +102,22 @@ export default async function AdminExternalPage() {
             }
           : null
       }
+      catalog={catalog}
+      sync={{
+        enabled: settings.syncEnabled,
+        last: lastSync
+          ? {
+              status: lastSync.status,
+              startedAt: lastSync.startedAt.toISOString().slice(0, 16).replace("T", " "),
+              trigger: lastSync.trigger,
+              itemCount: lastSync.itemCount,
+              newCount: lastSync.newCount,
+              priceChanges: lastSync.priceChanges,
+              missingCount: lastSync.missingCount,
+              error: lastSync.error,
+            }
+          : null,
+      }}
       held={held.map(toHeld)}
       recent={recent.map((o) => ({
         id: o.id,
@@ -126,6 +146,7 @@ export default async function AdminExternalPage() {
           marginPct: overview?.rows[o.id]?.operatingMarginPct ?? 0,
           operatingProfit: overview?.rows[o.id]?.operatingProfit ?? 0,
           eligible: overview?.rows[o.id]?.eligible ?? false,
+          listed: overview?.rows[o.id]?.listed ?? null,
           action: overview?.rows[o.id]?.action ?? "keep",
           reason: overview?.rows[o.id]?.reason ?? "",
         }),

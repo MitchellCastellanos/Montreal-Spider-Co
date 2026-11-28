@@ -9,6 +9,8 @@ import { getExternalSettings, saveExternalSettings } from "@/lib/external-orders
 import { applyRotationNow, pricingFrom, repriceOffer } from "@/lib/external-orders/rotation-service";
 import { computeOfferPrice } from "@/lib/external-orders/pricing";
 import { prisma } from "@/lib/db";
+import { runSupplierSync } from "@/lib/suppliers/sync";
+import { createOfferFromItem, createOffersForMatched } from "@/lib/suppliers/catalog";
 import { createOffer, deleteOffer, setOfferPublished, unpublishAllOffers } from "@/lib/external-orders/offers";
 import { confirmExternalOrder, declineExternalOrder, extendExternalHold } from "@/lib/external-orders/hold";
 import type { ActionState } from "./actions";
@@ -40,6 +42,7 @@ export async function saveExternalSettingsAction(_p: ActionState, f: FormData): 
       authSafeDays: Math.min(7, Math.max(1, Math.floor(numField(f, "authSafeDays") || 4))),
       apologyCredit: Math.min(500, Math.max(0, numField(f, "apologyCredit") || 0)),
       supplierHours: sameHours(days, open, close),
+      syncEnabled: f.get("syncEnabled") === "on",
       rotationMode: (["off", "suggest", "auto"] as const).find((m) => m === str(f, "rotationMode")) ?? "suggest",
       rotationSlots: Math.min(100, Math.max(0, Math.floor(numField(f, "rotationSlots") || 0))),
       rotationMinDays: Math.min(90, Math.max(0, Math.floor(numField(f, "rotationMinDays") || 0))),
@@ -84,6 +87,42 @@ export async function createOfferAction(_p: ActionState, f: FormData): Promise<A
     });
     refresh();
     return { ok: true };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/** Read the supplier's public catalog now (same code the daily job runs). */
+export async function syncSupplierNowAction(): Promise<ActionState & { detail?: string }> {
+  if (!(await isAdminAuthed())) return { error: "unauthorized" };
+  try {
+    const r = await runSupplierSync("manual");
+    refresh();
+    if (r.status === "ok") return { ok: true, detail: `${r.itemCount} listed · ${r.newCount} new · ${r.priceChanges} price changes · ${r.missingCount} not listed` };
+    if (r.status === "skipped") return { ok: true, detail: r.detail };
+    return { error: `Sync ${r.status}: ${r.detail}` };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function createOfferFromItemAction(_p: ActionState, f: FormData): Promise<ActionState> {
+  if (!(await isAdminAuthed())) return { error: "unauthorized" };
+  try {
+    await createOfferFromItem(str(f, "itemId"));
+    refresh();
+    return { ok: true };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function createMatchedOffersAction(): Promise<ActionState & { detail?: string }> {
+  if (!(await isAdminAuthed())) return { error: "unauthorized" };
+  try {
+    const n = await createOffersForMatched();
+    refresh();
+    return { ok: true, detail: `${n} hidden offer${n === 1 ? "" : "s"} created` };
   } catch (e) {
     return fail(e);
   }

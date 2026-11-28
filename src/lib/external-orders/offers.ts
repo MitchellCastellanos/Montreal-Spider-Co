@@ -2,6 +2,7 @@ import "server-only";
 import type { SpecimenSex, SupplierOffer } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { logDbFallback } from "@/lib/data/db-safe";
+import { isListed } from "@/lib/suppliers/tarcan";
 
 function requireDb() {
   if (!prisma) throw new Error("Database not configured.");
@@ -26,11 +27,18 @@ export async function listOffers(): Promise<OfferWithProduct[]> {
 /** Published offers for the given products (storefront). Private cost is not selected. */
 export async function listPublishedOffers(productIds: string[]) {
   if (!prisma || productIds.length === 0) return [];
-  return prisma.supplierOffer.findMany({
+  const rows = await prisma.supplierOffer.findMany({
     where: { productId: { in: productIds }, published: true },
-    select: { id: true, productId: true, sizeCm: true, sex: true, price: true, leadDaysMin: true, leadDaysMax: true, maxPerOrder: true },
+    select: {
+      id: true, productId: true, sizeCm: true, sex: true, price: true, leadDaysMin: true, leadDaysMax: true, maxPerOrder: true,
+      item: { select: { lastSeenAt: true, missingRuns: true } },
+    },
     orderBy: { price: "asc" },
   });
+  // Offers backed by the supplier catalog disappear the moment the supplier stops listing them (or the data goes stale),
+  // without waiting for the next rotation run. Manual offers (no catalog item) are unaffected.
+  const now = new Date();
+  return rows.filter((r) => !r.item || isListed(r.item, now)).map(({ item: _item, ...o }) => { void _item; return o; });
 }
 
 export interface OfferInput {

@@ -436,3 +436,184 @@ describe.skipIf(!enabled)("rotation by visits + profit pricing (real DB)", () =>
     expect(await published()).toEqual([]);
   });
 });
+
+describe.skipIf(!enabled)("TarCan catalog sync → availability → rotation (real DB, mocked supplier)", () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let db: any, sync: any, catalog: any, rotation: any, settingsMod: any, productsMod: any, offersMod: any;
+  const ids: Record<string, string> = {};
+
+  // Synthetic rows shaped like the supplier's JSON, with the supplier's unstable nesting.
+  const row = (itemid: number, name: string, over: Record<string, unknown> = {}) => ({
+    itemid, category: 1, image: "x.jpg", price: 45, saleprice: 0, wholesale2: 0, active: 1, i_table: "i_animal", notes: "",
+    genus: name.split(" ")[0], species: name.split(" ")[1], size: '2"', sex: 1, sting: null, name, videos: [], unique: true, subitems: [], ...over,
+  });
+  const NAMES = ["Brachypelma hamorii", "Brachypelma boehmei", "Grammostola pulchripes", "Tliltocatl albopilosus", "Chromatopelma cyaneopubescens"];
+  const catalogJson = (over: Record<number, Record<string, unknown> | null> = {}) => {
+    const rows: unknown[] = [];
+    // 40 filler animals so the response looks like a real catalog, plus our 5 named ones (ids 1..5)
+    for (let i = 0; i < 40; i++) rows.push(row(1000 + i, `Filler sp${i}`, { species: `sp${i}` }));
+    NAMES.forEach((n, i) => {
+      const o = over[i + 1];
+      if (o === null) return; // removed from the catalog
+      rows.push(row(i + 1, n, o ?? {}));
+    });
+    return rows;
+  };
+  const mockFetch = (body: unknown, ok = true, status = 200) =>
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok, status, headers: new Headers(), arrayBuffer: async () => new TextEncoder().encode(typeof body === "string" ? body : JSON.stringify(body)).buffer })));
+  const later = (h: number) => new Date(Date.now() + h * 3600_000);
+
+  beforeAll(async () => {
+    db = (await import("@/lib/db")).prisma;
+    sync = await import("@/lib/suppliers/sync");
+    catalog = await import("@/lib/suppliers/catalog");
+    settingsMod = await import("@/lib/external-orders/settings");
+    rotation = await import("@/lib/external-orders/rotation-service");
+    productsMod = await import("@/lib/data/products");
+    offersMod = await import("@/lib/external-orders/offers");
+    await db.siteSetting.deleteMany({ where: { key: { startsWith: "external_" } } });
+    await db.orderLineSpecimen.deleteMany();
+    await db.inventoryMovement.deleteMany();
+    await db.fulfillment.deleteMany();
+    await db.specimen.deleteMany();
+    await db.orderLine.deleteMany();
+    await db.order.deleteMany();
+    await db.pageView.deleteMany();
+    await db.supplierOffer.deleteMany();
+    await db.supplierItem.deleteMany();
+    await db.supplierSyncRun.deleteMany();
+    await db.product.deleteMany();
+    for (const n of NAMES) {
+      const slug = n.toLowerCase().replace(/ /g, "-");
+      const p = await db.product.create({ data: { slug, scientific: n, commonEn: n, commonFr: n, genus: n.split(" ")[0], experience: "beginner", type: "terrestrial", temperament: "docile" } });
+      ids[n] = p.id;
+    }
+    const s = await settingsMod.getExternalSettings();
+    await settingsMod.saveExternalSettings({ ...s, enabled: true, syncEnabled: true, rotationMode: "auto", rotationSlots: 2, rotationMinDays: 0, marginPct: 30 });
+  });
+
+  it("first sync stores the animals, flattening the unstable nesting, with no quantity anywhere", async () => {
+    const nested = catalogJson();
+    // nest a couple of rows under a parent AND keep them top-level (the supplier does both)
+    (nested[40] as { subitems: unknown[] }).subitems = [nested[41]];
+    mockFetch(nested);
+    const r = await sync.runSupplierSync("manual", new Date());
+    expect(r).toMatchObject({ status: "ok", itemCount: 45, newCount: 45, priceChanges: 0 });
+    expect(await db.supplierItem.count()).toBe(45);
+    const it = await db.supplierItem.findFirst({ where: { externalId: 1 } });
+    expect(it).toMatchObject({ sex: "male", price: 45, sizeCm: 5.08, missingRuns: 0 });
+    expect(Object.keys(it)).not.toContain("quantity");
+  });
+
+  it("re-running immediately is a no-op (politeness guard); a cron run is skipped when the switch is off", async () => {
+    mockFetch(catalogJson());
+    expect((await sync.runSupplierSync("manual", new Date())).status).toBe("skipped");
+    expect(await db.supplierItem.count()).toBe(45);
+    await settingsMod.saveExternalSettings({ ...(await settingsMod.getExternalSettings()), syncEnabled: false });
+    vi.resetModules();
+    const fresh = await import("@/lib/suppliers/sync");
+    expect((await fresh.runSupplierSync("cron", later(48))).status).toBe("skipped");
+    await settingsMod.saveExternalSettings({ ...(await settingsMod.getExternalSettings()), syncEnabled: true });
+  });
+
+  it("matches items to species listings exactly and creates HIDDEN margin-priced offers with the supplier price as private cost", async () => {
+    vi.resetModules();
+    catalog = await import("@/lib/suppliers/catalog");
+    const rows = await catalog.listCatalog();
+    const matched = rows.filter((r: { productId: string | null }) => r.productId);
+    expect(matched).toHaveLength(5); // fillers have no listing
+    const created = await catalog.createOffersForMatched();
+    expect(created).toBe(5);
+    const offers = await db.supplierOffer.findMany({ include: { item: true } });
+    expect(offers.every((o: { published: boolean; priceMode: string; unitCost: number; item: { price: number } }) => !o.published && o.priceMode === "margin" && o.unitCost === o.item.price)).toBe(true);
+    for (const o of offers) ids[`offer:${o.item.externalId}`] = o.id;
+    expect(offers[0].price).toBeGreaterThan(45); // cost 45 → priced above it, by margin
+    await expect(catalog.createOfferFromItem(rows[0].id)).rejects.toThrow(/already has an offer|No species listing/);
+  });
+
+  it("rotation only shows animals TarCan lists; the least-visited of those fill the slots", async () => {
+    for (const [n, views] of [["Brachypelma hamorii", 30], ["Brachypelma boehmei", 2], ["Grammostola pulchripes", 0], ["Tliltocatl albopilosus", 9], ["Chromatopelma cyaneopubescens", 1]] as const) {
+      for (let i = 0; i < views; i++) await db.pageView.create({ data: { path: `/product/${n.toLowerCase().replace(/ /g, "-")}`, visitorHash: `${n}${i}` } });
+    }
+    vi.resetModules();
+    rotation = await import("@/lib/external-orders/rotation-service");
+    await rotation.runRotation();
+    const vis = (await db.supplierOffer.findMany({ where: { published: true }, include: { item: true } })).map((o: { item: { externalId: number } }) => o.item.externalId).sort();
+    expect(vis).toEqual([3, 5]); // pulchripes (0 views) and cyaneopubescens (1 view)
+  });
+
+  it("when TarCan drops an animal: one missed sync is tolerated, the second hides it and rotation fills the gap", async () => {
+    // pulchripes (id 3) disappears from the catalog
+    mockFetch(catalogJson({ 3: null }));
+    await sync.runSupplierSync("manual", later(48));
+    expect((await db.supplierItem.findFirst({ where: { externalId: 3 } })).missingRuns).toBe(1);
+    expect(await publishedIds()).toEqual([3, 5]); // tolerated once
+
+    mockFetch(catalogJson({ 3: null }));
+    await sync.runSupplierSync("manual", later(96));
+    expect((await db.supplierItem.findFirst({ where: { externalId: 3 } })).missingRuns).toBe(2);
+
+    // storefront hides it immediately (no waiting for the daily rotation)…
+    vi.resetModules();
+    const products = await import("@/lib/data/products");
+    const units = (await products.getProductBySlug("grammostola-pulchripes"))?.availability ?? [];
+    expect(units.filter((u: { source?: string }) => u.source === "external")).toHaveLength(0);
+    // …and the rotation swaps it for the next least-visited listed animal
+    rotation = await import("@/lib/external-orders/rotation-service");
+    await rotation.runRotation(later(96));
+    expect(await publishedIds()).toEqual([2, 5]); // boehmei (2 views) replaces it
+  });
+
+  it("an animal that comes back is listed again; price changes update the private cost and are remembered", async () => {
+    mockFetch(catalogJson({ 3: { price: 55 }, 5: { price: 70 } }));
+    const r = await sync.runSupplierSync("manual", later(144));
+    expect(r).toMatchObject({ status: "ok", priceChanges: 2 });
+    const back = await db.supplierItem.findFirst({ where: { externalId: 3 } });
+    expect(back).toMatchObject({ missingRuns: 0, price: 55, prevPrice: 45 });
+    const off = await db.supplierOffer.findFirst({ where: { item: { externalId: 5 } } });
+    expect(off.unitCost).toBe(70); // cost follows the supplier
+  });
+
+  it("a cost increase that kills the margin hides a published offer automatically", async () => {
+    // offer 5 is visible with a price set when cost was 45; cost is now 70 → below the 30% target at the old price
+    vi.resetModules();
+    rotation = await import("@/lib/external-orders/rotation-service");
+    const overview = await rotation.buildRotation(later(144));
+    expect(overview.rows[ids["offer:5"]].eligible).toBe(false);
+    expect(overview.plan.unpublish).toContain(ids["offer:5"]);
+  });
+
+  it("suspicious responses never hide anything: tiny payload, big drop, HTML page, HTTP error", async () => {
+    const before = await db.supplierItem.count({ where: { missingRuns: { gt: 0 } } });
+    let hour = 200;
+    for (const body of [[], catalogJson().slice(0, 10), "<html>maintenance</html>"]) {
+      mockFetch(body);
+      const r = await sync.runSupplierSync("manual", later((hour += 1))); // > the 5-minute politeness guard apart
+      expect(["suspect", "failed"]).toContain(r.status);
+    }
+    mockFetch({}, false, 503);
+    expect((await sync.runSupplierSync("manual", later(300))).status).toBe("failed");
+    expect(await db.supplierItem.count({ where: { missingRuns: { gt: 0 } } })).toBe(before); // nothing marked missing
+    const lastRun = await db.supplierSyncRun.findFirst({ orderBy: { startedAt: "desc" } });
+    expect(lastRun.error).toMatch(/HTTP 503/);
+  });
+
+  it("data older than 72h (sync outage) expires offers by itself; checkout refuses them", async () => {
+    await db.supplierItem.updateMany({ data: { lastSeenAt: new Date(Date.now() - 80 * 3600_000) } });
+    vi.resetModules();
+    const offs = await import("@/lib/external-orders/offers");
+    expect(await offs.listPublishedOffers(Object.values(ids).filter((v) => typeof v === "string") as string[])).toHaveLength(0);
+    const co = await import("@/lib/checkout-stripe");
+    const offerId = (await db.supplierOffer.findFirst({ where: { published: true } }))?.id ?? ids["offer:5"];
+    await db.supplierOffer.update({ where: { id: offerId }, data: { published: true } });
+    const pid = (await db.supplierOffer.findUnique({ where: { id: offerId } })).productId;
+    await expect(
+      co.validateAndBuildCheckout({ locale: "en", pickupSubtype: "custom_meetup", customMeetupRequest: "x", customer: { name: "A", email: "a@b.c", phone: "1" }, items: [{ productId: pid, unitKey: `ext:${offerId}`, qty: 1 }] }),
+    ).rejects.toThrow(/no longer available/);
+    void productsMod; void offersMod;
+  });
+
+  async function publishedIds() {
+    return (await db.supplierOffer.findMany({ where: { published: true }, include: { item: true } })).map((o: { item: { externalId: number } }) => o.item.externalId).sort();
+  }
+});

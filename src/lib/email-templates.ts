@@ -1118,6 +1118,21 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
     cta: { en: "Open Special orders", hrefKey: "adminUrl" },
   }),
   simpleTemplate({
+    id: "internal-supplier-sync-alert",
+    label: "Internal — supplier sync problem",
+    description: "Staff alert when the daily supplier catalog check fails or returns a suspicious response.",
+    sample: { supplier: "Tarantula Canada", status: "suspect", detail: "Animal count dropped from 209 to 40 (>40%).", adminUrl: "https://montrealspider.ca/en/admin/external" },
+    subject: { en: "⚠️ Supplier sync {status} — {supplier}" },
+    paragraphs: {
+      en: [
+        "The daily catalog check for <strong>{supplier}</strong> ended as <strong>{status}</strong>.",
+        "{detail}",
+        "Nothing was hidden because of this run. If it keeps failing, offers are hidden automatically once their data is more than 72 hours old.",
+      ],
+    },
+    cta: { en: "Open Special orders", hrefKey: "adminUrl" },
+  }),
+  simpleTemplate({
     id: "internal-pickup-overdue",
     label: "Internal — pickup overdue",
     description: "Staff alert when an order passes its collect-by deadline.",

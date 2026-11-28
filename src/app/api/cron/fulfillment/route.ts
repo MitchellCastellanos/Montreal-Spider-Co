@@ -3,6 +3,7 @@ import { hasDatabase } from "@/lib/db";
 import { processOverdueFulfillments } from "@/lib/fulfillment/fulfillment";
 import { processExternalHolds } from "@/lib/external-orders/hold";
 import { runRotation } from "@/lib/external-orders/rotation-service";
+import { runSupplierSync } from "@/lib/suppliers/sync";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,6 +25,14 @@ export async function GET(req: Request) {
   }
 
   const result = await processOverdueFulfillments();
+  // Supplier catalog check (once a day, off unless enabled) — runs BEFORE the rotation so it sees fresh availability.
+  let sync: Awaited<ReturnType<typeof runSupplierSync>> | { error: string };
+  try {
+    sync = await runSupplierSync("cron");
+  } catch (e) {
+    console.error("[cron/fulfillment] supplier sync failed:", e);
+    sync = { error: "sync_failed" };
+  }
   // Made-to-order holds: release the ones past their deadline, remind staff about those due soon.
   let external: Awaited<ReturnType<typeof processExternalHolds>> | { error: string };
   try {
@@ -40,5 +49,5 @@ export async function GET(req: Request) {
     console.error("[cron/fulfillment] rotation failed:", e);
     rotation = { error: "rotation_failed" };
   }
-  return NextResponse.json({ ok: true, ...result, external, rotation });
+  return NextResponse.json({ ok: true, ...result, sync, external, rotation });
 }

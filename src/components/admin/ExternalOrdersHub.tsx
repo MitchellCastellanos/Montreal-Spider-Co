@@ -16,6 +16,8 @@ import {
 } from "@/app/[locale]/admin/external-actions";
 import type { ActionState } from "@/app/[locale]/admin/actions";
 import { INCH_OPTIONS } from "@/lib/size-inches";
+import SupplierCatalogPanel, { type SyncView } from "./SupplierCatalogPanel";
+import type { CatalogRow } from "@/lib/suppliers/catalog";
 
 export type HeldRow = {
   id: string;
@@ -49,6 +51,8 @@ export type OfferRow = {
   marginPct: number;
   operatingProfit: number;
   eligible: boolean;
+  /** Offers made from the supplier catalog: still listed there? null = manual offer (unknown). */
+  listed: boolean | null;
   action: "publish" | "hide" | "keep";
   reason: string;
 };
@@ -69,6 +73,7 @@ type SettingsView = {
   openDays: string[];
   openTime: string;
   closeTime: string;
+  syncEnabled: boolean;
   rotationMode: "off" | "suggest" | "auto";
   rotationSlots: number;
   rotationMinDays: number;
@@ -211,10 +216,13 @@ function OfferRowView({ o }: { o: OfferRow }) {
         </span>
       </td>
       <td className="py-2 pr-3 text-muted">
-        {o.visits} views
+        {o.visits} {o.visits === 1 ? "view" : "views"}
+        {o.listed !== null && (
+          <span className={`block text-[10px] ${o.listed ? "text-ok" : "text-danger"}`}>{o.listed ? "Listed at TarCan ✓" : "Not listed at TarCan"}</span>
+        )}
         <span className="block text-[10px]">
           {o.action === "publish" ? "→ will show" : o.action === "hide" ? "→ will hide" : ""}
-          {o.reason ? ` ${o.reason}` : ""}
+          {o.reason ? ` — ${o.reason}` : ""}
         </span>
       </td>
       <td className="py-2 pr-3 text-muted">{o.lead}d · max {o.maxPerOrder}</td>
@@ -286,6 +294,8 @@ function OfferRowView({ o }: { o: OfferRow }) {
 export default function ExternalOrdersHub({
   settings,
   rotation,
+  catalog,
+  sync,
   held,
   recent,
   offers,
@@ -293,6 +303,8 @@ export default function ExternalOrdersHub({
 }: {
   settings: SettingsView;
   rotation: RotationView | null;
+  catalog: CatalogRow[];
+  sync: SyncView;
   held: HeldRow[];
   recent: RecentRow[];
   offers: OfferRow[];
@@ -326,9 +338,9 @@ export default function ExternalOrdersHub({
 
       <Section title="Rotation">
         <p className="mb-3 text-sm text-bone">
-          Up to <strong>{settings.rotationSlots}</strong> offers are visible at a time. The ones whose pages got the{" "}
-          <strong>fewest visits</strong> (last {settings.rotationWindowDays} days) take the open spots, each stays at least{" "}
-          {settings.rotationMinDays} days, pinned offers never leave, and an offer below the profit target is never shown.
+          Up to <strong>{settings.rotationSlots}</strong> offers are visible at a time. Only offers that <strong>TarCan still lists</strong> and that
+          meet the profit target can be shown; of those, the ones whose pages got the <strong>fewest visits</strong> (last {settings.rotationWindowDays} days)
+          take the open spots. Each stays at least {settings.rotationMinDays} days and pinned offers never leave.
         </p>
         {rotation ? (
           <div className="space-y-2 text-sm text-bone">
@@ -354,6 +366,8 @@ export default function ExternalOrdersHub({
           <p className="text-sm text-muted">Rotation preview unavailable.</p>
         )}
       </Section>
+
+      <SupplierCatalogPanel rows={catalog} sync={sync} />
 
       <Section title="Offers">
         {offers.length === 0 ? (
@@ -434,6 +448,10 @@ export default function ExternalOrdersHub({
               <label className="flex items-center gap-2 text-sm text-cream">
                 <input type="checkbox" name="enabled" defaultChecked={settings.enabled} className="accent-[var(--gold)]" />
                 Made-to-order specimens enabled (storefront + checkout)
+              </label>
+              <label className="flex items-center gap-2 text-sm text-cream">
+                <input type="checkbox" name="syncEnabled" defaultChecked={settings.syncEnabled} className="accent-[var(--gold)]" />
+                Check the Tarantula Canada catalog once a day (availability + cost)
               </label>
               <div className="grid gap-3 md:grid-cols-4">
                 <label className="field"><span>Confirm window (supplier business days)</span><input name="confirmDays" type="number" min="1" max="10" defaultValue={settings.confirmDays} className="input" /></label>

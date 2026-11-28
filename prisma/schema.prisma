@@ -715,6 +715,9 @@ model SupplierOffer {
   maxPerOrder Int         @default(1)
   /** Visible on the storefront (only while the external-orders switch is on). */
   published   Boolean     @default(false)
+  /** Catalog row this offer was created from (supplier sync) — drives "listed at the supplier" availability and cost. */
+  itemId      String?     @unique
+  item        SupplierItem? @relation(fields: [itemId], references: [id], onDelete: SetNull)
   /** When it last became visible — drives the rotation's minimum display time. */
   publishedAt DateTime?
   /** "manual" = price typed by hand; "margin" = price computed from cost + target profit margin. */
@@ -729,6 +732,59 @@ model SupplierOffer {
   updatedAt   DateTime    @updatedAt
 
   @@index([productId, published])
+}
+
+/**
+ * One animal listed in a supplier's public catalog, as last seen by the daily sync.
+ * Presence in the catalog is the only availability signal the supplier exposes — there is NO stock quantity.
+ */
+model SupplierItem {
+  id            String      @id @default(cuid())
+  supplier      String      @default("tarcan")
+  /** The supplier's own item id (stable key; the supplier's nesting of variants is NOT stable, the id is). */
+  externalId    Int
+  rawName       String
+  genus         String      @default("")
+  species       String      @default("")
+  sizeRaw       String      @default("")
+  /** Leg span in cm parsed from the supplier's inches; null when the text can't be parsed. */
+  sizeCm        Float?
+  sex           SpecimenSex @default(unsexed)
+  /** Effective price MSC would pay (sale price when the supplier has one). Becomes the offer's private cost. */
+  price         Float
+  listPrice     Float
+  salePrice     Float?
+  /** Supplier free text, e.g. "3 for $90 special" — a commercial condition, NOT a quantity. */
+  notes         String      @default("")
+  isNewArrival  Boolean     @default(false)
+  firstSeenAt   DateTime    @default(now())
+  /** Last successful sync that contained it. */
+  lastSeenAt    DateTime    @default(now())
+  /** Consecutive SUCCESSFUL syncs that did not contain it. */
+  missingRuns   Int         @default(0)
+  prevPrice     Float?
+  priceChangedAt DateTime?
+  offer         SupplierOffer?
+
+  @@unique([supplier, externalId])
+  @@index([lastSeenAt])
+}
+
+model SupplierSyncRun {
+  id           String    @id @default(cuid())
+  supplier     String    @default("tarcan")
+  startedAt    DateTime  @default(now())
+  finishedAt   DateTime?
+  /** running | ok | suspect (payload looked wrong — nothing was marked missing) | failed */
+  status       String    @default("running")
+  trigger      String    @default("cron")
+  itemCount    Int       @default(0)
+  newCount     Int       @default(0)
+  priceChanges Int       @default(0)
+  missingCount Int       @default(0)
+  error        String    @default("")
+
+  @@index([supplier, startedAt])
 }
 
 model OrderLine {
