@@ -6,6 +6,10 @@ import { logDbFallback } from "@/lib/data/db-safe";
 import { getDistributors } from "@/lib/data/distributors";
 import { getDistributorLocations } from "@/lib/data/locations";
 import { listAvailabilityGroups } from "@/lib/data/specimens";
+import { listPublishedOffers } from "@/lib/external-orders/offers";
+import { getExternalSettings } from "@/lib/external-orders/settings";
+import { hasEquivalentOwnUnit, offerUnitKey } from "@/lib/external-orders/pure";
+import { cmToInches, formatCmAsInches } from "@/lib/size-inches";
 import { getSpeciesById, type SpeciesProfile } from "@/lib/data/species";
 import { deriveSlug } from "@/lib/species-utils";
 import { PRODUCTS as SEED, GENERA as SEED_GENERA } from "@/lib/products";
@@ -136,9 +140,40 @@ async function attachAvailability(products: Product[]): Promise<Product[]> {
       });
       byProduct.set(g.productId, list);
     }
+    // Made-to-order units from suppliers: only while the master switch is on, and never when we
+    // already stock an equivalent specimen (own inventory always wins).
+    const externalByProduct = new Map<string, AvailableUnit[]>();
+    try {
+      if ((await getExternalSettings()).enabled) {
+        for (const o of await listPublishedOffers(products.map((p) => p.id))) {
+          const own = byProduct.get(o.productId) ?? [];
+          if (hasEquivalentOwnUnit(o, own)) continue;
+          const list = externalByProduct.get(o.productId) ?? [];
+          list.push({
+            key: offerUnitKey(o.id),
+            sizeCm: o.sizeCm,
+            sizeInches: cmToInches(o.sizeCm),
+            sizeLabel: formatCmAsInches(o.sizeCm),
+            sex: o.sex,
+            price: o.price,
+            stock: o.maxPerOrder,
+            warehouseStock: 0,
+            distributorStock: 0,
+            source: "external",
+            leadDays: { min: o.leadDaysMin, max: o.leadDaysMax },
+          });
+          externalByProduct.set(o.productId, list);
+        }
+      }
+    } catch (e) {
+      logDbFallback("attachExternalOffers", e);
+    }
     return products.map((p) => ({
       ...p,
-      availability: (byProduct.get(p.id) ?? []).sort((a, b) => a.price - b.price || a.sizeCm - b.sizeCm),
+      availability: [
+        ...(byProduct.get(p.id) ?? []).sort((a, b) => a.price - b.price || a.sizeCm - b.sizeCm),
+        ...(externalByProduct.get(p.id) ?? []).sort((a, b) => a.price - b.price || a.sizeCm - b.sizeCm),
+      ],
     }));
   } catch (e) {
     logDbFallback("attachAvailability", e);

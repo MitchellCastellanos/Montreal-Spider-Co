@@ -64,6 +64,14 @@ export interface AvailableUnit {
   distributorStock?: number;
   /** Per-group photo override; falls back to the product photo when absent. */
   photo?: string;
+  /** "external" = made-to-order from a supplier (no specimen yet); default is own inventory. */
+  source?: "own" | "external";
+  /** Business days after confirmation (external units only). */
+  leadDays?: { min: number; max: number };
+}
+
+export function isExternalUnit(u: Pick<AvailableUnit, "source">): boolean {
+  return u.source === "external";
 }
 
 export interface ProductDistributorStock {

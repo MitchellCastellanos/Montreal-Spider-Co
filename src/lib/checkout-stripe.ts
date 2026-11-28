@@ -2,7 +2,10 @@ import "server-only";
 import type Stripe from "stripe";
 import { getProductById } from "@/lib/data/products";
 import { countPurchasableStock } from "@/lib/data/specimens";
-import { hasDatabase } from "@/lib/db";
+import { hasDatabase, prisma } from "@/lib/db";
+import { getExternalSettings } from "@/lib/external-orders/settings";
+import { parseOfferKey } from "@/lib/external-orders/pure";
+import { formatCmAsInches } from "@/lib/size-inches";
 import {
   type MeetupAvailability,
   type PickupSubtype,
@@ -53,6 +56,8 @@ export interface ValidatedCheckout {
   total: number;
   lineItems: Stripe.Checkout.SessionCreateParams.LineItem[];
   metadata: Record<string, string>;
+  /** Made-to-order specimen: the card is only authorized (manual capture) until staff confirm. */
+  external: boolean;
 }
 
 function cadCents(amount: number): number {
@@ -118,9 +123,20 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
     throw new CheckoutError("Invalid pickup option.", 400);
   }
 
+  const hasExternal = items.some((i) => parseOfferKey(i.unitKey));
+  if (hasExternal) {
+    if (!(await getExternalSettings()).enabled) {
+      throw new CheckoutError("Made-to-order specimens are not available right now.", 400);
+    }
+    if (items.length !== 1) {
+      throw new CheckoutError("Made-to-order specimens must be ordered on their own — please check out your other items separately.", 400);
+    }
+  }
+
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
   let subtotal = 0;
   const orderItems: {
+    offerId?: string;
     productId: string;
     sizeCm: number;
     sex: string;
@@ -137,6 +153,46 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
 
     const product = await getProductById(item.productId);
     if (!product) throw new CheckoutError("Product not found.", 400);
+
+    const offerId = parseOfferKey(item.unitKey);
+    if (offerId) {
+      // Server-side truth: price and limits come from the published offer, never from the client.
+      const offer = prisma ? await prisma.supplierOffer.findUnique({ where: { id: offerId } }) : null;
+      if (!offer || !offer.published || offer.productId !== product.id) {
+        throw new CheckoutError("This specimen is no longer available to order.", 400);
+      }
+      if (item.qty > offer.maxPerOrder) {
+        throw new CheckoutError(`You can order at most ${offer.maxPerOrder} of this specimen.`, 400);
+      }
+      const label = formatCmAsInches(offer.sizeCm);
+      subtotal += offer.price * item.qty;
+      const orderNames = productOrderLineNames(product);
+      orderItems.push({
+        offerId: offer.id,
+        productId: product.id,
+        sizeCm: offer.sizeCm,
+        sex: offer.sex,
+        nameEn: orderNames.nameEn,
+        nameFr: orderNames.nameFr,
+        sizeLabelEn: label,
+        sizeLabelFr: label,
+        qty: item.qty,
+        price: offer.price,
+      });
+      lineItems.push({
+        quantity: item.qty,
+        price_data: {
+          currency: "cad",
+          unit_amount: cadCents(offer.price),
+          product_data: {
+            name: productStripeLineName(product, label),
+            ...(product.image ? { images: [product.image] } : {}),
+            metadata: { productId: product.id, unitKey: item.unitKey, slug: product.slug },
+          },
+        },
+      });
+      continue;
+    }
 
     const unit = product.availability.find((u) => u.key === item.unitKey);
     if (!unit) throw new CheckoutError("Size not found.", 400);
@@ -250,6 +306,7 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
     total: total.toFixed(2),
     pickupSubtype,
   };
+  if (hasExternal) metadata.external = "1";
 
   if (appliedCouponCode) {
     metadata.couponCode = appliedCouponCode;
@@ -281,7 +338,7 @@ export async function validateAndBuildCheckout(payload: CheckoutPayload): Promis
     metadata.customerId = customerId;
   }
 
-  return { subtotal: discountedSubtotal, deliveryFee, tax, total, lineItems, metadata };
+  return { subtotal: discountedSubtotal, deliveryFee, tax, total, lineItems, metadata, external: hasExternal };
 }
 
 export async function createCheckoutSession(
@@ -289,7 +346,7 @@ export async function createCheckoutSession(
   successUrl: string,
   cancelUrl: string,
 ): Promise<Stripe.Checkout.Session> {
-  const { lineItems, metadata } = await validateAndBuildCheckout(payload);
+  const { lineItems, metadata, external } = await validateAndBuildCheckout(payload);
   const stripe = getStripe();
 
   return stripe.checkout.sessions.create({
@@ -302,6 +359,8 @@ export async function createCheckoutSession(
     metadata,
     payment_intent_data: {
       metadata,
+      // Made-to-order: authorize now, capture only once staff confirm they bought the specimen.
+      ...(external ? { capture_method: "manual" as const } : {}),
     },
   });
 }

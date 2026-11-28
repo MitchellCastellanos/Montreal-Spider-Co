@@ -9,7 +9,7 @@ import UnitFulfillmentBadge from "@/components/UnitFulfillmentBadge";
 import { useCart, snapshotFromProduct } from "@/context/CartContext";
 import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
-import { isAvailableAtDistributor, type Product } from "@/lib/types";
+import { isAvailableAtDistributor, isExternalUnit, type Product } from "@/lib/types";
 import { unitHasDistributorStock } from "@/lib/unit-fulfillment";
 import WishlistButton from "@/components/account/WishlistButton";
 import ArrivalAlertButton from "@/components/account/ArrivalAlertButton";
@@ -25,6 +25,7 @@ export default function AddToCart({ product }: { product: Product }) {
   const [pulse, setPulse] = useState(false);
 
   const selected = product.availability.find((s) => s.key === unitKey);
+  const hasExternal = product.availability.some(isExternalUnit);
   const soldOut = available.length === 0 || !selected;
   const distributorName = product.distributors?.[0]?.name;
   const showDistributorCta =
@@ -62,7 +63,7 @@ export default function AddToCart({ product }: { product: Product }) {
                   <SexBadge sex={s.sex} />
                 </span>
                 <span className="block text-xs text-muted">{dict.product[SEX_LABEL_KEY[s.sex]]}</span>
-                <UnitFulfillmentBadge unit={s} distributorName={distributorName} className="mt-0.5" />
+                <UnitFulfillmentBadge unit={s} distributorName={distributorName} className="mt-0.5" showInStock={hasExternal} />
                 {s.includesEnclosure && (
                   <span className="mt-0.5 block text-xs font-semibold text-gold-deep">{dict.product.bundleEnclosure}</span>
                 )}
@@ -106,7 +107,11 @@ export default function AddToCart({ product }: { product: Product }) {
         <ArrivalAlertButton productId={product.id} genus={product.genus} />
       </div>
 
-      {!soldOut && selected && selected.stock <= 5 && (
+      {selected && isExternalUnit(selected) && (
+        <p className="mt-3 rounded-xl border border-gold/25 bg-gold/5 p-3 text-xs leading-relaxed text-bone">{dict.product.holdNotice}</p>
+      )}
+
+      {!soldOut && selected && !isExternalUnit(selected) && selected.stock <= 5 && (
         <p className="mt-2 text-center text-xs text-gold-deep">
           {dict.common.lowStock} · {selected.stock}
         </p>

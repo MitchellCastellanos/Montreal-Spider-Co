@@ -13,7 +13,7 @@ import { useProductDisplay } from "@/hooks/useProductDisplay";
 import { useI18n } from "@/i18n/I18nProvider";
 import { formatPrice } from "@/lib/format";
 import { CARD_AVAILABILITY_MAX, cardAvailabilityUnits, cardUnitShowsSex } from "@/lib/product-display";
-import { isAvailableAtDistributor, isNewArrival, isPurchasableOnline, totalStock, type Product } from "@/lib/types";
+import { isAvailableAtDistributor, isExternalUnit, isNewArrival, isPurchasableOnline, type Product } from "@/lib/types";
 import { unitHasDistributorStock } from "@/lib/unit-fulfillment";
 
 const expColor: Record<string, string> = {
@@ -27,7 +27,9 @@ export default function ProductCard({ product }: { product: Product }) {
   const { add } = useCart();
   const { title, subtitle, imageAlt } = useProductDisplay(product);
 
-  const stock = totalStock(product);
+  // Low-stock only reflects specimens we actually hold — made-to-order units are not stock.
+  const stock = product.availability.filter((u) => !isExternalUnit(u)).reduce((n, u) => n + u.stock, 0);
+  const hasExternal = product.availability.some(isExternalUnit);
   const online = isPurchasableOnline(product);
   const atDistributor = isAvailableAtDistributor(product);
   const inStockUnits = cardAvailabilityUnits(product.availability);
@@ -132,6 +134,7 @@ export default function ProductCard({ product }: { product: Product }) {
                         unit={unit}
                         distributorName={distributorName}
                         className="mt-0.5 font-normal normal-case tracking-normal"
+                        showInStock={hasExternal}
                       />
                       {unit.includesEnclosure && (
                         <span className="mt-0.5 block font-normal normal-case tracking-normal text-gold-deep">
@@ -185,7 +188,7 @@ export default function ProductCard({ product }: { product: Product }) {
                   {formatPrice(selected.price, locale)}{" "}
                   <span className="text-xs font-normal text-muted">{dict.common.plusTaxes}</span>
                 </p>
-                {online && <KlarnaBadge amount={selected.price} className="mt-1" />}
+                {online && !isExternalUnit(selected) && <KlarnaBadge amount={selected.price} className="mt-1" />}
                 {low && <p className="text-[11px] text-gold-deep">{dict.common.lowStock}</p>}
               </>
             ) : (

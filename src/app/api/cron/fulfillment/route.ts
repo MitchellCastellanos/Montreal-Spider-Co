@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasDatabase } from "@/lib/db";
 import { processOverdueFulfillments } from "@/lib/fulfillment/fulfillment";
+import { processExternalHolds } from "@/lib/external-orders/hold";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,5 +23,13 @@ export async function GET(req: Request) {
   }
 
   const result = await processOverdueFulfillments();
-  return NextResponse.json({ ok: true, ...result });
+  // Made-to-order holds: release the ones past their deadline, remind staff about those due soon.
+  let external: Awaited<ReturnType<typeof processExternalHolds>> | { error: string };
+  try {
+    external = await processExternalHolds();
+  } catch (e) {
+    console.error("[cron/fulfillment] external holds sweep failed:", e);
+    external = { error: "sweep_failed" };
+  }
+  return NextResponse.json({ ok: true, ...result, external });
 }

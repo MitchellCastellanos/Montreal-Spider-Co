@@ -216,7 +216,10 @@
     "specimenDistributorCta": "Distributor? Manage this specimen",
     "bundleEnclosure": "Terrarium included",
     "photoRepresentative": "Representative photo",
-    "photoNotice": "Photo representative of the species, not the actual specimen. Please refer to the selected listing for the actual size and sex. Appearance may vary depending on age and development."
+    "photoNotice": "Photo representative of the species, not the actual specimen. Please refer to the selected listing for the actual size and sex. Appearance may vary depending on age and development.",
+    "availableToOrder": "Available to order",
+    "leadTimeAfterConfirm": "Ready in about {min}–{max} business days after we confirm",
+    "holdNotice": "Made to order: your card is only authorized at checkout. We confirm we have secured your specimen (usually within 1 business day) and only then is your card charged. If we can’t get it, the authorization is released and you pay nothing."
   },
   "cart": {
     "title": "Your cart",

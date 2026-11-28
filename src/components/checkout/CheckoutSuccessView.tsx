@@ -10,6 +10,8 @@ export interface CheckoutSuccessData {
   orderId: string;
   total: number;
   email: string;
+  /** Made-to-order: the card is only authorized until MSC confirms the specimen. */
+  external?: boolean;
 }
 
 export default function CheckoutSuccessView({ order }: { order: CheckoutSuccessData }) {
@@ -34,6 +36,7 @@ export default function CheckoutSuccessView({ order }: { order: CheckoutSuccessD
           <p className="font-display text-2xl font-bold text-gold-bright">{order.orderId}</p>
           <p className="mt-2 text-bone">{formatPrice(order.total, locale)}</p>
           <p className="mt-2 text-sm text-muted">{order.email}</p>
+          {order.external && <p className="mt-3 text-sm text-bone">{dict.product.holdNotice}</p>}
         </div>
         <div className="mt-7 flex flex-wrap justify-center gap-3">
           <LocaleLink href="/account" className="btn btn-gold">

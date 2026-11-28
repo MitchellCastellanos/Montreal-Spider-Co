@@ -216,7 +216,10 @@
     "specimenDistributorCta": "Distributeur? Gérer ce spécimen",
     "bundleEnclosure": "Terrarium inclus",
     "photoRepresentative": "Photo représentative",
-    "photoNotice": "Photo représentative de l’espèce, et non du spécimen vendu. Veuillez consulter l’offre sélectionnée pour connaître sa taille et son sexe. L’apparence peut varier selon l’âge et le stade de développement."
+    "photoNotice": "Photo représentative de l’espèce, et non du spécimen vendu. Veuillez consulter l’offre sélectionnée pour connaître sa taille et son sexe. L’apparence peut varier selon l’âge et le stade de développement.",
+    "availableToOrder": "Disponible sur commande",
+    "leadTimeAfterConfirm": "Prêt d’ici environ {min}–{max} jours ouvrables après notre confirmation",
+    "holdNotice": "Sur commande : votre carte est seulement autorisée au paiement. Nous confirmons avoir obtenu votre spécimen (généralement sous 1 jour ouvrable) et ce n’est qu’alors que votre carte est débitée. Si nous ne l’obtenons pas, l’autorisation est annulée et vous ne payez rien."
   },
   "cart": {
     "title": "Votre panier",

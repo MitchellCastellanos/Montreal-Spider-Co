@@ -16,6 +16,7 @@ const NAV = [
   { href: "/admin/species", label: "Species library" },
   { href: "/admin/inventory", label: "Inventory" },
   { href: "/admin/operations", label: "Operations" },
+  { href: "/admin/external", label: "Special orders" },
   { href: "/admin/audits", label: "Store audits" },
   { href: "/admin/restock", label: "Restock" },
   { href: "/admin/settlements", label: "Settlements" },

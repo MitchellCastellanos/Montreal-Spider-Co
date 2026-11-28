@@ -980,6 +980,92 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
   }),
 
   // -------------------------------------------------------------------------
+  // External (made-to-order) specimens — card hold, then confirm or release
+  // -------------------------------------------------------------------------
+  simpleTemplate({
+    id: "external-order-received",
+    label: "Made-to-order — request received",
+    description: "Sent when a customer orders an external specimen: the card is only authorized, not charged.",
+    sample: { name: "Alex", orderNumber: "MSC-1042", itemLines: "Brachypelma hamorii (2″, female)", deadline: "Tuesday, November 24, 4:30 p.m." },
+    subject: { en: "We received your request — {orderNumber}", fr: "Demande reçue — {orderNumber}" },
+    paragraphs: {
+      en: [
+        "Hi {name},",
+        "Thanks for your order <strong>{orderNumber}</strong>: <strong>{itemLines}</strong>.",
+        "This specimen is sourced to order. <strong>Your card has been authorized but not charged.</strong> We will confirm availability by <strong>{deadline}</strong>.",
+        "If we secure it, the payment is completed and we will let you know the pickup details. If we can't, the authorization is released and you pay nothing.",
+      ],
+      fr: [
+        "Bonjour {name},",
+        "Merci pour votre commande <strong>{orderNumber}</strong> : <strong>{itemLines}</strong>.",
+        "Ce spécimen est obtenu sur commande. <strong>Votre carte a été autorisée, mais pas débitée.</strong> Nous confirmerons la disponibilité d'ici le <strong>{deadline}</strong>.",
+        "Si nous l'obtenons, le paiement est finalisé et nous vous donnerons les détails de cueillette. Sinon, l'autorisation est annulée et vous ne payez rien.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "external-order-confirmed",
+    label: "Made-to-order — specimen secured",
+    description: "Sent when staff confirm they bought the specimen; the held payment is captured.",
+    sample: { name: "Alex", orderNumber: "MSC-1042", itemLines: "Brachypelma hamorii (2″, female)", leadTime: "1–3 business days" },
+    subject: { en: "Good news — your specimen is secured ({orderNumber})", fr: "Bonne nouvelle — votre spécimen est réservé ({orderNumber})" },
+    paragraphs: {
+      en: [
+        "Hi {name},",
+        "We secured <strong>{itemLines}</strong> for your order <strong>{orderNumber}</strong>. Your payment has now been completed.",
+        "We expect it to be ready in about <strong>{leadTime}</strong>. We'll email you as soon as it's ready for pickup.",
+      ],
+      fr: [
+        "Bonjour {name},",
+        "Nous avons obtenu <strong>{itemLines}</strong> pour votre commande <strong>{orderNumber}</strong>. Votre paiement est maintenant finalisé.",
+        "Il devrait être prêt d'ici environ <strong>{leadTime}</strong>. Nous vous écrirons dès qu'il sera prêt pour la cueillette.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "external-order-unavailable",
+    label: "Made-to-order — not available (apology)",
+    description: "Sent when MSC can't obtain the specimen: the hold is released, nothing is charged.",
+    sample: { name: "Alex", orderNumber: "MSC-1042", itemLines: "Brachypelma hamorii (2″, female)", creditLine: "As an apology, here is a $10.00 credit code for your next order: <strong>SORRY-7K2Q9X</strong> (valid 60 days)." },
+    subject: { en: "Sorry — we couldn't get your specimen ({orderNumber})", fr: "Désolé — nous n'avons pas pu obtenir votre spécimen ({orderNumber})" },
+    paragraphs: {
+      en: [
+        "Hi {name},",
+        "We're sorry: because of a stock error on our side we couldn't get <strong>{itemLines}</strong> for order <strong>{orderNumber}</strong>.",
+        "<strong>You were not charged</strong> — the hold on your card has been released (your bank may take a few days to show it).",
+        "{creditLine}",
+        "If you'd like a similar specimen, just reply to this email and we'll help you find one.",
+      ],
+      fr: [
+        "Bonjour {name},",
+        "Nous sommes désolés : à cause d'une erreur de stock de notre côté, nous n'avons pas pu obtenir <strong>{itemLines}</strong> pour la commande <strong>{orderNumber}</strong>.",
+        "<strong>Vous n'avez rien payé</strong> — l'autorisation sur votre carte a été annulée (votre banque peut prendre quelques jours à l'afficher).",
+        "{creditLine}",
+        "Si vous souhaitez un spécimen semblable, répondez simplement à ce courriel et nous vous aiderons à en trouver un.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "external-order-delayed",
+    label: "Made-to-order — more time needed",
+    description: "Sent when staff extend the confirmation window.",
+    sample: { name: "Alex", orderNumber: "MSC-1042", deadline: "Wednesday, November 25, 4:30 p.m." },
+    subject: { en: "A little more time to confirm — {orderNumber}", fr: "Un peu plus de temps pour confirmer — {orderNumber}" },
+    paragraphs: {
+      en: [
+        "Hi {name},",
+        "We need a little more time to secure your specimen for order <strong>{orderNumber}</strong>. We'll confirm by <strong>{deadline}</strong>.",
+        "Your card is still only authorized — nothing has been charged.",
+      ],
+      fr: [
+        "Bonjour {name},",
+        "Il nous faut un peu plus de temps pour obtenir votre spécimen pour la commande <strong>{orderNumber}</strong>. Nous confirmerons d'ici le <strong>{deadline}</strong>.",
+        "Votre carte est toujours seulement autorisée — rien n'a été débité.",
+      ],
+    },
+  }),
+
+  // -------------------------------------------------------------------------
   // Internal (MSC staff)
   // -------------------------------------------------------------------------
   simpleTemplate({
@@ -1002,6 +1088,34 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
         "Specimens are allocated and hidden from the storefront. Start preparation from Admin → Operations.",
       ],
     },
+  }),
+  simpleTemplate({
+    id: "internal-external-order",
+    label: "Internal — made-to-order request",
+    description: "Staff alert: an external specimen was ordered (card authorized, not charged).",
+    sample: { orderNumber: "MSC-1042", customerName: "Alex", itemLines: "Brachypelma hamorii (2″, female)", supplier: "Tarantula Canada", deadline: "Tuesday, November 24, 4:30 p.m.", adminUrl: "https://montrealspider.ca/en/admin/external" },
+    subject: { en: "🛒 Buy & confirm — {orderNumber} ({supplier})" },
+    paragraphs: {
+      en: [
+        "<strong>{customerName}</strong> ordered an external specimen: <strong>{itemLines}</strong> ({orderNumber}).",
+        "Buy it from <strong>{supplier}</strong>, then confirm in Admin → Special orders before <strong>{deadline}</strong>. The customer's card is only authorized — if you can't get it, decline there and the hold is released.",
+      ],
+    },
+    cta: { en: "Open Special orders", hrefKey: "adminUrl" },
+  }),
+  simpleTemplate({
+    id: "internal-external-order-due",
+    label: "Internal — made-to-order deadline",
+    description: "Staff reminder (or notice) about a held external order near/after its confirm-by deadline.",
+    sample: { orderNumber: "MSC-1042", customerName: "Alex", deadline: "Tuesday, November 24, 4:30 p.m.", status: "is due within 24 hours", adminUrl: "https://montrealspider.ca/en/admin/external" },
+    subject: { en: "⏰ Made-to-order {orderNumber} {status}" },
+    paragraphs: {
+      en: [
+        "Order <strong>{orderNumber}</strong> ({customerName}) {status}. Confirm-by deadline: <strong>{deadline}</strong>.",
+        "Confirm, extend or decline it in Admin → Special orders.",
+      ],
+    },
+    cta: { en: "Open Special orders", hrefKey: "adminUrl" },
   }),
   simpleTemplate({
     id: "internal-pickup-overdue",

@@ -8,10 +8,9 @@ import { createFulfillmentForOrder } from "@/lib/fulfillment/fulfillment";
 import { redeemCoupon } from "@/lib/account/coupons";
 import { grantReferralReward } from "@/lib/account/referral";
 import { saveFulfillmentFromCheckout } from "@/lib/account/preferences";
+import { nextOrderNumber } from "@/lib/orders/order-number";
+import { fulfillExternalHold } from "@/lib/external-orders/hold";
 
-function generateOrderNumber(): string {
-  return `MSC-${Math.floor(1000 + Math.random() * 9000)}`;
-}
 
 /**
  * Post-payment order creation. The order becomes PAID and its specimens become
@@ -28,6 +27,9 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
   if (existing) return existing;
 
   const md = session.metadata ?? {};
+  // Made-to-order specimens: the card is only AUTHORIZED, no specimen is allocated yet.
+  if (md.external === "1") return fulfillExternalHold(session);
+
   const method = (md.method === "pickup" ? "pickup" : "delivery") as FulfillmentMethod;
   const email = (session.customer_details?.email ?? session.customer_email ?? md.customerEmail ?? "").trim().toLowerCase();
   if (!email) throw new Error("Missing customer email on checkout session.");
@@ -45,12 +47,7 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
   }[];
   if (!orderItems.length) throw new Error("Missing order items in session metadata.");
 
-  let orderNumber = generateOrderNumber();
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const taken = await prisma.order.findUnique({ where: { orderNumber } });
-    if (!taken) break;
-    orderNumber = generateOrderNumber();
-  }
+  const orderNumber = await nextOrderNumber();
 
   const customerId =
     md.customerId ||

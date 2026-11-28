@@ -113,6 +113,7 @@ model Product {
   sizes                  ProductSize[]
   distributorStocks      ProductDistributorStock[]
   specimens              Specimen[]
+  supplierOffers         SupplierOffer[]
   createdAt              DateTime     @default(now())
   updatedAt              DateTime     @updatedAt
 
@@ -659,6 +660,13 @@ model Order {
   locale          String            @default("en")
   salesChannel    SalesChannel      @default(web)
   paymentMethod   PaymentMethod     @default(stripe)
+  /** External (made-to-order) orders: card authorization held until MSC confirms it bought the specimen. */
+  holdStatus      HoldStatus        @default(none)
+  /** Confirm-by deadline for a held order; staff can extend it (never past holdAuthExpiresAt). */
+  holdDeadline    DateTime?
+  /** Conservative last moment the card authorization is still safe to capture. */
+  holdAuthExpiresAt DateTime?
+  holdExtensions  Int               @default(0)
   lines           OrderLine[]
   specimens       Specimen[]
   messages        OrderMessage[]
@@ -671,6 +679,48 @@ model Order {
   @@index([email])
   @@index([phone])
   @@index([createdAt])
+}
+
+/** Card authorization state of an external (made-to-order) order. */
+enum HoldStatus {
+  /** Regular order: charged immediately. */
+  none
+  /** Authorized, not charged — waiting for MSC to confirm it bought the specimen. */
+  authorized
+  /** MSC confirmed; the authorization was captured. */
+  captured
+  /** Cancelled/expired before capture — the customer was never charged. */
+  released
+}
+
+/**
+ * An external specimen MSC can obtain on request from a supplier (e.g. Tarantula Canada).
+ * NOT inventory: no Specimen exists until staff buy it and confirm the order.
+ * Costs are private (never sent to the storefront).
+ */
+model SupplierOffer {
+  id          String      @id @default(cuid())
+  productId   String
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  supplier    String      @default("Tarantula Canada")
+  sizeCm      Float
+  sex         SpecimenSex @default(unsexed)
+  /** Customer-facing price (before taxes). */
+  price       Float
+  /** Internal supplier cost — margin/accounting only. */
+  unitCost    Float       @default(0)
+  /** Estimated lead time, in business days after MSC confirms availability. */
+  leadDaysMin Int         @default(1)
+  leadDaysMax Int         @default(3)
+  maxPerOrder Int         @default(1)
+  /** Visible on the storefront (only while the external-orders switch is on). */
+  published   Boolean     @default(false)
+  notes       String      @default("")
+  orderLines  OrderLine[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([productId, published])
 }
 
 model OrderLine {
@@ -690,8 +740,12 @@ model OrderLine {
   qty         Int
   unitPrice   Float
   specimens   OrderLineSpecimen[]
+  /** Set when this line is an external (supplier) offer bought to order — no specimen exists until MSC buys it. */
+  supplierOfferId String?
+  supplierOffer   SupplierOffer? @relation(fields: [supplierOfferId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
+  @@index([supplierOfferId])
 }
 
 /** Links each sold unit on an order line to a specific specimen (FIFO or manual). */

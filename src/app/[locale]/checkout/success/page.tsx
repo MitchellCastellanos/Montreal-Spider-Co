@@ -55,6 +55,7 @@ export default async function CheckoutSuccessPage({
         orderId: order?.orderNumber ?? `MSC-${session_id.slice(-8).toUpperCase()}`,
         total: order?.total ?? (session.amount_total ?? 0) / 100,
         email: session.customer_details?.email ?? session.customer_email ?? "",
+        external: session.metadata?.external === "1",
       }}
     />
   );
