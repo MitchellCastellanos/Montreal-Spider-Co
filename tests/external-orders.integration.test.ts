@@ -363,17 +363,17 @@ describe.skipIf(!enabled)("rotation by visits + profit pricing (real DB)", () =>
     }
   });
 
-  it("shows the LEAST visited offers (outside-window views ignored) and prices them by profit margin", async () => {
+  it("KEEPS the most visited offers (outside-window views ignored) and prices them by profit margin", async () => {
     await settle({ rotationMode: "suggest", rotationSlots: 2, rotationMinDays: 7, rotationWindowDays: 14, marginPct: 30, minProfit: 12, handlingCost: 4, lossReservePct: 4 });
     const { plan, rows } = await svc.buildRotation();
     expect(rows[ids.emilia].visits).toBe(0);
-    expect(rows[ids.hamorii].visits).toBe(40);
-    expect(plan.publish.sort()).toEqual([ids.emilia, ids.boehmei].sort());
+    expect(rows[ids.hamorii].visits).toBe(40); // the 40-day-old extra view is not counted
+    expect(plan.publish.sort()).toEqual([ids.hamorii, ids.vagans].sort()); // 40 and 12 views beat 5 and 0
 
     expect(await published()).toEqual([]); // suggest mode: building a plan changes nothing
     await svc.applyRotationNow();
-    expect(await published()).toEqual([ids.emilia, ids.boehmei].sort());
-    const live = await db.supplierOffer.findUnique({ where: { id: ids.emilia } });
+    expect(await published()).toEqual([ids.hamorii, ids.vagans].sort());
+    const live = await db.supplierOffer.findUnique({ where: { id: ids.hamorii } });
     expect(live.publishedAt).toBeTruthy();
     // cost 35 @ 30% target: price meets BOTH the margin and the $12 minimum
     const { breakdownAt, DEFAULT_PRICING } = await import("@/lib/external-orders/pricing");
@@ -384,18 +384,19 @@ describe.skipIf(!enabled)("rotation by visits + profit pricing (real DB)", () =>
     expect(b.operatingProfit).toBeGreaterThanOrEqual(12);
   });
 
-  it("does not rotate again inside the minimum display time, even when traffic changes", async () => {
+  it("does not rotate again inside the minimum display time, even when a hidden offer suddenly gets traffic", async () => {
     for (let i = 0; i < 100; i++) await db.pageView.create({ data: { path: "/product/emilia", visitorHash: `burst${i}` } });
     const { plan } = await svc.buildRotation();
     expect(plan.unpublish).toEqual([]);
     expect(plan.publish).toEqual([]);
   });
 
-  it("after the minimum time, rotates the now-busy offer out for a quieter one", async () => {
-    await db.supplierOffer.update({ where: { id: ids.emilia }, data: { publishedAt: new Date(Date.now() - 10 * 86400000) } });
+  it("after the minimum time, the least visited visible offer is rotated out for the now-busier one", async () => {
+    await db.supplierOffer.updateMany({ where: { published: true }, data: { publishedAt: new Date(Date.now() - 10 * 86400000) } });
     const { plan } = await svc.buildRotation();
-    expect(plan.unpublish).toEqual([ids.emilia]);
-    expect(plan.publish).toEqual([ids.vagans]); // next-least visited (12) beats hamorii (40)
+    expect(plan.unpublish).toEqual([ids.vagans]); // 12 views — the least visited of the visible ones
+    expect(plan.publish).toEqual([ids.emilia]); // 100 views now
+    // hamorii (40) is never touched
   });
 
   it("auto mode applies it from the cron; suggest/off do not", async () => {
@@ -406,7 +407,7 @@ describe.skipIf(!enabled)("rotation by visits + profit pricing (real DB)", () =>
     await settle({ rotationMode: "auto" });
     const r = await svc.runRotation();
     expect(r).toMatchObject({ mode: "auto", published: 1, hidden: 1 });
-    expect(await published()).toEqual([ids.boehmei, ids.vagans].sort());
+    expect(await published()).toEqual([ids.emilia, ids.hamorii].sort());
     expect((await svc.getLastRotation())?.mode).toBe("auto");
   });
 
@@ -531,7 +532,7 @@ describe.skipIf(!enabled)("TarCan catalog sync → availability → rotation (re
     await expect(catalog.createOfferFromItem(rows[0].id)).rejects.toThrow(/already has an offer|No species listing/);
   });
 
-  it("rotation only shows animals TarCan lists; the least-visited of those fill the slots", async () => {
+  it("rotation only shows animals TarCan lists; the most visited of those keep the slots", async () => {
     for (const [n, views] of [["Brachypelma hamorii", 30], ["Brachypelma boehmei", 2], ["Grammostola pulchripes", 0], ["Tliltocatl albopilosus", 9], ["Chromatopelma cyaneopubescens", 1]] as const) {
       for (let i = 0; i < views; i++) await db.pageView.create({ data: { path: `/product/${n.toLowerCase().replace(/ /g, "-")}`, visitorHash: `${n}${i}` } });
     }
@@ -539,48 +540,48 @@ describe.skipIf(!enabled)("TarCan catalog sync → availability → rotation (re
     rotation = await import("@/lib/external-orders/rotation-service");
     await rotation.runRotation();
     const vis = (await db.supplierOffer.findMany({ where: { published: true }, include: { item: true } })).map((o: { item: { externalId: number } }) => o.item.externalId).sort();
-    expect(vis).toEqual([3, 5]); // pulchripes (0 views) and cyaneopubescens (1 view)
+    expect(vis).toEqual([1, 4]); // hamorii (30 views) and albopilosus (9 views)
   });
 
   it("when TarCan drops an animal: one missed sync is tolerated, the second hides it and rotation fills the gap", async () => {
-    // pulchripes (id 3) disappears from the catalog
-    mockFetch(catalogJson({ 3: null }));
+    // hamorii (id 1, the most visited) disappears from the catalog
+    mockFetch(catalogJson({ 1: null }));
     await sync.runSupplierSync("manual", later(48));
-    expect((await db.supplierItem.findFirst({ where: { externalId: 3 } })).missingRuns).toBe(1);
-    expect(await publishedIds()).toEqual([3, 5]); // tolerated once
+    expect((await db.supplierItem.findFirst({ where: { externalId: 1 } })).missingRuns).toBe(1);
+    expect(await publishedIds()).toEqual([1, 4]); // tolerated once
 
-    mockFetch(catalogJson({ 3: null }));
+    mockFetch(catalogJson({ 1: null }));
     await sync.runSupplierSync("manual", later(96));
-    expect((await db.supplierItem.findFirst({ where: { externalId: 3 } })).missingRuns).toBe(2);
+    expect((await db.supplierItem.findFirst({ where: { externalId: 1 } })).missingRuns).toBe(2);
 
     // storefront hides it immediately (no waiting for the daily rotation)…
     vi.resetModules();
     const products = await import("@/lib/data/products");
-    const units = (await products.getProductBySlug("grammostola-pulchripes"))?.availability ?? [];
+    const units = (await products.getProductBySlug("brachypelma-hamorii"))?.availability ?? [];
     expect(units.filter((u: { source?: string }) => u.source === "external")).toHaveLength(0);
-    // …and the rotation swaps it for the next least-visited listed animal
+    // …and the rotation replaces it with the most visited animal TarCan still lists
     rotation = await import("@/lib/external-orders/rotation-service");
     await rotation.runRotation(later(96));
-    expect(await publishedIds()).toEqual([2, 5]); // boehmei (2 views) replaces it
+    expect(await publishedIds()).toEqual([2, 4]); // boehmei (2 views) beats cyaneopubescens (1) and pulchripes (0)
   });
 
   it("an animal that comes back is listed again; price changes update the private cost and are remembered", async () => {
-    mockFetch(catalogJson({ 3: { price: 55 }, 5: { price: 70 } }));
+    mockFetch(catalogJson({ 1: { price: 55 }, 4: { price: 70 } }));
     const r = await sync.runSupplierSync("manual", later(144));
     expect(r).toMatchObject({ status: "ok", priceChanges: 2 });
-    const back = await db.supplierItem.findFirst({ where: { externalId: 3 } });
+    const back = await db.supplierItem.findFirst({ where: { externalId: 1 } });
     expect(back).toMatchObject({ missingRuns: 0, price: 55, prevPrice: 45 });
-    const off = await db.supplierOffer.findFirst({ where: { item: { externalId: 5 } } });
+    const off = await db.supplierOffer.findFirst({ where: { item: { externalId: 4 } } });
     expect(off.unitCost).toBe(70); // cost follows the supplier
   });
 
   it("a cost increase that kills the margin hides a published offer automatically", async () => {
-    // offer 5 is visible with a price set when cost was 45; cost is now 70 → below the 30% target at the old price
+    // offer 4 is visible with a price set when cost was 45; cost is now 70 → below the 30% target at the old price
     vi.resetModules();
     rotation = await import("@/lib/external-orders/rotation-service");
     const overview = await rotation.buildRotation(later(144));
-    expect(overview.rows[ids["offer:5"]].eligible).toBe(false);
-    expect(overview.plan.unpublish).toContain(ids["offer:5"]);
+    expect(overview.rows[ids["offer:4"]].eligible).toBe(false);
+    expect(overview.plan.unpublish).toContain(ids["offer:4"]);
   });
 
   it("suspicious responses never hide anything: tiny payload, big drop, HTML page, HTTP error", async () => {
@@ -604,7 +605,7 @@ describe.skipIf(!enabled)("TarCan catalog sync → availability → rotation (re
     const offs = await import("@/lib/external-orders/offers");
     expect(await offs.listPublishedOffers(Object.values(ids).filter((v) => typeof v === "string") as string[])).toHaveLength(0);
     const co = await import("@/lib/checkout-stripe");
-    const offerId = (await db.supplierOffer.findFirst({ where: { published: true } }))?.id ?? ids["offer:5"];
+    const offerId = (await db.supplierOffer.findFirst({ where: { published: true } }))?.id ?? ids["offer:4"];
     await db.supplierOffer.update({ where: { id: offerId }, data: { published: true } });
     const pid = (await db.supplierOffer.findUnique({ where: { id: offerId } })).productId;
     await expect(

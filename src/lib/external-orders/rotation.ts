@@ -1,6 +1,6 @@
 /**
- * Rotation of made-to-order offers: a limited number of slots, filled with the offers whose listings
- * got the FEWEST visits (so every offer gets exposure), without flapping. Pure — no I/O.
+ * Rotation of made-to-order offers: a limited number of slots, kept by the offers whose listings get the
+ * MOST visits; the least-visited offers are the ones rotated out. Minimum display time prevents flapping. Pure — no I/O.
  */
 
 export interface RotationOffer {
@@ -79,22 +79,20 @@ export function planRotation(input: {
     }
   }
 
-  // 3) Fill the remaining slots with the least-visited candidates (ties: never-shown / shown longest ago first).
+  // 3) Fill the remaining slots with the MOST visited candidates. Ties keep what is already visible (no churn
+  //    for nothing), then fall back to id so the result is deterministic.
   const free = Math.max(0, slots - keep.size);
   candidates.sort(
-    (a, b) =>
-      visits(a) - visits(b) ||
-      (a.publishedAt?.getTime() ?? 0) - (b.publishedAt?.getTime() ?? 0) ||
-      a.id.localeCompare(b.id),
+    (a, b) => visits(b) - visits(a) || Number(b.published) - Number(a.published) || a.id.localeCompare(b.id),
   );
   candidates.forEach((o, i) => {
     if (i < free) {
       keep.add(o.id);
-      reasons[o.id] = `Fewest visits (${visits(o)} views)`;
+      reasons[o.id] = `Most visits (${visits(o)} views)`;
       if (!o.published) publish.add(o.id);
     } else if (o.published) {
       unpublish.add(o.id);
-      reasons[o.id] = `Rotated out — ${visits(o)} views, others need exposure`;
+      reasons[o.id] = `Rotated out — only ${visits(o)} views, others get more`;
     }
   });
 

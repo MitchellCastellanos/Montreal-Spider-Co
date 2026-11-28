@@ -57,23 +57,30 @@ const offer = (id: string, over: Partial<RotationOffer> = {}): RotationOffer => 
 });
 
 describe("planRotation", () => {
-  it("fills the slots with the LEAST visited offers", () => {
+  it("fills the slots with the MOST visited offers", () => {
     const offers = [offer("a"), offer("b"), offer("c"), offer("d")];
     const plan = planRotation({ offers, visitsByProduct: { "p-a": 50, "p-b": 3, "p-c": 10, "p-d": 0 }, slots: 2, minDays: 7, now: NOW });
-    expect(plan.publish.sort()).toEqual(["b", "d"]);
+    expect(plan.publish.sort()).toEqual(["a", "c"]);
     expect(plan.unpublish).toEqual([]);
   });
 
-  it("rotates out a well-visited offer once its minimum display time has passed", () => {
+  it("rotates out the LEAST visited offer once its minimum display time has passed", () => {
     const offers = [offer("a", { published: true, publishedAt: daysAgo(10) }), offer("b")];
-    const plan = planRotation({ offers, visitsByProduct: { "p-a": 100, "p-b": 1 }, slots: 1, minDays: 7, now: NOW });
+    const plan = planRotation({ offers, visitsByProduct: { "p-a": 1, "p-b": 100 }, slots: 1, minDays: 7, now: NOW });
     expect(plan.publish).toEqual(["b"]);
     expect(plan.unpublish).toEqual(["a"]);
   });
 
-  it("does NOT flap: an offer inside its minimum display time stays, even if it is the most visited", () => {
+  it("keeps a well-visited offer even after its minimum time", () => {
+    const offers = [offer("a", { published: true, publishedAt: daysAgo(30) }), offer("b")];
+    const plan = planRotation({ offers, visitsByProduct: { "p-a": 100, "p-b": 1 }, slots: 1, minDays: 7, now: NOW });
+    expect(plan.publish).toEqual([]);
+    expect(plan.unpublish).toEqual([]);
+  });
+
+  it("does NOT flap: an offer inside its minimum display time stays, even with zero visits", () => {
     const offers = [offer("a", { published: true, publishedAt: daysAgo(2) }), offer("b")];
-    const plan = planRotation({ offers, visitsByProduct: { "p-a": 100, "p-b": 0 }, slots: 1, minDays: 7, now: NOW });
+    const plan = planRotation({ offers, visitsByProduct: { "p-a": 0, "p-b": 100 }, slots: 1, minDays: 7, now: NOW });
     expect(plan.publish).toEqual([]);
     expect(plan.unpublish).toEqual([]);
     expect(plan.reasons.a).toMatch(/Minimum display time/);
@@ -81,9 +88,9 @@ describe("planRotation", () => {
 
   it("pinned offers always stay, take a slot, and are never rotated out", () => {
     const offers = [offer("pin", { published: true, publishedAt: daysAgo(60), pinned: true }), offer("x"), offer("y")];
-    const plan = planRotation({ offers, visitsByProduct: { "p-pin": 999, "p-x": 5, "p-y": 1 }, slots: 2, minDays: 7, now: NOW });
+    const plan = planRotation({ offers, visitsByProduct: { "p-pin": 0, "p-x": 5, "p-y": 1 }, slots: 2, minDays: 7, now: NOW });
     expect(plan.unpublish).toEqual([]);
-    expect(plan.publish).toEqual(["y"]);
+    expect(plan.publish).toEqual(["x"]); // the most visited of the rest takes the one free slot
     expect(plan.visibleAfter).toBe(2);
   });
 
@@ -101,12 +108,13 @@ describe("planRotation", () => {
     expect(plan.publish).toEqual(["r"]); // 'hidden-fixed' is not auto-published
   });
 
-  it("ties go to the offer shown longest ago / never shown; result is deterministic", () => {
-    const offers = [offer("old", { publishedAt: daysAgo(30) }), offer("never"), offer("recent", { publishedAt: daysAgo(10) })];
-    const a = planRotation({ offers, visitsByProduct: {}, slots: 2, minDays: 7, now: NOW });
-    const b = planRotation({ offers: [...offers].reverse(), visitsByProduct: {}, slots: 2, minDays: 7, now: NOW });
-    expect(a.publish.sort()).toEqual(["never", "old"]);
-    expect(b.publish.sort()).toEqual(a.publish.sort());
+  it("ties keep what is already visible; the result is deterministic whatever the input order", () => {
+    const offers = [offer("a"), offer("b", { published: true, publishedAt: daysAgo(30) }), offer("c")];
+    const one = planRotation({ offers, visitsByProduct: {}, slots: 1, minDays: 7, now: NOW });
+    const two = planRotation({ offers: [...offers].reverse(), visitsByProduct: {}, slots: 1, minDays: 7, now: NOW });
+    expect(one.publish).toEqual([]); // b stays
+    expect(one.unpublish).toEqual([]);
+    expect(two).toEqual(one);
   });
 
   it("zero slots hides every rotating, unpinned offer once unlocked", () => {

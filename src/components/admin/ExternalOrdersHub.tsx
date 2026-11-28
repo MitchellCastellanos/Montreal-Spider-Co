@@ -339,8 +339,8 @@ export default function ExternalOrdersHub({
       <Section title="Rotation">
         <p className="mb-3 text-sm text-bone">
           Up to <strong>{settings.rotationSlots}</strong> offers are visible at a time. Only offers that <strong>TarCan still lists</strong> and that
-          meet the profit target can be shown; of those, the ones whose pages got the <strong>fewest visits</strong> (last {settings.rotationWindowDays} days)
-          take the open spots. Each stays at least {settings.rotationMinDays} days and pinned offers never leave.
+          meet the profit target can be shown; of those, the ones whose pages get the <strong>most visits</strong> (last {settings.rotationWindowDays} days)
+          keep the spots and the <strong>least visited are rotated out</strong>. Each stays at least {settings.rotationMinDays} days and pinned offers never leave.
         </p>
         {rotation ? (
           <div className="space-y-2 text-sm text-bone">
