@@ -499,6 +499,8 @@ async function resolveNoShowReviewTasks(orderId: string, resolution: string): Pr
 }
 
 const HOUR = 60 * 60 * 1000;
+/** How often staff are re-emailed about a no-show review nobody has resolved. */
+const REVIEW_NUDGE_MS = 24 * HOUR;
 /** Grace period after the no-show warning before automatic cancellation. */
 const NO_SHOW_GRACE_MS = 24 * HOUR;
 /** How long after pickup to ask for a review — long enough to settle in, soon enough to remember why they bought. */
@@ -508,6 +510,7 @@ export interface SchedulerResult {
   reminders: number;
   warnings: number;
   noShows: number;
+  reviewReminders: number;
   reviewRequests: number;
 }
 
@@ -520,7 +523,7 @@ export interface SchedulerResult {
 export async function processOverdueFulfillments(): Promise<SchedulerResult> {
   const db = requireDb();
   const now = new Date();
-  const result: SchedulerResult = { reminders: 0, warnings: 0, noShows: 0, reviewRequests: 0 };
+  const result: SchedulerResult = { reminders: 0, warnings: 0, noShows: 0, reviewReminders: 0, reviewRequests: 0 };
 
   const waiting = await db.fulfillment.findMany({
     where: { status: "ready", collectBy: { not: null } },
@@ -577,6 +580,39 @@ export async function processOverdueFulfillments(): Promise<SchedulerResult> {
       }
     } catch (e) {
       console.error(`[fulfillment] scheduler failed for ${f.id}:`, e);
+    }
+  }
+
+  // Nag staff every 24h while a no-show review is still unresolved. The task's
+  // updatedAt doubles as "last nudge" (creation counts as the first one).
+  const staleReviews = await db.operationsTask.findMany({
+    where: {
+      type: "no_show_review",
+      status: { in: ["open", "in_progress"] },
+      updatedAt: { lte: new Date(now.getTime() - REVIEW_NUDGE_MS) },
+    },
+    include: {
+      order: { select: { orderNumber: true, name: true } },
+      location: { select: { name: true } },
+    },
+    take: 100,
+  });
+  for (const t of staleReviews) {
+    try {
+      await notifyStaff({
+        templateId: "internal-no-show-review",
+        event: "fulfillment.no_show_review_reminder",
+        data: {
+          orderNumber: t.order?.orderNumber ?? "",
+          customerName: t.order?.name ?? "",
+          pickupName: t.location?.name ?? "pickup",
+        },
+        context: t.orderId ? { orderId: t.orderId } : {},
+      });
+      await db.operationsTask.update({ where: { id: t.id }, data: { details: t.details } });
+      result.reviewReminders++;
+    } catch (e) {
+      console.error(`[fulfillment] review reminder failed for task ${t.id}:`, e);
     }
   }
 
