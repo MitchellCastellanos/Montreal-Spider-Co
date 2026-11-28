@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Scheduled fulfillment sweep (Vercel Cron): pickup reminders, no-show
- * warnings, and automatic cancellation + refund after the grace period.
+ * warnings, and a human-review task after the grace period. Never refunds.
  */
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
