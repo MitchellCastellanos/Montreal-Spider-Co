@@ -498,13 +498,13 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       en: [
         "Hi {name},",
         "This is the final reminder for order <strong>{orderNumber}</strong>, ready at <strong>{pickupName}</strong>.",
-        "If it isn't collected by <strong>{collectBy}</strong>, the order will be cancelled and refunded per our pickup policy.",
+        "If it isn't collected by <strong>{collectBy}</strong>, our team will review the order and, if it was not collected, cancel it and refund you per our pickup policy.",
         "Need more time or a different arrangement? Just reply to this email — we're flexible when we hear from you.",
       ],
       fr: [
         "Bonjour {name},",
         "Ceci est le dernier rappel pour la commande <strong>{orderNumber}</strong>, prête chez <strong>{pickupName}</strong>.",
-        "Si elle n'est pas récupérée avant le <strong>{collectBy}</strong>, la commande sera annulée et remboursée selon notre politique de cueillette.",
+        "Si elle n'est pas récupérée avant le <strong>{collectBy}</strong>, notre équipe vérifiera la commande et, si elle n'a pas été récupérée, l'annulera et vous remboursera selon notre politique de cueillette.",
         "Besoin de plus de temps ou d'un autre arrangement ? Répondez simplement à ce courriel.",
       ],
     },
@@ -522,13 +522,13 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       en: [
         "Hi {name},",
         "The pickup window for order <strong>{orderNumber}</strong> has passed and the order is flagged as uncollected.",
-        "If we don't hear from you within <strong>{graceHours} hours</strong>, the order will be cancelled and refunded (a no-show fee may apply).",
+        "If we don't hear from you within <strong>{graceHours} hours</strong>, our team will review the order and, if it was not collected, cancel it and refund you (a no-show fee may apply).",
         "Reply to this email if you still want your spider — we'd love to complete the adoption.",
       ],
       fr: [
         "Bonjour {name},",
         "Le délai de cueillette de la commande <strong>{orderNumber}</strong> est dépassé et la commande est marquée comme non réclamée.",
-        "Sans nouvelles de votre part d'ici <strong>{graceHours} heures</strong>, la commande sera annulée et remboursée (des frais de non-présentation peuvent s'appliquer).",
+        "Sans nouvelles de votre part d'ici <strong>{graceHours} heures</strong>, notre équipe vérifiera la commande et, si elle n'a pas été récupérée, l'annulera et vous remboursera (des frais de non-présentation peuvent s'appliquer).",
         "Répondez à ce courriel si vous voulez toujours votre mygale — nous serons ravis de finaliser l'adoption.",
       ],
     },
@@ -1013,6 +1013,19 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       en: [
         "Order <strong>{orderNumber}</strong> ({customerName}) was not collected by <strong>{collectBy}</strong> at {pickupName}.",
         "The customer received a no-show warning. Process the no-show (refund + release) from Admin → Operations, or extend the window after contacting them.",
+      ],
+    },
+  }),
+  simpleTemplate({
+    id: "internal-no-show-review",
+    label: "Internal — no-show needs review",
+    description: "Staff alert when the grace period ends: a human must verify the pickup before any refund.",
+    sample: { orderNumber: "MSC-1042", customerName: "Alex", pickupName: "Plateau pickup point" },
+    subject: { en: "👀 Verify no-show before refunding — {orderNumber}" },
+    paragraphs: {
+      en: [
+        "The grace period for order <strong>{orderNumber}</strong> ({customerName}) at {pickupName} has ended. <strong>Nothing was refunded automatically.</strong>",
+        "Check with the partner whether the customer actually collected it. If they did, use “Confirm handover → SOLD”. If not, use “No-show (refund + release)”. You can also extend the deadline. All three are in Admin → Operations.",
       ],
     },
   }),

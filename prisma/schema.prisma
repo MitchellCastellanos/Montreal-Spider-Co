@@ -978,6 +978,8 @@ model SettlementStatement {
 enum TaskType {
   /** Decide what to do with a specimen after a no-show (leave at partner / return / transfer). */
   no_show_disposition
+  /** A pickup went unclaimed past the grace period: a human must verify (with the partner) before any refund. */
+  no_show_review
   /** Investigate a specimen missing during an audit. */
   audit_investigation
   inventory_correction

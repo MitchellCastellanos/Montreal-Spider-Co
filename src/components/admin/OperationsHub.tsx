@@ -62,6 +62,7 @@ const STATUS_BADGE: Record<string, string> = {
 
 const TASK_TYPE_LABELS: Record<string, string> = {
   no_show_disposition: "Disposition",
+  no_show_review: "Verify no-show",
   audit_investigation: "Investigation",
   inventory_correction: "Correction",
   restock_approval: "Restock",
@@ -196,7 +197,7 @@ function FulfillmentCard({ f }: { f: FulfillmentRow }) {
               transition="no-show"
               label="No-show (refund + release)"
               danger
-              confirmText="Cancel this order as a no-show? This refunds the customer and releases the specimens."
+              confirmText="Confirm with the partner that the customer did NOT collect the order. This refunds the customer and releases the specimens."
             />
           </>
         )}

@@ -50,10 +50,10 @@ server). The list below is the single source of truth for what to build next.
   separate from **physical location** (`warehouse / consignment (partner store) / transit`) — a specimen at a
   partner is *available at that location*, never a special status. MSC owns every specimen until handover.
 - **Fulfillment module** (`/admin/operations`, `src/lib/fulfillment/`): everything after payment —
-  preparing → ready (starts the pickup window) → completed, plus no-show/cancellation with **automatic Stripe
-  refund**, optional no-show fee, specimen release back to available, and a manual **disposition task**
+  preparing → ready (starts the pickup window) → completed, plus no-show/cancellation with a **staff-triggered Stripe
+  refund** (the cron never refunds on its own — it opens a "Verify no-show" task), optional no-show fee, specimen release back to available, and a manual **disposition task**
   (leave at partner / return to warehouse / transfer). A cron sweep (`/api/cron/fulfillment`, see
-  `vercel.json`) sends reminders, no-show warnings and auto-cancels after the grace period.
+  `vercel.json`) sends reminders, no-show warnings and flags the order for human review after the grace period.
 - **Store audits** (`/admin/audits`): record a visit (employee, per-specimen found/missing, health notes,
   measured size, photos). Missing specimens create investigation tasks; confirmed losses become
   `correction` inventory movements; measured sizes feed growth history.

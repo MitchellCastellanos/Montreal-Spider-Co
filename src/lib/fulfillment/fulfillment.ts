@@ -15,7 +15,7 @@ import { formatWeeklyHoursSummary } from "@/lib/opening-hours";
  * delivery. Separate from Orders (the purchase) and Inventory (the specimens).
  *
  * Lifecycle: pending → preparing → ready → completed
- *                                        ↘ no_show / cancelled (refund + release)
+ *                                        ↘ no_show / cancelled (refund + release — staff-triggered only)
  */
 
 function requireDb() {
@@ -191,6 +191,7 @@ export async function confirmPickup(fulfillmentId: string): Promise<void> {
     db.fulfillment.update({ where: { id: fulfillmentId }, data: { status: "completed", completedAt } }),
     db.order.update({ where: { id: f.orderId }, data: { status: "delivered" } }),
   ]);
+  await resolveNoShowReviewTasks(f.orderId, "Handover confirmed — customer collected the order.");
 
   const locale = orderLocale(f.order);
   await sendNotification({
@@ -257,6 +258,7 @@ export async function extendCollectBy(fulfillmentId: string, extraBusinessDays: 
     where: { id: fulfillmentId },
     data: { collectBy, remindersSent: 0, lastReminderAt: null },
   });
+  await resolveNoShowReviewTasks(f.orderId, "Deadline extended.");
 
   const locale = orderLocale(f.order);
   await sendNotification({
@@ -359,6 +361,7 @@ export async function cancelFulfillment(fulfillmentId: string, opts: CancelOptio
       data: { status: "cancelled", statusDetail: opts.reason },
     }),
   ]);
+  await resolveNoShowReviewTasks(f.orderId, opts.isNoShow ? "No-show confirmed by staff — refunded." : "Order cancelled by staff.");
 
   // 4) Inventory disposition is a manual decision — create the internal task.
   const specimens = f.order.specimens;
@@ -435,13 +438,63 @@ export async function cancelFulfillment(fulfillmentId: string, opts: CancelOptio
   });
 }
 
-/** No-show shortcut used by the admin and the scheduler. */
+/** No-show shortcut used by the admin only — the scheduler never calls it (refunds need a human). */
 export async function processNoShow(fulfillmentId: string, noShowFee = 0): Promise<void> {
   await cancelFulfillment(fulfillmentId, {
     reason: "the pickup window expired",
     reasonFr: "le délai de cueillette est expiré",
     noShowFee,
     isNoShow: true,
+  });
+}
+
+/**
+ * Grace period over and still uncollected: open ONE task (per deadline) asking
+ * staff to verify with the partner, and alert them. No refund, no inventory
+ * release — the order stays "ready" until a human confirms handover, processes
+ * the no-show, or extends the deadline. Returns true if a new task was opened.
+ */
+async function flagNoShowForReview(f: FulfillmentWithOrder): Promise<boolean> {
+  const db = requireDb();
+  const alreadyFlagged = await db.operationsTask.findFirst({
+    where: {
+      orderId: f.orderId,
+      type: "no_show_review",
+      // A task from before the (possibly extended) deadline doesn't count.
+      createdAt: { gte: f.collectBy ?? new Date(0) },
+    },
+    select: { id: true },
+  });
+  if (alreadyFlagged) return false;
+
+  const pickupName = f.location?.name ?? fulfillmentMethodLabel(f.order);
+  await db.operationsTask.create({
+    data: {
+      type: "no_show_review",
+      title: `Verify no-show before refunding — ${f.order.orderNumber}`,
+      details:
+        `Pickup deadline and grace period passed (${pickupName}, customer: ${f.order.name}, ${f.order.email}). ` +
+        `No refund was issued. Check with the partner whether the customer collected it, then in Operations: ` +
+        `"Confirm handover → SOLD" if collected, "No-show (refund + release)" if not, or extend the deadline.`,
+      orderId: f.orderId,
+      locationId: f.locationId,
+    },
+  });
+  await notifyStaff({
+    templateId: "internal-no-show-review",
+    event: "fulfillment.no_show_review",
+    data: { orderNumber: f.order.orderNumber, customerName: f.order.name, pickupName },
+    context: { orderId: f.orderId, fulfillmentId: f.id },
+  });
+  return true;
+}
+
+/** Close any open "verify no-show" task for an order once a human has acted on it. */
+async function resolveNoShowReviewTasks(orderId: string, resolution: string): Promise<void> {
+  const db = requireDb();
+  await db.operationsTask.updateMany({
+    where: { orderId, type: "no_show_review", status: { in: ["open", "in_progress"] } },
+    data: { status: "done", resolution, resolvedAt: new Date() },
   });
 }
 
@@ -460,8 +513,8 @@ export interface SchedulerResult {
 
 /**
  * Scheduled sweep (cron): sends pickup reminders as the deadline approaches,
- * a no-show warning when it passes, automatically cancels + refunds after the
- * grace period, and — once a Google review link is configured — a one-time
+ * a no-show warning when it passes, opens a human-review task after the grace
+ * period (no automatic refund), and — once a Google review link is configured — a one-time
  * review request a few days after each order completes.
  */
 export async function processOverdueFulfillments(): Promise<SchedulerResult> {
@@ -478,9 +531,9 @@ export async function processOverdueFulfillments(): Promise<SchedulerResult> {
     const collectBy = f.collectBy!;
     try {
       if (now.getTime() >= collectBy.getTime() + NO_SHOW_GRACE_MS) {
-        // Past deadline + grace → automatic no-show (cancel + refund + task).
-        await processNoShow(f.id);
-        result.noShows++;
+        // Past deadline + grace → NEVER refund automatically (the customer may
+        // have collected it without anyone confirming). Flag for human review.
+        if (await flagNoShowForReview(f)) result.noShows++;
       } else if (now >= collectBy) {
         // Past deadline → warn customer once, alert staff.
         if (f.remindersSent < 2) {
