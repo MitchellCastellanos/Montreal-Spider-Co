@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { hasDatabase } from "@/lib/db";
 import { processOverdueFulfillments } from "@/lib/fulfillment/fulfillment";
 import { processExternalHolds } from "@/lib/external-orders/hold";
+import { runRotation } from "@/lib/external-orders/rotation-service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,5 +32,13 @@ export async function GET(req: Request) {
     console.error("[cron/fulfillment] external holds sweep failed:", e);
     external = { error: "sweep_failed" };
   }
-  return NextResponse.json({ ok: true, ...result, external });
+  // Rotate which made-to-order offers are visible (only acts in "auto" mode).
+  let rotation: Awaited<ReturnType<typeof runRotation>> | { error: string };
+  try {
+    rotation = await runRotation();
+  } catch (e) {
+    console.error("[cron/fulfillment] rotation failed:", e);
+    rotation = { error: "rotation_failed" };
+  }
+  return NextResponse.json({ ok: true, ...result, external, rotation });
 }

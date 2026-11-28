@@ -5,8 +5,11 @@ import {
   confirmExternalOrderAction,
   createOfferAction,
   declineExternalOrderAction,
+  applyRotationAction,
   deleteOfferAction,
   extendExternalOrderAction,
+  repriceOfferAction,
+  setOfferFlagsAction,
   saveExternalSettingsAction,
   setOfferPublishedAction,
   unpublishAllOffersAction,
@@ -38,6 +41,24 @@ export type OfferRow = {
   maxPerOrder: number;
   published: boolean;
   supplier: string;
+  priceMode: "manual" | "margin";
+  pinned: boolean;
+  rotates: boolean;
+  visits: number;
+  /** Operating margin % at the offer's current price/cost. */
+  marginPct: number;
+  operatingProfit: number;
+  eligible: boolean;
+  action: "publish" | "hide" | "keep";
+  reason: string;
+};
+type RotationView = {
+  windowDays: number;
+  slots: number;
+  visibleAfter: number;
+  toShow: number;
+  toHide: number;
+  last: { at: string; mode: string; published: number; hidden: number } | null;
 };
 type RecentRow = { id: string; orderNumber: string; holdStatus: string; items: string; detail: string; updatedAt: string };
 type SettingsView = {
@@ -48,6 +69,14 @@ type SettingsView = {
   openDays: string[];
   openTime: string;
   closeTime: string;
+  rotationMode: "off" | "suggest" | "auto";
+  rotationSlots: number;
+  rotationMinDays: number;
+  rotationWindowDays: number;
+  marginPct: number;
+  minProfit: number;
+  handlingCost: number;
+  lossReservePct: number;
 };
 
 const DAYS = [
@@ -171,14 +200,66 @@ function OfferRowView({ o }: { o: OfferRow }) {
     <tr className="border-t border-line align-top text-sm">
       <td className="py-2 pr-3 text-cream">{o.product}</td>
       <td className="py-2 pr-3 text-bone">{o.size} · {o.sex}</td>
-      <td className="py-2 pr-3 text-bone">${o.price.toFixed(2)}</td>
-      <td className="py-2 pr-3 text-muted">${o.unitCost.toFixed(2)} ({o.price > 0 ? Math.round(((o.price - o.unitCost) / o.price) * 100) : 0}% gross)</td>
+      <td className="py-2 pr-3 text-bone">
+        ${o.price.toFixed(2)}
+        <span className="block text-[10px] text-muted">{o.priceMode === "margin" ? "by margin" : "manual"}</span>
+      </td>
+      <td className="py-2 pr-3 text-muted">
+        ${o.unitCost.toFixed(2)} cost
+        <span className={`block text-[10px] ${o.eligible ? "text-ok" : "text-danger"}`}>
+          {o.unitCost > 0 ? `${o.marginPct.toFixed(0)}% margin · $${o.operatingProfit.toFixed(0)} profit` : "no cost set"}
+        </span>
+      </td>
+      <td className="py-2 pr-3 text-muted">
+        {o.visits} views
+        <span className="block text-[10px]">
+          {o.action === "publish" ? "→ will show" : o.action === "hide" ? "→ will hide" : ""}
+          {o.reason ? ` ${o.reason}` : ""}
+        </span>
+      </td>
       <td className="py-2 pr-3 text-muted">{o.lead}d · max {o.maxPerOrder}</td>
       <td className="py-2 pr-3">
         <span className={o.published ? "text-ok" : "text-muted"}>{o.published ? "Published" : "Hidden"}</span>
       </td>
       <td className="py-2">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <ActionForm action={setOfferFlagsAction}>
+            {({ pending }) => (
+              <>
+                <input type="hidden" name="id" value={o.id} />
+                <input type="hidden" name="pinned" value={String(!o.pinned)} />
+                <button className="btn btn-ghost text-xs" disabled={pending} title="Pinned offers are never rotated out">{o.pinned ? "Unpin" : "Pin"}</button>
+              </>
+            )}
+          </ActionForm>
+          <ActionForm action={setOfferFlagsAction}>
+            {({ pending }) => (
+              <>
+                <input type="hidden" name="id" value={o.id} />
+                <input type="hidden" name="rotates" value={String(!o.rotates)} />
+                <button className="btn btn-ghost text-xs" disabled={pending}>{o.rotates ? "Rotating ✓" : "Not rotating"}</button>
+              </>
+            )}
+          </ActionForm>
+          <ActionForm action={setOfferFlagsAction}>
+            {({ pending }) => (
+              <>
+                <input type="hidden" name="id" value={o.id} />
+                <input type="hidden" name="priceMode" value={o.priceMode === "margin" ? "manual" : "margin"} />
+                <button className="btn btn-ghost text-xs" disabled={pending}>{o.priceMode === "margin" ? "Price: margin" : "Price: manual"}</button>
+              </>
+            )}
+          </ActionForm>
+          {o.priceMode === "margin" && (
+            <ActionForm action={repriceOfferAction}>
+              {({ pending }) => (
+                <>
+                  <input type="hidden" name="id" value={o.id} />
+                  <button className="btn btn-ghost text-xs" disabled={pending}>Reprice</button>
+                </>
+              )}
+            </ActionForm>
+          )}
           <ActionForm action={setOfferPublishedAction}>
             {({ pending }) => (
               <>
@@ -204,25 +285,28 @@ function OfferRowView({ o }: { o: OfferRow }) {
 
 export default function ExternalOrdersHub({
   settings,
+  rotation,
   held,
   recent,
   offers,
   products,
 }: {
   settings: SettingsView;
+  rotation: RotationView | null;
   held: HeldRow[];
   recent: RecentRow[];
   offers: OfferRow[];
   products: { id: string; label: string }[];
 }) {
   const [killState, killAction, killPending] = useActionState<ActionState>(unpublishAllOffersAction, {});
+  const [applyState, applyAction, applyPending] = useActionState<ActionState>(applyRotationAction, {});
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-2xl font-bold text-cream">Special orders (made to order)</h1>
         <p className="mt-1 text-sm text-muted">
-          Specimens we get on request from a supplier. The customer&apos;s card is only <strong>authorized</strong> at checkout;
+          Specimens we get on request from a supplier. The customer&apos;s card is only <strong>authorized</strong>{" "}at checkout;
           it is charged when you confirm you bought the specimen, and released if you can&apos;t get it.
         </p>
         {!settings.enabled && (
@@ -240,6 +324,37 @@ export default function ExternalOrdersHub({
         )}
       </Section>
 
+      <Section title="Rotation">
+        <p className="mb-3 text-sm text-bone">
+          Up to <strong>{settings.rotationSlots}</strong> offers are visible at a time. The ones whose pages got the{" "}
+          <strong>fewest visits</strong> (last {settings.rotationWindowDays} days) take the open spots, each stays at least{" "}
+          {settings.rotationMinDays} days, pinned offers never leave, and an offer below the profit target is never shown.
+        </p>
+        {rotation ? (
+          <div className="space-y-2 text-sm text-bone">
+            <p>
+              Mode: <strong className="text-cream">{settings.rotationMode}</strong> · next run would show{" "}
+              <strong>{rotation.toShow}</strong> and hide <strong>{rotation.toHide}</strong> ({rotation.visibleAfter}/{rotation.slots} spots used).
+              {settings.rotationMode === "auto" && " The daily job applies it automatically."}
+              {settings.rotationMode === "off" && " Rotation is off."}
+            </p>
+            {rotation.last && (
+              <p className="text-xs text-muted">
+                Last run ({rotation.last.mode}): showed {rotation.last.published}, hid {rotation.last.hidden} — {rotation.last.at.slice(0, 16).replace("T", " ")} UTC
+              </p>
+            )}
+            {settings.rotationMode !== "off" && (rotation.toShow > 0 || rotation.toHide > 0) && (
+              <form action={applyAction} className="flex items-center gap-3">
+                <button className="btn btn-gold text-xs" disabled={applyPending}>{applyPending ? "Applying…" : "Apply this rotation now"}</button>
+                <Msg state={applyState} />
+              </form>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-muted">Rotation preview unavailable.</p>
+        )}
+      </Section>
+
       <Section title="Offers">
         {offers.length === 0 ? (
           <p className="mb-4 text-sm text-muted">No offers yet. Add one below — it stays hidden until you publish it.</p>
@@ -247,7 +362,7 @@ export default function ExternalOrdersHub({
           <div className="mb-4 overflow-x-auto">
             <table className="w-full text-left">
               <thead className="text-xs uppercase tracking-wide text-muted">
-                <tr><th className="pr-3">Listing</th><th className="pr-3">Size · sex</th><th className="pr-3">Price</th><th className="pr-3">Cost (private)</th><th className="pr-3">Lead · limit</th><th className="pr-3">Status</th><th /></tr>
+                <tr><th className="pr-3">Listing</th><th className="pr-3">Size · sex</th><th className="pr-3">Price</th><th className="pr-3">Cost &amp; profit (private)</th><th className="pr-3">Visits &amp; rotation</th><th className="pr-3">Lead · limit</th><th className="pr-3">Status</th><th /></tr>
               </thead>
               <tbody>{offers.map((o) => <OfferRowView key={o.id} o={o} />)}</tbody>
             </table>
@@ -276,7 +391,14 @@ export default function ExternalOrdersHub({
                   <option value="unsexed">Unsexed</option><option value="male">Male</option><option value="female">Female</option>
                 </select>
               </label>
-              <label className="field"><span>Customer price (CAD)</span><input name="price" type="number" step="0.01" min="0.01" className="input" required /></label>
+              <label className="field">
+                <span>Pricing</span>
+                <select name="priceMode" className="input" defaultValue="margin">
+                  <option value="margin">By profit margin (from cost)</option>
+                  <option value="manual">Manual price</option>
+                </select>
+              </label>
+              <label className="field"><span>Manual price (CAD) — ignored when pricing by margin</span><input name="price" type="number" step="0.01" min="0" className="input" /></label>
               <label className="field"><span>Supplier cost (private)</span><input name="unitCost" type="number" step="0.01" min="0" className="input" /></label>
               <label className="field"><span>Lead time min–max (business days)</span>
                 <span className="flex gap-2"><input name="leadDaysMin" type="number" min="1" defaultValue="1" className="input" /><input name="leadDaysMax" type="number" min="1" defaultValue="3" className="input" /></span>
@@ -318,6 +440,29 @@ export default function ExternalOrdersHub({
                 <label className="field"><span>Card hold safe limit (days)</span><input name="authSafeDays" type="number" min="1" max="7" defaultValue={settings.authSafeDays} className="input" /></label>
                 <label className="field"><span>Default apology credit (CAD)</span><input name="apologyCredit" type="number" min="0" step="1" defaultValue={settings.apologyCredit} className="input" /></label>
               </div>
+              <div className="rounded-xl border border-line p-3">
+                <p className="mb-2 text-xs uppercase tracking-wide text-muted">Profit rules (pricing by margin &amp; what may be shown)</p>
+                <div className="grid gap-3 md:grid-cols-4">
+                  <label className="field"><span>Target operating margin (% of price)</span><input name="marginPct" type="number" min="0" max="60" step="1" defaultValue={settings.marginPct} className="input" /></label>
+                  <label className="field"><span>Minimum profit per specimen (CAD)</span><input name="minProfit" type="number" min="0" step="1" defaultValue={settings.minProfit} className="input" /></label>
+                  <label className="field"><span>Transport &amp; packaging (CAD)</span><input name="handlingCost" type="number" min="0" step="0.5" defaultValue={settings.handlingCost} className="input" /></label>
+                  <label className="field"><span>Loss reserve (% of cost)</span><input name="lossReservePct" type="number" min="0" max="50" step="1" defaultValue={settings.lossReservePct} className="input" /></label>
+                </div>
+                <p className="mt-1 text-xs text-muted">Operating profit = price − cost − transport − loss reserve − card fee (2.9% + $0.30 on the price with tax). Prices round up to the next $5.</p>
+              </div>
+              <div className="rounded-xl border border-line p-3">
+                <p className="mb-2 text-xs uppercase tracking-wide text-muted">Rotation</p>
+                <div className="grid gap-3 md:grid-cols-4">
+                  <label className="field"><span>Mode</span>
+                    <select name="rotationMode" defaultValue={settings.rotationMode} className="input">
+                      <option value="off">Off</option><option value="suggest">Suggest (I apply it)</option><option value="auto">Automatic (daily)</option>
+                    </select>
+                  </label>
+                  <label className="field"><span>Visible offers at once</span><input name="rotationSlots" type="number" min="0" max="100" defaultValue={settings.rotationSlots} className="input" /></label>
+                  <label className="field"><span>Minimum days visible</span><input name="rotationMinDays" type="number" min="0" max="90" defaultValue={settings.rotationMinDays} className="input" /></label>
+                  <label className="field"><span>Count visits over (days)</span><input name="rotationWindowDays" type="number" min="1" max="90" defaultValue={settings.rotationWindowDays} className="input" /></label>
+                </div>
+              </div>
               <div>
                 <p className="mb-1 text-xs uppercase tracking-wide text-muted">Supplier opening hours (the window only counts these days)</p>
                 <div className="flex flex-wrap items-center gap-3 text-sm text-bone">
@@ -327,9 +472,9 @@ export default function ExternalOrdersHub({
                       {label}
                     </label>
                   ))}
-                  <input name="openTime" type="time" defaultValue={settings.openTime} className="input w-28" />
+                  <input name="openTime" type="time" defaultValue={settings.openTime} className="input" style={{ width: "9rem" }} />
                   <span>to</span>
-                  <input name="closeTime" type="time" defaultValue={settings.closeTime} className="input w-28" />
+                  <input name="closeTime" type="time" defaultValue={settings.closeTime} className="input" style={{ width: "9rem" }} />
                 </div>
                 <p className="mt-1 text-xs text-muted">Placeholder hours until the supplier&apos;s real hours are confirmed. Times are Montréal time.</p>
               </div>

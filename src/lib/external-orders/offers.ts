@@ -34,6 +34,7 @@ export async function listPublishedOffers(productIds: string[]) {
 }
 
 export interface OfferInput {
+  priceMode?: "manual" | "margin";
   productId: string;
   sizeCm: number;
   sex: SpecimenSex;
@@ -60,12 +61,12 @@ export async function createOffer(input: OfferInput): Promise<SupplierOffer> {
 }
 
 export async function setOfferPublished(id: string, published: boolean): Promise<void> {
-  await requireDb().supplierOffer.update({ where: { id }, data: { published } });
+  await requireDb().supplierOffer.update({ where: { id }, data: { published, publishedAt: published ? new Date() : null } });
 }
 
 /** Instantly hide every external offer without touching own inventory. */
 export async function unpublishAllOffers(): Promise<number> {
-  const r = await requireDb().supplierOffer.updateMany({ where: { published: true }, data: { published: false } });
+  const r = await requireDb().supplierOffer.updateMany({ where: { published: true }, data: { published: false, publishedAt: null } });
   return r.count;
 }
 

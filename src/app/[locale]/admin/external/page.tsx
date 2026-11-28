@@ -7,6 +7,7 @@ import { holdUrgency } from "@/lib/external-orders/pure";
 import { formatCmAsInches } from "@/lib/size-inches";
 import ExternalOrdersHub, { type HeldRow, type OfferRow } from "@/components/admin/ExternalOrdersHub";
 import { DAY_KEYS } from "@/lib/opening-hours";
+import { buildRotation, getLastRotation, type RotationOverview } from "@/lib/external-orders/rotation-service";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +53,14 @@ export default async function AdminExternalPage() {
     createdAt: o.createdAt.toISOString().slice(0, 16).replace("T", " "),
   });
 
+  let overview: RotationOverview | null = null;
+  try {
+    overview = await buildRotation(now);
+  } catch (e) {
+    console.error("[admin/external] rotation preview failed:", e);
+  }
+  const lastRotation = await getLastRotation();
+
   const open = DAY_KEYS.filter((d) => {
     const s = settings.supplierHours[d];
     return s && !s.closed && s.open && s.close;
@@ -68,7 +77,27 @@ export default async function AdminExternalPage() {
         openDays: open,
         openTime: first?.open ?? "09:30",
         closeTime: first?.close ?? "16:30",
+        rotationMode: settings.rotationMode,
+        rotationSlots: settings.rotationSlots,
+        rotationMinDays: settings.rotationMinDays,
+        rotationWindowDays: settings.rotationWindowDays,
+        marginPct: settings.marginPct,
+        minProfit: settings.minProfit,
+        handlingCost: settings.handlingCost,
+        lossReservePct: settings.lossReservePct,
       }}
+      rotation={
+        overview
+          ? {
+              windowDays: overview.windowDays,
+              slots: overview.plan.slots,
+              visibleAfter: overview.plan.visibleAfter,
+              toShow: overview.plan.publish.length,
+              toHide: overview.plan.unpublish.length,
+              last: lastRotation,
+            }
+          : null
+      }
       held={held.map(toHeld)}
       recent={recent.map((o) => ({
         id: o.id,
@@ -90,6 +119,15 @@ export default async function AdminExternalPage() {
           maxPerOrder: o.maxPerOrder,
           published: o.published,
           supplier: o.supplier,
+          priceMode: o.priceMode === "margin" ? "margin" : "manual",
+          pinned: o.pinned,
+          rotates: o.rotates,
+          visits: overview?.rows[o.id]?.visits ?? 0,
+          marginPct: overview?.rows[o.id]?.operatingMarginPct ?? 0,
+          operatingProfit: overview?.rows[o.id]?.operatingProfit ?? 0,
+          eligible: overview?.rows[o.id]?.eligible ?? false,
+          action: overview?.rows[o.id]?.action ?? "keep",
+          reason: overview?.rows[o.id]?.reason ?? "",
         }),
       )}
       products={products.map((p) => ({ id: p.id, label: `${p.scientific}${p.common?.en ? ` — ${p.common.en}` : ""}` }))}

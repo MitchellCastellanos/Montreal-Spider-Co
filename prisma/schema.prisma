@@ -715,6 +715,14 @@ model SupplierOffer {
   maxPerOrder Int         @default(1)
   /** Visible on the storefront (only while the external-orders switch is on). */
   published   Boolean     @default(false)
+  /** When it last became visible — drives the rotation's minimum display time. */
+  publishedAt DateTime?
+  /** "manual" = price typed by hand; "margin" = price computed from cost + target profit margin. */
+  priceMode   String      @default("manual")
+  /** Eligible for automatic rotation (least-visited first). */
+  rotates     Boolean     @default(true)
+  /** Always shown (never rotated out) — still subject to the profit gate. */
+  pinned      Boolean     @default(false)
   notes       String      @default("")
   orderLines  OrderLine[]
   createdAt   DateTime    @default(now())

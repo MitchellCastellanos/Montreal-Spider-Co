@@ -30,6 +30,19 @@ export interface ExternalSettings {
   apologyCredit: number;
   /** Supplier opening hours — the confirm window only counts these days. */
   supplierHours: WeeklyHours;
+  /** Rotation of visible offers: off, suggest (staff apply the plan) or auto (applied by the daily cron). */
+  rotationMode: "off" | "suggest" | "auto";
+  /** Max offers visible at once (pinned offers may exceed it). */
+  rotationSlots: number;
+  /** Minimum days an offer stays visible before it can be rotated out. */
+  rotationMinDays: number;
+  /** Lookback window for counting page views. */
+  rotationWindowDays: number;
+  /** Profit rules used to price offers and to gate what may be shown. */
+  marginPct: number;
+  minProfit: number;
+  handlingCost: number;
+  lossReservePct: number;
 }
 
 export const DEFAULT_EXTERNAL_SETTINGS: ExternalSettings = {
@@ -39,6 +52,14 @@ export const DEFAULT_EXTERNAL_SETTINGS: ExternalSettings = {
   apologyCredit: 10,
   // Placeholder until the supplier's real hours are confirmed (Admin → Special orders).
   supplierHours: DEFAULT_PICKUP_HOURS,
+  rotationMode: "suggest",
+  rotationSlots: 12,
+  rotationMinDays: 7,
+  rotationWindowDays: 14,
+  marginPct: 30,
+  minProfit: 12,
+  handlingCost: 4,
+  lossReservePct: 4,
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;

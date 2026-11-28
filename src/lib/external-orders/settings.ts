@@ -11,6 +11,14 @@ const KEYS = {
   authSafeDays: "external_auth_safe_days",
   apologyCredit: "external_apology_credit",
   supplierHours: "external_supplier_hours",
+  rotationMode: "external_rotation_mode",
+  rotationSlots: "external_rotation_slots",
+  rotationMinDays: "external_rotation_min_days",
+  rotationWindowDays: "external_rotation_window_days",
+  marginPct: "external_margin_pct",
+  minProfit: "external_min_profit",
+  handlingCost: "external_handling_cost",
+  lossReservePct: "external_loss_reserve_pct",
 } as const;
 
 function num(raw: string | undefined, fallback: number, min: number, max: number): number {
@@ -24,6 +32,7 @@ export const getExternalSettings = cache(async (): Promise<ExternalSettings> => 
   try {
     const rows = await prisma.siteSetting.findMany({ where: { key: { in: Object.values(KEYS) } } });
     const m = new Map(rows.map((r) => [r.key, r.value]));
+    const mode = m.get(KEYS.rotationMode);
     let hoursRaw: unknown = null;
     try {
       hoursRaw = m.get(KEYS.supplierHours) ? JSON.parse(m.get(KEYS.supplierHours)!) : null;
@@ -36,6 +45,14 @@ export const getExternalSettings = cache(async (): Promise<ExternalSettings> => 
       authSafeDays: Math.floor(num(m.get(KEYS.authSafeDays), DEFAULT_EXTERNAL_SETTINGS.authSafeDays, 1, 7)),
       apologyCredit: num(m.get(KEYS.apologyCredit), DEFAULT_EXTERNAL_SETTINGS.apologyCredit, 0, 500),
       supplierHours: hoursRaw ? resolvePickupHours(hoursRaw) : DEFAULT_EXTERNAL_SETTINGS.supplierHours,
+      rotationMode: (["off", "suggest", "auto"] as const).find((x) => x === mode) ?? DEFAULT_EXTERNAL_SETTINGS.rotationMode,
+      rotationSlots: Math.floor(num(m.get(KEYS.rotationSlots), DEFAULT_EXTERNAL_SETTINGS.rotationSlots, 0, 100)),
+      rotationMinDays: Math.floor(num(m.get(KEYS.rotationMinDays), DEFAULT_EXTERNAL_SETTINGS.rotationMinDays, 0, 90)),
+      rotationWindowDays: Math.floor(num(m.get(KEYS.rotationWindowDays), DEFAULT_EXTERNAL_SETTINGS.rotationWindowDays, 1, 90)),
+      marginPct: num(m.get(KEYS.marginPct), DEFAULT_EXTERNAL_SETTINGS.marginPct, 0, 60),
+      minProfit: num(m.get(KEYS.minProfit), DEFAULT_EXTERNAL_SETTINGS.minProfit, 0, 500),
+      handlingCost: num(m.get(KEYS.handlingCost), DEFAULT_EXTERNAL_SETTINGS.handlingCost, 0, 200),
+      lossReservePct: num(m.get(KEYS.lossReservePct), DEFAULT_EXTERNAL_SETTINGS.lossReservePct, 0, 50),
     };
   } catch (e) {
     logDbFallback("getExternalSettings", e);
@@ -51,6 +68,14 @@ export async function saveExternalSettings(s: ExternalSettings): Promise<void> {
     [KEYS.authSafeDays, String(s.authSafeDays)],
     [KEYS.apologyCredit, String(s.apologyCredit)],
     [KEYS.supplierHours, JSON.stringify(s.supplierHours)],
+    [KEYS.rotationMode, s.rotationMode],
+    [KEYS.rotationSlots, String(s.rotationSlots)],
+    [KEYS.rotationMinDays, String(s.rotationMinDays)],
+    [KEYS.rotationWindowDays, String(s.rotationWindowDays)],
+    [KEYS.marginPct, String(s.marginPct)],
+    [KEYS.minProfit, String(s.minProfit)],
+    [KEYS.handlingCost, String(s.handlingCost)],
+    [KEYS.lossReservePct, String(s.lossReservePct)],
   ];
   for (const [key, value] of entries) {
     await prisma.siteSetting.upsert({ where: { key }, create: { key, value }, update: { value } });

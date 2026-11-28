@@ -79,6 +79,7 @@ describe.skipIf(!enabled)("made-to-order holds (real DB, mocked Stripe)", () => 
     fulfill = await import("@/lib/orders/fulfill-checkout");
     settingsMod = await import("@/lib/external-orders/settings");
     productsMod = await import("@/lib/data/products");
+    await db.siteSetting.deleteMany({ where: { key: { startsWith: "external_" } } }); // every run starts with the defaults (switch OFF)
     await db.orderLineSpecimen.deleteMany();
     await db.inventoryMovement.deleteMany();
     await db.fulfillment.deleteMany();
@@ -317,5 +318,121 @@ describe.skipIf(!enabled)("made-to-order holds (real DB, mocked Stripe)", () => 
     vi.resetModules();
     const co2 = await import("@/lib/checkout-stripe");
     await expect(co2.validateAndBuildCheckout({ ...base, items: [{ productId, unitKey: `ext:${offerId}`, qty: 1 }] })).rejects.toThrow(/not available right now/);
+  });
+});
+
+describe.skipIf(!enabled)("rotation by visits + profit pricing (real DB)", () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let db: any, svc: any, settingsMod: any, offers: any;
+  const ids: Record<string, string> = {};
+
+  const settle = async (over: Record<string, unknown>) => {
+    const s = await settingsMod.getExternalSettings();
+    await settingsMod.saveExternalSettings({ ...s, enabled: true, ...over });
+    vi.resetModules();
+    svc = await import("@/lib/external-orders/rotation-service");
+  };
+  const published = async () =>
+    (await db.supplierOffer.findMany({ where: { published: true }, select: { id: true } })).map((o: { id: string }) => o.id).sort();
+
+  beforeAll(async () => {
+    db = (await import("@/lib/db")).prisma;
+    settingsMod = await import("@/lib/external-orders/settings");
+    offers = await import("@/lib/external-orders/offers");
+    await db.siteSetting.deleteMany({ where: { key: { startsWith: "external_" } } });
+    await db.orderLineSpecimen.deleteMany();
+    await db.inventoryMovement.deleteMany();
+    await db.fulfillment.deleteMany();
+    await db.specimen.deleteMany();
+    await db.orderLine.deleteMany();
+    await db.order.deleteMany();
+    await db.pageView.deleteMany();
+    await db.supplierOffer.deleteMany();
+    await db.product.deleteMany();
+    // Four species listings with different traffic: 40, 5, 0 and 12 views in the window.
+    const views: Record<string, number> = { hamorii: 40, boehmei: 5, emilia: 0, vagans: 12 };
+    for (const [slug, n] of Object.entries(views)) {
+      const p = await db.product.create({
+        data: { slug, scientific: `Test ${slug}`, commonEn: slug, commonFr: slug, genus: "Test", experience: "beginner", type: "terrestrial", temperament: "docile" },
+      });
+      for (let i = 0; i < n; i++) await db.pageView.create({ data: { path: `/product/${slug}`, visitorHash: `v${slug}${i}` } });
+      // an OLD view outside the 14-day window must not count
+      await db.pageView.create({ data: { path: `/product/${slug}`, visitorHash: `old${slug}`, createdAt: new Date(Date.now() - 40 * 86400000) } });
+      const o = await db.supplierOffer.create({ data: { productId: p.id, sizeCm: 5, sex: "unsexed", price: 0, unitCost: 35, priceMode: "margin", published: false } });
+      ids[slug] = o.id;
+    }
+  });
+
+  it("shows the LEAST visited offers (outside-window views ignored) and prices them by profit margin", async () => {
+    await settle({ rotationMode: "suggest", rotationSlots: 2, rotationMinDays: 7, rotationWindowDays: 14, marginPct: 30, minProfit: 12, handlingCost: 4, lossReservePct: 4 });
+    const { plan, rows } = await svc.buildRotation();
+    expect(rows[ids.emilia].visits).toBe(0);
+    expect(rows[ids.hamorii].visits).toBe(40);
+    expect(plan.publish.sort()).toEqual([ids.emilia, ids.boehmei].sort());
+
+    expect(await published()).toEqual([]); // suggest mode: building a plan changes nothing
+    await svc.applyRotationNow();
+    expect(await published()).toEqual([ids.emilia, ids.boehmei].sort());
+    const live = await db.supplierOffer.findUnique({ where: { id: ids.emilia } });
+    expect(live.publishedAt).toBeTruthy();
+    // cost 35 @ 30% target: price meets BOTH the margin and the $12 minimum
+    const { breakdownAt, DEFAULT_PRICING } = await import("@/lib/external-orders/pricing");
+    const b = breakdownAt(live.price, 35, { ...DEFAULT_PRICING, marginPct: 30, minProfit: 12, handlingCost: 4, lossReservePct: 4 });
+    expect(live.price).toBeGreaterThan(35);
+    expect(live.price % 5).toBe(0);
+    expect(b.operatingMarginPct).toBeGreaterThanOrEqual(30);
+    expect(b.operatingProfit).toBeGreaterThanOrEqual(12);
+  });
+
+  it("does not rotate again inside the minimum display time, even when traffic changes", async () => {
+    for (let i = 0; i < 100; i++) await db.pageView.create({ data: { path: "/product/emilia", visitorHash: `burst${i}` } });
+    const { plan } = await svc.buildRotation();
+    expect(plan.unpublish).toEqual([]);
+    expect(plan.publish).toEqual([]);
+  });
+
+  it("after the minimum time, rotates the now-busy offer out for a quieter one", async () => {
+    await db.supplierOffer.update({ where: { id: ids.emilia }, data: { publishedAt: new Date(Date.now() - 10 * 86400000) } });
+    const { plan } = await svc.buildRotation();
+    expect(plan.unpublish).toEqual([ids.emilia]);
+    expect(plan.publish).toEqual([ids.vagans]); // next-least visited (12) beats hamorii (40)
+  });
+
+  it("auto mode applies it from the cron; suggest/off do not", async () => {
+    await settle({ rotationMode: "suggest" });
+    expect(await svc.runRotation()).toMatchObject({ mode: "suggest", published: 0, hidden: 0 });
+    await settle({ rotationMode: "off" });
+    expect(await svc.runRotation()).toMatchObject({ mode: "off", published: 0 });
+    await settle({ rotationMode: "auto" });
+    const r = await svc.runRotation();
+    expect(r).toMatchObject({ mode: "auto", published: 1, hidden: 1 });
+    expect(await published()).toEqual([ids.boehmei, ids.vagans].sort());
+    expect((await svc.getLastRotation())?.mode).toBe("auto");
+  });
+
+  it("pinned stays; an offer below the profit target is hidden and never shown; no cost = ineligible", async () => {
+    await settle({ rotationMode: "auto", rotationSlots: 3 });
+    await db.supplierOffer.update({ where: { id: ids.hamorii }, data: { pinned: true } });
+    // manual price too low for the target on a published offer → must be hidden
+    await db.supplierOffer.update({ where: { id: ids.vagans }, data: { priceMode: "manual", price: 40 } });
+    await db.supplierOffer.update({ where: { id: ids.boehmei }, data: { unitCost: 0 } });
+    await svc.runRotation();
+    const vis = await published();
+    expect(vis).toContain(ids.hamorii);
+    expect(vis).not.toContain(ids.vagans);
+    expect(vis).not.toContain(ids.boehmei);
+  });
+
+  it("reprice follows today's cost and margin rules; refuses without a cost", async () => {
+    await settle({ rotationMode: "suggest", marginPct: 40 });
+    const before = (await db.supplierOffer.findUnique({ where: { id: ids.emilia } })).price;
+    const after = await svc.repriceOffer(ids.emilia);
+    expect(after).toBeGreaterThanOrEqual(before);
+    await expect(svc.repriceOffer(ids.boehmei)).rejects.toThrow(/supplier cost/);
+  });
+
+  it("kill switch hides everything (own inventory is a separate table)", async () => {
+    expect(await offers.unpublishAllOffers()).toBeGreaterThan(0);
+    expect(await published()).toEqual([]);
   });
 });
